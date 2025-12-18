@@ -1,0 +1,25 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import Hero from '../components/Hero.astro';
+import Benefits from '../components/Benefits.astro';
+import FAQ from '../components/FAQ.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout title="Pro-Finance">
+	<main>
+    <Header />
+    <Hero />
+    <Benefits />
+    <FAQ />
+    <Footer />
+	</main>
+</Layout>
+
+<style>
+	main {
+		min-height: 100vh;
+    position: relative;
+	}
+</style>

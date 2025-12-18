@@ -1,0 +1,202 @@
+---
+---
+<section id="beneficios" class="benefits-section">
+  <div class="container">
+    <h2 class="section-title">Nuestros <span class="text-gradient-gold">Beneficios</span></h2>
+    
+    <div class="carousel-container">
+
+      
+      <div class="carousel-track">
+        <!-- Original Cards -->
+        <div class="card">
+          <div class="card-icon">📈</div>
+          <h3>Rentabilidad Alta</h3>
+          <p>Optimizamos tus recursos para obtener los mejores rendimientos del mercado con estrategias probadas.</p>
+        </div>
+        
+        <div class="card">
+          <div class="card-icon">🛡️</div>
+          <h3>Seguridad Total</h3>
+          <p>Tu patrimonio está protegido con los más altos estándares de ciberseguridad y regulaciones vigentes.</p>
+        </div>
+        
+        <div class="card">
+          <div class="card-icon">🤝</div>
+          <h3>Asesoría 24/7</h3>
+          <p>Expertos financieros a tu disposición en cualquier momento para resolver tus dudas y guiarte.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">📱</div>
+          <h3>Tecnología Punta</h3>
+          <p>Plataforma intuitiva y rápida para que gestiones tus finanzas desde cualquier lugar.</p>
+        </div>
+        <!-- Duplicated Cards for Seamless Loop -->
+        <div class="card">
+          <div class="card-icon">📈</div>
+          <h3>Rentabilidad Alta</h3>
+          <p>Optimizamos tus recursos para obtener los mejores rendimientos del mercado con estrategias probadas.</p>
+        </div>
+        
+        <div class="card">
+          <div class="card-icon">🛡️</div>
+          <h3>Seguridad Total</h3>
+          <p>Tu patrimonio está protegido con los más altos estándares de ciberseguridad y regulaciones vigentes.</p>
+        </div>
+        
+        <div class="card">
+          <div class="card-icon">🤝</div>
+          <h3>Asesoría 24/7</h3>
+          <p>Expertos financieros a tu disposición en cualquier momento para resolver tus dudas y guiarte.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">📱</div>
+          <h3>Tecnología Punta</h3>
+          <p>Plataforma intuitiva y rápida para que gestiones tus finanzas desde cualquier lugar.</p>
+        </div>
+      </div>
+      
+
+    </div>
+  </div>
+</section>
+
+<script>
+  const track = document.querySelector('.carousel-track');
+
+  const section = document.querySelector('.benefits-section');
+  
+  if (track && section) {
+    const cardWidth = 280;
+    const gap = 32; // 2rem
+    const scrollAmount = cardWidth + gap; 
+
+
+    // Auto Scroll Logic
+    let autoScrollInterval: any;
+
+    const startAutoScroll = () => {
+      // Clear any existing to be safe
+      clearInterval(autoScrollInterval);
+      
+      autoScrollInterval = setInterval(() => {
+        track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      }, 2500); // 2.5s for a nice pace
+    };
+
+    const stopAutoScroll = () => {
+      clearInterval(autoScrollInterval);
+    };
+
+    // Pause on Hover
+    section.addEventListener('mouseenter', stopAutoScroll);
+    section.addEventListener('mouseleave', startAutoScroll);
+
+    // Initial Start
+    startAutoScroll();
+
+    // Infinite Scroll seamless loop
+    track.addEventListener('scroll', () => {
+      const maxScroll = track.scrollWidth / 2; // Exact half point because of duplication
+      
+      // If we reach the start of the duplicated set, snap back to start real 0
+      // We look for >= maxScroll - 5 (tolerance)
+      if (track.scrollLeft >= maxScroll - 10) { 
+         // But wait, if we snap exactly at maxScroll, it might be mid-animation?
+         // Actually, standard tactic is: if scrollLeft >= maxScroll, subtract maxScroll.
+         if (track.scrollLeft >= maxScroll) {
+             track.scrollLeft -= maxScroll;
+         }
+      }
+    });
+  }
+</script>
+
+<style>
+  .benefits-section {
+    padding: 6rem 0;
+    min-height: 80vh; 
+    display: flex;
+    align-items: center;
+    background: linear-gradient(to bottom, transparent, rgba(18, 18, 18, 0.8));
+    overflow: hidden; /* Hide overflow outside container */
+  }
+
+  .container {
+    width: 90%;
+    max-width: 1600px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .section-title {
+    font-size: 2.5rem;
+    margin-bottom: 3rem;
+  }
+
+  .carousel-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    position: relative;
+  }
+
+  .carousel-track {
+    display: flex;
+    gap: 2rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding: 2rem 1rem; 
+    width: 100%;
+    /* max-width removed to take full space allowed */
+    
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .carousel-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .card {
+    flex: 0 0 280px; 
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 2rem;
+    text-align: left;
+    scroll-snap-align: center;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+  }
+
+  .card:hover {
+    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--color-gold-start);
+    box-shadow: 0 10px 40px rgba(255, 215, 0, 0.1);
+    z-index: 2;
+  }
+
+  .card-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--color-white);
+  }
+
+  .card p {
+    font-size: 1rem;
+    color: #ccc;
+    line-height: 1.5;
+  }
+
+
+</style>

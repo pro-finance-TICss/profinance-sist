@@ -1,0 +1,186 @@
+---
+---
+<section class="hero">
+
+  <div class="content-grid">
+    <!-- Left Column: Text & Buttons -->
+    <div class="text-column">
+      <div class="text-box">
+        <h1>Tu Futuro Financiero <br /> <span class="text-gradient-gold">Comienza Aquí</span></h1>
+        <p>
+          Gestiona tus inversiones con expertos. Seguridad, transparencia y rentabilidad garantizada.
+        </p>
+      </div>
+
+      <div class="hero-buttons">
+        <a href="#register" class="btn btn-primary"><span class="btn-text">Hazte cliente</span></a>
+        <a href="#login" class="btn btn-secondary">Iniciar sesión</a>
+      </div>
+    </div>
+
+    <!-- Right Column: Graph -->
+    <div class="graph-column">
+      <div class="graph-box">
+        <!-- SVG Graph drawing based on sketch -->
+        <svg viewBox="0 0 400 300" class="chart-svg">
+          <!-- Axes -->
+          <line x1="40" y1="260" x2="360" y2="260" stroke="#fff" stroke-width="2" /> <!-- X Axis -->
+          <line x1="40" y1="260" x2="40" y2="40" stroke="#fff" stroke-width="2" />  <!-- Y Axis -->
+          <!-- Arrow heads -->
+          <path d="M355 255 L365 260 L355 265" fill="#fff" />
+          <path d="M35 50 L40 40 L45 50" fill="#fff" />
+          
+          <!-- Line Chart Path -->
+          <path d="M40 260 L100 150 L140 200 L180 120 L220 160 L280 80 L360 40" 
+                fill="none" 
+                stroke="url(#goldGradient)" 
+                stroke-width="3" />
+                
+          <!-- Gradient definition -->
+          <defs>
+            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" style="stop-color:var(--color-gold-start);stop-opacity:1" />
+              <stop offset="100%" style="stop-color:var(--color-gold-end);stop-opacity:1" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 60px;
+
+    background-image: url("/LOGOSINFONDO-35.png"); /* ideal PNG o SVG */
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 600px auto; /* tamaño del logo */
+  }
+
+  .hero::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5); /* Overlay */
+    z-index: 1;
+  }
+
+  .bg-logo {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px; /* Size of the watermark logo */
+    height: auto;
+    opacity: 0.1; /* Very subtle */
+    z-index: -1;
+    pointer-events: none;
+  }
+  
+  .bg-logo img {
+    width: 100%;
+    height: auto;
+    filter: grayscale(100%); /* Optional if we want to ensure it blends well to black */
+  }
+
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    max-width: 1200px;
+    width: 90%;
+    position: relative;
+    z-index: 1;
+  }
+
+  .text-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3rem;
+  }
+
+  .text-box {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 2rem;
+    border-radius: 20px;
+    background: rgba(18, 18, 18, 0.4);
+    backdrop-filter: blur(10px);
+  }
+
+  h1 {
+    font-size: 3rem;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+  }
+
+  p {
+    font-size: 1.2rem;
+    color: #ccc;
+    line-height: 1.6;
+  }
+
+  .hero-buttons {
+    display: flex;
+    gap: 1.5rem;
+  }
+  
+  .hero-buttons .btn {
+      border-radius: 12px; /* Matching sketch roughly */
+  }
+
+  .graph-column {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .graph-box {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: 2rem;
+    background: rgba(18, 18, 18, 0.4);
+    backdrop-filter: blur(10px);
+  }
+
+  .chart-svg {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  @media (max-width: 768px) {
+    .content-grid {
+      grid-template-columns: 1fr;
+      gap: 3rem;
+      text-align: center;
+    }
+
+    .hero {
+      padding-top: 120px; /* More space for header if needed */
+    }
+
+    .text-column {
+      align-items: center; /* Center buttons and text */
+    }
+
+    h1 {
+      font-size: 2.2rem;
+    }
+    
+    .bg-logo {
+      width: 80%;
+    }
+  }
+</style>

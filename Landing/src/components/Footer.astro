@@ -1,0 +1,102 @@
+---
+---
+<footer id="contacto" class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <!-- Contact Info -->
+      <div class="footer-col">
+        <h3>Contacto</h3>
+        <p>Email: contacto@profinance.com</p>
+        <p>Tel: +1 234 567 890</p>
+        <p>Dirección: Av. Financiera 123, Ciudad de Negocios</p>
+      </div>
+
+      <!-- Quick Links -->
+      <div class="footer-col">
+        <h3>Enlaces</h3>
+        <ul class="footer-links">
+          <li><a href="#conocenos">Conócenos</a></li>
+          <li><a href="#beneficios">Beneficios</a></li>
+          <li><a href="#faq">Preguntas Frecuentes</a></li>
+        </ul>
+      </div>
+
+      <!-- Legal -->
+      <div class="footer-col">
+        <h3>Legal</h3>
+        <ul class="footer-links">
+          <li><a href="#">Términos y Condiciones</a></li>
+          <li><a href="#">Política de Privacidad</a></li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="footer-bottom">
+      <p>&copy; {new Date().getFullYear()} ProFinance. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    background: var(--color-dark-grey);
+    padding: 4rem 0 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem; /* Add horizontal padding for small screens */
+  }
+
+  .footer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 3rem;
+    margin-bottom: 3rem;
+  }
+
+  .footer-col h3 {
+    font-family: var(--font-primary);
+    font-size: 1.5rem;
+    color: var(--color-gold-start);
+    margin-bottom: 1.5rem;
+  }
+
+  .footer-col p {
+    color: #ccc;
+    margin-bottom: 0.5rem;
+  }
+
+  .footer-links {
+    list-style: none;
+    padding: 0;
+  }
+
+  .footer-links li {
+    margin-bottom: 0.8rem;
+  }
+
+  .footer-links a {
+    color: #ccc;
+    font-size: 1rem;
+    transition: color 0.3s;
+  }
+
+  .footer-links a:hover {
+    color: var(--color-gold-start);
+  }
+
+  .footer-bottom {
+    text-align: center;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .footer-bottom p {
+    color: #666;
+    font-size: 0.9rem;
+  }
+</style>

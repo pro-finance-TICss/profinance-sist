@@ -1,0 +1,142 @@
+---
+---
+<header class="header">
+  <div class="header-container">
+    <div class="logo-container">
+      <!-- Rectangular logo placeholder -->
+      <img 
+        src="/logo2temp.png" 
+        alt="Profinance logo"
+        class="logo-img"
+      />
+
+      <span class="brand-name text-gradient-gold">PROFINANCE</span>
+    </div>
+    
+    <nav class="nav-links">
+      <a href="#conocenos" class="nav-link">Conócenos</a>
+      <a href="#beneficios" class="nav-link">Beneficios</a>
+      <a href="#faq" class="nav-link">FAQ y Contacto</a>
+    </nav>
+    
+    <div class="auth-buttons">
+      <a href="#register" class="btn btn-primary small"><span class="btn-text">Hazte cliente</span></a>
+      <a href="#login" class="btn btn-secondary small">Iniciar sesión</a>
+    </div>
+  </div>
+</header>
+
+<style>
+  .header {
+    position: fixed;
+    top: 20px; /* Separado del top ligeramente */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 1600px;
+    z-index: 100;
+    
+    background: transparent; /* Transparente */
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Borde sutil gris */
+    border-radius: 12px;
+    backdrop-filter: blur(5px); /* Opcional: efecto vidrio para legibilidad */
+  }
+
+  .header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+  }
+
+  .logo-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .logo-img {
+    width: 60px;        /* ancho deseado */
+    height: auto;       /* mantiene proporción */
+    max-height: 40px;   /* límite vertical */
+    object-fit: contain;
+    display: block;
+  }
+
+  .logo-placeholder {
+    width: 60px; /* Adjust based on rectangular need */
+    height: 40px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .logo-text {
+    font-size: 0.6rem;
+    color: #aaa;
+  }
+
+  .brand-name {
+    font-family: var(--font-primary);
+    font-size: 1.5rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    -webkit-text-fill-color: transparent; /* Safari fix */
+  }
+
+
+  .nav-links {
+    display: flex;
+    gap: 2rem;
+  }
+
+  .nav-links a {
+    font-family: var(--font-secondary);
+    font-size: 1.1rem;
+    color: var(--color-white);
+  }
+
+  .auth-buttons {
+    display: flex;
+    gap: 1rem;
+  }
+
+  /* Ajustes específicos para botones del header si es necesario */
+  .small {
+    padding: 0.5rem 1.2rem;
+    font-size: 0.9rem;
+  }
+  
+  /* Ajuste para el botón Hazte cliente para que parezca más "outline/transparente" como en el boceto */
+  .btn-secondary {
+    border-color: rgba(255, 255, 255, 0.4);
+    border-radius: 8px; /* Slightly squarish rounded as per sketch? Or just pill */
+  }
+  
+  .btn-primary {
+    border-radius: 8px;
+  }
+
+  @media (max-width: 768px) {
+    .header-container {
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1rem;
+    }
+
+    .nav-links {
+      gap: 1rem;
+      width: 100%;
+      justify-content: center;
+      flex-wrap: wrap; 
+    }
+    
+    .auth-buttons {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+</style>
