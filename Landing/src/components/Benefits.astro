@@ -8,7 +8,7 @@
 
       
       <div class="carousel-track">
-        <!-- Original Cards -->
+        <!-- Tarjetas Originales -->
         <div class="card">
           <div class="card-icon">📈</div>
           <h3>Rentabilidad Alta</h3>
@@ -32,7 +32,7 @@
           <h3>Tecnología Punta</h3>
           <p>Plataforma intuitiva y rápida para que gestiones tus finanzas desde cualquier lugar.</p>
         </div>
-        <!-- Duplicated Cards for Seamless Loop -->
+        <!-- Tarjetas Duplicadas para Bucle Continuo -->
         <div class="card">
           <div class="card-icon">📈</div>
           <h3>Rentabilidad Alta</h3>
@@ -74,38 +74,38 @@
     const scrollAmount = cardWidth + gap; 
 
 
-    // Auto Scroll Logic
+    // Lógica de Desplazamiento Automático
     let autoScrollInterval: any;
 
     const startAutoScroll = () => {
-      // Clear any existing to be safe
+      // Limpiar cualquier intervalo existente por seguridad
       clearInterval(autoScrollInterval);
       
       autoScrollInterval = setInterval(() => {
         track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-      }, 2500); // 2.5s for a nice pace
+      }, 2500); // 2.5s para un buen ritmo
     };
 
     const stopAutoScroll = () => {
       clearInterval(autoScrollInterval);
     };
 
-    // Pause on Hover
+    // Pausar al pasar el cursor
     section.addEventListener('mouseenter', stopAutoScroll);
     section.addEventListener('mouseleave', startAutoScroll);
 
-    // Initial Start
+    // Inicio Inicial
     startAutoScroll();
 
-    // Infinite Scroll seamless loop
+    // Bucle continuo de desplazamiento infinito
     track.addEventListener('scroll', () => {
-      const maxScroll = track.scrollWidth / 2; // Exact half point because of duplication
+      const maxScroll = track.scrollWidth / 2; // Punto medio exacto debido a la duplicación
       
-      // If we reach the start of the duplicated set, snap back to start real 0
-      // We look for >= maxScroll - 5 (tolerance)
+      // Si llegamos al inicio del conjunto duplicado, volver al inicio real 0
+      // Buscamos >= maxScroll - 5 (tolerancia)
       if (track.scrollLeft >= maxScroll - 10) { 
-         // But wait, if we snap exactly at maxScroll, it might be mid-animation?
-         // Actually, standard tactic is: if scrollLeft >= maxScroll, subtract maxScroll.
+         // Pero, si encajamos exactamente en maxScroll, ¿podría estar a mitad de animación?
+         // De hecho, la táctica estándar es: si scrollLeft >= maxScroll, restar maxScroll.
          if (track.scrollLeft >= maxScroll) {
              track.scrollLeft -= maxScroll;
          }
@@ -121,7 +121,7 @@
     display: flex;
     align-items: center;
     background: linear-gradient(to bottom, transparent, rgba(18, 18, 18, 0.8));
-    overflow: hidden; /* Hide overflow outside container */
+    overflow: hidden; /* Ocultar desbordamiento fuera del contenedor */
   }
 
   .container {
@@ -151,7 +151,7 @@
     scroll-snap-type: x mandatory;
     padding: 2rem 1rem; 
     width: 100%;
-    /* max-width removed to take full space allowed */
+    /* max-width eliminado para ocupar todo el espacio permitido */
     
     scrollbar-width: none;
     -ms-overflow-style: none;

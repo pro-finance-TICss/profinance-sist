@@ -14,7 +14,7 @@ dist/
 # Producción / Build
 build/
 
-# Variables de entorno (¡CRÍTICO para tu sistema financiero!)
+# Variables de entorno (¡CRÍTICO para sistema financiero!)
 .env
 .env.local
 .env.development.local

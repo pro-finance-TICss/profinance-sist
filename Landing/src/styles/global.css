@@ -2,8 +2,10 @@
   --color-black: #000000;
   --color-dark-grey: #121212;
   --color-white: #ffffff;
+  /* Gradiente dorado */
   --color-gold-start: #bd8e48;
   --color-gold-end: #f8df8f;
+
   --color-gold-dim: rgba(189, 142, 72, 0.4);
 
   --font-primary: "Faster Stroker", sans-serif;
@@ -12,14 +14,14 @@
 
 @font-face {
   font-family: "Faster Stroker";
-  src: url("/assets/fonts/Faster Stroker.otf") format("opentype"); /* Trying absolute path from root, or will need adjustment */
+  src: url("/assets/fonts/Faster Stroker.otf") format("opentype"); /* Probando ruta absoluta desde la raíz, o necesitará ajuste */
   font-weight: normal;
   font-style: normal;
   font-display: swap;
 }
 
-/* Fallback if user meant relative path from this file */
-/* Since this file is in src/styles, ../../assets points to root/assets */
+/* Fallback si el usuario se refería a una ruta relativa desde este archivo */
+/* Dado que este archivo está en src/styles, ../../assets apunta a root/assets */
 
 html,
 body {
@@ -58,7 +60,7 @@ a:hover {
   opacity: 0.8;
 }
 
-/* Nav Link Gold Hover */
+/* Hover Dorado en Enlaces de Navegación */
 .nav-link:hover {
   color: var(--color-gold-start);
   opacity: 1;
@@ -93,7 +95,7 @@ a:hover {
   align-items: center;
   justify-content: center;
   padding: 0.75rem 1.5rem;
-  border-radius: 9999px; /* Rounded pill shape */
+  border-radius: 9999px; /* Forma de píldora redondeada */
   font-family: var(--font-secondary);
   font-weight: bold;
   cursor: pointer;
@@ -116,7 +118,7 @@ a:hover {
   position: relative;
   overflow: hidden;
   transition: all 0.4s ease;
-  border-radius: 9999px; /* Keeping pill shape */
+  border-radius: 9999px; /* Manteniendo forma de píldora */
   box-shadow: 0 4px 15px var(--color-gold-dim);
 }
 

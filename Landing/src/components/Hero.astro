@@ -3,7 +3,7 @@
 <section class="hero">
 
   <div class="content-grid">
-    <!-- Left Column: Text & Buttons -->
+    <!-- Columna Izquierda: Texto y Botones -->
     <div class="text-column">
       <div class="text-box">
         <h1>Tu Futuro Financiero <br /> <span class="text-gradient-gold">Comienza Aquí</span></h1>
@@ -18,25 +18,25 @@
       </div>
     </div>
 
-    <!-- Right Column: Graph -->
+    <!-- Columna Derecha: Gráfica -->
     <div class="graph-column">
       <div class="graph-box">
-        <!-- SVG Graph drawing based on sketch -->
+        <!-- Dibujo de Gráfica SVG basado en boceto -->
         <svg viewBox="0 0 400 300" class="chart-svg">
-          <!-- Axes -->
-          <line x1="40" y1="260" x2="360" y2="260" stroke="#fff" stroke-width="2" /> <!-- X Axis -->
-          <line x1="40" y1="260" x2="40" y2="40" stroke="#fff" stroke-width="2" />  <!-- Y Axis -->
-          <!-- Arrow heads -->
+          <!-- Ejes -->
+          <line x1="40" y1="260" x2="360" y2="260" stroke="#fff" stroke-width="2" /> <!-- Eje X -->
+          <line x1="40" y1="260" x2="40" y2="40" stroke="#fff" stroke-width="2" />  <!-- Eje Y -->
+          <!-- Puntas de flecha -->
           <path d="M355 255 L365 260 L355 265" fill="#fff" />
           <path d="M35 50 L40 40 L45 50" fill="#fff" />
           
-          <!-- Line Chart Path -->
+          <!-- Trazo de Gráfica de Línea -->
           <path d="M40 260 L100 150 L140 200 L180 120 L220 160 L280 80 L360 40" 
                 fill="none" 
                 stroke="url(#goldGradient)" 
                 stroke-width="3" />
                 
-          <!-- Gradient definition -->
+          <!-- Definición de gradiente -->
           <defs>
             <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" style="stop-color:var(--color-gold-start);stop-opacity:1" />
@@ -71,7 +71,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5); /* Overlay */
+    background: rgba(0, 0, 0, 0.5); /* Capa superpuesta */
     z-index: 1;
   }
 
@@ -80,9 +80,9 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 600px; /* Size of the watermark logo */
+    width: 600px; /* Tamaño del logo de marca de agua */
     height: auto;
-    opacity: 0.1; /* Very subtle */
+    opacity: 0.1; /* Muy sutil */
     z-index: -1;
     pointer-events: none;
   }
@@ -90,7 +90,7 @@
   .bg-logo img {
     width: 100%;
     height: auto;
-    filter: grayscale(100%); /* Optional if we want to ensure it blends well to black */
+    filter: grayscale(100%); /* Opcional si queremos asegurar que se mezcle bien con el negro */
   }
 
   .content-grid {
@@ -136,7 +136,7 @@
   }
   
   .hero-buttons .btn {
-      border-radius: 12px; /* Matching sketch roughly */
+      border-radius: 12px; /* Coincidiendo con el boceto aproximadamente */
   }
 
   .graph-column {
@@ -168,11 +168,11 @@
     }
 
     .hero {
-      padding-top: 120px; /* More space for header if needed */
+      padding-top: 120px; /* Más espacio para el encabezado si es necesario */
     }
 
     .text-column {
-      align-items: center; /* Center buttons and text */
+      align-items: center; /* Centrar botones y texto */
     }
 
     h1 {
