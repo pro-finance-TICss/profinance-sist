@@ -1,5 +1,8 @@
 # Dependencias (Esto ya lo trae la plantilla de Node)
 node_modules/
+dist/
+.next/
+.env*
 
 # Next.js
 .next/
