@@ -1,0 +1,16 @@
+{
+  "name": "profinance-sist",
+  "private": true,
+  "description": "Repositorio principal de Pro-Finance - Sistema Financiero",
+  "workspaces": [
+    "Landing"
+  ],
+  "scripts": {
+    "landing:dev": "npm run dev -w Landing",
+    "landing:build": "npm run build -w Landing",
+    "install:all": "npm install"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
