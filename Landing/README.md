@@ -17,6 +17,7 @@ El proyecto sigue la estructura estándar de Astro:
     - `Layout.astro`: Estructura HTML base (head, body) compartida por las páginas.
   - **pages/**: Rutas y páginas del sitio.
     - `index.astro`: Página principal que ensambla todos los componentes.
+    - `conocenos.astro`: Página con la historia y detalles de la empresa.
   - **styles/**: Archivos de estilos globales.
     - `global.css`: Variables CSS, fuentes, reinicios y estilos utilitarios.
 - **public/**: Archivos estáticos servidos directamente (imágenes, fuentes, iconos).
@@ -43,4 +44,4 @@ El proyecto sigue la estructura estándar de Astro:
 ## Notas de Diseño
 
 - **Tipografía**: Se utilizan las fuentes "Faster Stroker" (para títulos) y "Candara" (para cuerpo), definidas en `global.css`.
-- **Colores**: Paleta de colores negro y dorado, gestionada a través de variables CSS (`--color-gold-start`, `--color-dark-grey`, etc.).
+- **Colores**: Paleta de colores principal (Negro y Blanco), complementarios (#002e46 opcional, #7c7c7c) y el gradiente dorado característico.

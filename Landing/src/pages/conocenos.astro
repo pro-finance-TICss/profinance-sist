@@ -1,0 +1,127 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout title="Conócenos | Pro-Finance">
+  <Header />
+  
+  <main class="conocenos-page">
+    <section class="about-hero">
+      <div class="container">
+        <h1 class="text-gradient-gold">NUESTRA HISTORIA</h1>
+        <p class="subtitle">Innovación y confianza en el mundo financiero desde 2010.</p>
+      </div>
+    </section>
+
+    <section class="about-content">
+      <div class="container">
+        <div class="content-grid">
+          <div class="text-block">
+            <h2>Sobre Pro-Finance</h2>
+            <p>
+              Pro-Finance nació con la visión de democratizar el acceso a los mercados globales a través de tecnología de vanguardia y un compromiso inquebrantable con la transparencia.
+            </p>
+            <p>
+              A lo largo de más de 15 años, hemos evolucionado para convertirnos en un referente de innovación, proporcionando a nuestros clientes las herramientas necesarias para potenciar su futuro financiero.
+            </p>
+          </div>
+          <div class="image-placeholder">
+             <!-- Aquí podría ir una imagen corporativa -->
+             <div class="placeholder-box">
+                <img src="/LOGOSINFONDO-35.png" alt="Logo Pro-Finance" />
+             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <Footer />
+</Layout>
+
+<style>
+  .conocenos-page {
+    padding-top: 100px; /* Espacio para el header fixed */
+    background-color: var(--color-black);
+    color: var(--color-white);
+    min-height: 80vh;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  .about-hero {
+    padding: 100px 0 60px;
+    text-align: center;
+  }
+
+  .about-hero h1 {
+    font-size: clamp(3rem, 8vw, 5rem);
+    margin-bottom: 1rem;
+  }
+
+  .subtitle {
+    font-family: var(--font-secondary);
+    font-size: 1.25rem;
+    color: #7c7c7c;
+  }
+
+  .about-content {
+    padding: 80px 0;
+  }
+
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: center;
+  }
+
+  .text-block h2 {
+    font-size: 2.5rem;
+    color: var(--color-gold-end);
+    margin-bottom: 2rem;
+  }
+
+  .text-block p {
+    font-family: var(--font-secondary);
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: #cccccc;
+    margin-bottom: 1.5rem;
+  }
+
+  .placeholder-box {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: rgba(189, 142, 72, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .placeholder-box img {
+    width: 200px;
+    opacity: 0.5;
+  }
+
+  @media (max-width: 768px) {
+    .content-grid {
+      grid-template-columns: 1fr;
+      text-align: center;
+      gap: 3rem;
+    }
+    
+    .about-hero {
+      padding: 60px 0 40px;
+    }
+  }
+</style>

@@ -1,53 +1,89 @@
 ---
 ---
 <section class="hero">
+  <div class="hero-container">
+    <!-- Logo Superior -->
+    <img src="/LOGOSINFONDO-35.png" alt="Pro-Finance Logo" class="hero-logo-top" />
 
-  <div class="content-grid">
-    <!-- Columna Izquierda: Texto y Botones -->
-    <div class="text-column">
-      <div class="text-box">
-        <h1>Tu Futuro Financiero <br /> <span class="text-gradient-gold">Comienza Aquí</span></h1>
-        <p>
-          Gestiona tus inversiones con expertos. Seguridad, transparencia y rentabilidad garantizada.
-        </p>
-      </div>
+    <!-- Título Principal -->
+    <div class="hero-content">
+      <h1>
+        EMPODERANDO TU <br />
+        <span class="text-gradient-gold">FUTURO FINANCIERO</span>
+      </h1>
+      <p class="hero-subtitle">
+        Somos el vínculo entre el capital y el crecimiento. <br />
+        construyendo confianza y resultados reales.
+      </p>
 
-      <div class="hero-buttons">
-        <a href="#register" class="btn btn-primary"><span class="btn-text">Hazte cliente</span></a>
-        <a href="#login" class="btn btn-secondary">Iniciar sesión</a>
+      <!-- Botones -->
+      <div class="hero-actions">
+        <a href="#operar" class="btn btn-primary">
+          <span class="btn-text">COMIENZA A OPERAR</span>
+        </a>
+        <a href="/conocenos" class="btn btn-outline">
+          NUESTRA HISTORIA
+        </a>
       </div>
     </div>
 
-    <!-- Columna Derecha: Gráfica -->
-    <div class="graph-column">
-      <div class="graph-box">
-        <!-- Dibujo de Gráfica SVG basado en boceto -->
-        <svg viewBox="0 0 400 300" class="chart-svg">
-          <!-- Ejes -->
-          <line x1="40" y1="260" x2="360" y2="260" stroke="#fff" stroke-width="2" /> <!-- Eje X -->
-          <line x1="40" y1="260" x2="40" y2="40" stroke="#fff" stroke-width="2" />  <!-- Eje Y -->
-          <!-- Puntas de flecha -->
-          <path d="M355 255 L365 260 L355 265" fill="#fff" />
-          <path d="M35 50 L40 40 L45 50" fill="#fff" />
-          
-          <!-- Trazo de Gráfica de Línea -->
-          <path d="M40 260 L100 150 L140 200 L180 120 L220 160 L280 80 L360 40" 
-                fill="none" 
-                stroke="url(#goldGradient)" 
-                stroke-width="3" />
-                
-          <!-- Definición de gradiente -->
-          <defs>
-            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" style="stop-color:var(--color-gold-start);stop-opacity:1" />
-              <stop offset="100%" style="stop-color:var(--color-gold-end);stop-opacity:1" />
-            </linearGradient>
-          </defs>
-        </svg>
+    <!-- Barra de Estadísticas -->
+    <div class="hero-stats">
+      <div class="stat-item">
+        <h2 class="stat-number" data-target="15" data-suffix="+">0</h2>
+        <p class="stat-label">AÑOS DE EXPERIENCIA</p>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <h2 class="stat-number" data-target="9.2" data-prefix="$" data-suffix="B" data-decimals="1">0</h2>
+        <p class="stat-label">VOLUMEN DIARIO</p>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <h2 class="stat-number" data-target="110" data-suffix="k+">0</h2>
+        <p class="stat-label">CLIENTES ACTIVOS</p>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <h2 class="stat-number" data-target="0.0" data-suffix="ms" data-decimals="1">0</h2>
+        <p class="stat-label">VELOCIDAD EJECUCIÓN</p>
       </div>
     </div>
   </div>
 </section>
+
+<script>
+  function animateCounters() {
+    const stats = document.querySelectorAll('.stat-number');
+    
+    stats.forEach(stat => {
+      const target = parseFloat(stat.getAttribute('data-target') || '0');
+      const prefix = stat.getAttribute('data-prefix') || '';
+      const suffix = stat.getAttribute('data-suffix') || '';
+      const decimals = parseInt(stat.getAttribute('data-decimals') || '0');
+      const duration = 2000; // 2 segundos
+      const stepTime = 15;
+      const steps = duration / stepTime;
+      const increment = target / steps;
+      let current = 0;
+
+      const timer = setInterval(() => {
+        current += increment;
+        if (current >= target) {
+          stat.textContent = prefix + target.toFixed(decimals) + suffix;
+          clearInterval(timer);
+        } else {
+          stat.textContent = prefix + current.toFixed(decimals) + suffix;
+        }
+      }, stepTime);
+    });
+  }
+
+  // Iniciar animación cuando el DOM esté listo
+  document.addEventListener('DOMContentLoaded', animateCounters);
+  // Re-iniciar si se usa Astro view transitions
+  document.addEventListener('astro:page-load', animateCounters);
+</script>
 
 <style>
   .hero {
@@ -56,14 +92,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding-top: 60px;
-
-    background-image: url("/LOGOSINFONDO-35.png"); /* ideal PNG o SVG */
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 600px auto; /* tamaño del logo */
+    padding: 120px 20px 60px;
+    background-color: var(--color-black);
+    overflow: hidden;
   }
 
+  /* Fondo con patrón de puntos y gradiente radial */
   .hero::before {
     content: "";
     position: absolute;
@@ -71,116 +105,138 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5); /* Capa superpuesta */
-    z-index: 1;
-  }
-
-  .bg-logo {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 600px; /* Tamaño del logo de marca de agua */
-    height: auto;
-    opacity: 0.1; /* Muy sutil */
-    z-index: -1;
+    background-image: 
+      radial-gradient(circle at 50% 50%, rgba(189, 142, 72, 0.05) 0%, transparent 70%),
+      radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 100% 100%, 30px 30px;
     pointer-events: none;
   }
-  
-  .bg-logo img {
-    width: 100%;
-    height: auto;
-    filter: grayscale(100%); /* Opcional si queremos asegurar que se mezcle bien con el negro */
-  }
 
-  .content-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4rem;
+  .hero-container {
     max-width: 1200px;
-    width: 90%;
-    position: relative;
-    z-index: 1;
-  }
-
-  .text-column {
+    width: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 3rem;
+    align-items: center;
+    text-align: center;
+    z-index: 2;
   }
 
-  .text-box {
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 2rem;
-    border-radius: 20px;
-    background: rgba(18, 18, 18, 0.4);
-    backdrop-filter: blur(10px);
-  }
-
-  h1 {
-    font-size: 3rem;
-    line-height: 1.2;
+  .hero-logo-top {
+    height: 200px; /* Un poco más grande para que destaque solo */
+    width: auto;
+    object-fit: contain;
     margin-bottom: 1rem;
   }
 
-  p {
-    font-size: 1.2rem;
-    color: #ccc;
-    line-height: 1.6;
+  h1 {
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+    color: var(--color-white);
+    letter-spacing: -1px;
+    text-transform: uppercase;
   }
 
-  .hero-buttons {
+  .hero-subtitle {
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    color: #a0a0a0; /* Gris sutil */
+    max-width: 800px;
+    margin: 0 auto 3rem;
+    line-height: 1.6;
+    font-family: var(--font-secondary);
+  }
+
+  .hero-actions {
     display: flex;
     gap: 1.5rem;
-  }
-  
-  .hero-buttons .btn {
-      border-radius: 12px; /* Coincidiendo con el boceto aproximadamente */
+    justify-content: center;
+    margin-bottom: 5rem;
   }
 
-  .graph-column {
-    display: flex;
+  .btn-outline {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-gold-start);
+    color: var(--color-gold-end);
+    font-family: var(--font-primary);
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    background: transparent;
   }
 
-  .graph-box {
-    width: 100%;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 20px;
-    padding: 2rem;
-    background: rgba(18, 18, 18, 0.4);
-    backdrop-filter: blur(10px);
+  .btn-outline:hover {
+    background: rgba(189, 142, 72, 0.1);
+    transform: translateY(-2px);
   }
 
-  .chart-svg {
+  /* Sobrescribir estilos de btn-primary para este contexto si es necesario */
+  :global(.btn-primary) {
+    border-radius: 8px !important;
+    padding: 0.75rem 2rem !important;
+  }
+
+  .hero-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     width: 100%;
-    height: auto;
-    overflow: visible;
+    max-width: 1000px;
+    padding-top: 3rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .stat-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .stat-number {
+    font-size: 2.5rem;
+    color: var(--color-gold-end);
+    font-family: var(--font-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    color: #7c7c7c;
+    letter-spacing: 1px;
+    font-family: var(--font-secondary);
+    font-weight: bold;
+  }
+
+  .stat-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.1);
   }
 
   @media (max-width: 768px) {
-    .content-grid {
-      grid-template-columns: 1fr;
-      gap: 3rem;
-      text-align: center;
+    .hero-actions {
+      flex-direction: column;
+      width: 100%;
+      max-width: 300px;
     }
 
-    .hero {
-      padding-top: 120px; /* Más espacio para el encabezado si es necesario */
+    .hero-stats {
+      flex-direction: column;
+      gap: 2rem;
     }
 
-    .text-column {
-      align-items: center; /* Centrar botones y texto */
+    .stat-divider {
+      display: none;
     }
 
     h1 {
-      font-size: 2.2rem;
-    }
-    
-    .bg-logo {
-      width: 80%;
+      font-size: 2.5rem;
     }
   }
 </style>
+

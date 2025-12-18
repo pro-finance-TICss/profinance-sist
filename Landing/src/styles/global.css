@@ -1,7 +1,11 @@
 :root {
   --color-black: #000000;
-  --color-dark-grey: #121212;
   --color-white: #ffffff;
+
+  /* Colores complementarios */
+  --color-complementary-blue: #002e46;
+  --color-complementary-grey: #7c7c7c;
+
   /* Gradiente dorado */
   --color-gold-start: #bd8e48;
   --color-gold-end: #f8df8f;
