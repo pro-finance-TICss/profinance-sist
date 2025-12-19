@@ -30,15 +30,10 @@ El proyecto sigue la estructura estándar de Astro:
     npm install
     ```
 
-2.  Iniciar servidor de desarrollo:
+2.  Iniciar servidor de desarrollo de la landing:
 
     ```bash
-    npm run dev
-    ```
-
-3.  Construir para producción:
-    ```bash
-    npm run build
+    npm run landing:dev
     ```
 
 ## Notas de Diseño
