@@ -3,21 +3,28 @@
 <footer id="contacto" class="footer">
   <div class="container">
     <div class="footer-grid">
-      <!-- Contact Info -->
-      <div class="footer-col">
-        <h3>Contacto</h3>
-        <p>Email: contacto@pro-finance.com</p>
-        <p>Tel: +1 234 567 890</p>
-        <p>Dirección: Av. Financiera 123, Ciudad de Negocios</p>
+      <!-- Brand & Disclaimer -->
+      <div class="footer-col brand-col">
+        <div class="footer-brand">
+          <img 
+            src="/Background-recortado.png" 
+            alt="Pro-Finance logo"
+            class="footer-logo-img"
+          />
+          <span class="brand-name text-gradient-gold">PRO-FINANCE</span>
+        </div>
+        <p class="disclaimer">
+          El trading de derivados financieros conlleva un alto nivel de riesgo para su capital y solo debe operar con dinero que pueda permitirse perder.
+        </p>
       </div>
 
       <!-- Quick Links -->
       <div class="footer-col">
         <h3>Enlaces</h3>
         <ul class="footer-links">
-          <li><a href="#conocenos">Conócenos</a></li>
+          <li><a href="/conocenos">Conócenos</a></li>
           <li><a href="#beneficios">Beneficios</a></li>
-          <li><a href="#faq">Preguntas Frecuentes</a></li>
+          <li><a href="#faq">FAQ y Contacto</a></li>
         </ul>
       </div>
 
@@ -27,7 +34,18 @@
         <ul class="footer-links">
           <li><a href="#">Términos y Condiciones</a></li>
           <li><a href="#">Política de Privacidad</a></li>
+          <li><a href="#">Advertencia de Riesgo</a></li>
         </ul>
+      </div>
+
+      <!-- Social Media -->
+      <div class="footer-col">
+        <h3>SÍGUENOS</h3>
+        <div class="social-links">
+          <a href="#" class="social-icon">f</a>
+          <a href="#" class="social-icon">x</a>
+          <a href="#" class="social-icon">in</a>
+        </div>
       </div>
     </div>
     
@@ -39,8 +57,8 @@
 
 <style>
   .footer {
-    background: var(--color-dark-grey);
-    padding: 4rem 0 2rem;
+    background: #000; /* Fondo negro puro según la imagen */
+    padding: 5rem 0 3rem;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
   }
 
@@ -48,26 +66,55 @@
     width: 90%;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 1rem; /* Agregar relleno horizontal para pantallas pequeñas */
+    padding: 0 1rem;
   }
 
   .footer-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 3rem;
-    margin-bottom: 3rem;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr; /* Columna de marca más ancha */
+    gap: 4rem;
+    margin-bottom: 4rem;
+  }
+
+  .brand-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .footer-logo-img {
+    width: 40px;
+    height: auto;
+  }
+
+  .brand-name {
+    font-family: var(--font-primary);
+    font-size: 1.5rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+
+  .disclaimer {
+    color: #555; /* Texto gris oscuro para el disclaimer CHECAR COLORES*/
+    font-size: 0.85rem;
+    line-height: 1.6;
+    max-width: 350px;
   }
 
   .footer-col h3 {
     font-family: var(--font-primary);
-    font-size: 1.5rem;
-    color: var(--color-gold-start);
-    margin-bottom: 1.5rem;
-  }
-
-  .footer-col p {
-    color: #ccc;
-    margin-bottom: 0.5rem;
+    font-size: 1rem;
+    color: var(--color-white); /* En la imagen son blancos/dorados suaves */
+    margin-bottom: 2rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
   }
 
   .footer-links {
@@ -76,17 +123,43 @@
   }
 
   .footer-links li {
-    margin-bottom: 0.8rem;
+    margin-bottom: 1rem;
   }
 
   .footer-links a {
-    color: #ccc;
-    font-size: 1rem;
+    color: #888;
+    font-size: 0.95rem;
+    text-decoration: none;
     transition: color 0.3s;
   }
 
   .footer-links a:hover {
     color: var(--color-gold-start);
+  }
+
+  .social-links {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .social-icon {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--color-gold-start);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-gold-start);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: bold;
+    transition: all 0.3s ease;
+  }
+
+  .social-icon:hover {
+    background: var(--color-gold-start);
+    color: #000;
   }
 
   .footer-bottom {
@@ -96,7 +169,25 @@
   }
 
   .footer-bottom p {
-    color: #666;
-    font-size: 0.9rem;
+    color: #444;
+    font-size: 0.85rem;
+  }
+
+  @media (max-width: 1024px) {
+    .footer-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 3rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .footer-grid {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+    }
+    
+    .disclaimer {
+      max-width: 100%;
+    }
   }
 </style>
