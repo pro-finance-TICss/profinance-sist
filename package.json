@@ -3,11 +3,15 @@
   "private": true,
   "description": "Repositorio principal de Pro-Finance - Sistema Financiero",
   "workspaces": [
-    "Landing"
+    "Landing",
+    "App"
   ],
   "scripts": {
     "landing:dev": "npm run dev -w Landing",
     "landing:build": "npm run build -w Landing",
+    "app:dev": "npm run dev -w App",
+    "app:build": "npm run build -w App",
+    "app:start": "npm run start -w App",
     "install:all": "npm install"
   },
   "keywords": [],
