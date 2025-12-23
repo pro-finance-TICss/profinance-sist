@@ -99,11 +99,17 @@ import SupportSection from "../components/conocenos/SupportSection.astro";
   /* Hero Section Styles */
   .hero-clean {
     padding: 140px 0 80px;
-    text-align: center; /* Override alignment inside hero if needed, but SectionTitle handles it */
+    text-align: center;
+    display: flex;
+    align-items: center;
+    flex-direction: center;
   }
 
   .hero-wrapper {
-    text-align: left; /* Volver a alinear a la izquierda para el SectionTitle si align='left' */
+    width: 100%;
+    display: flex;
+    justify-content: center; /* Centra el contenido del wrapper */
+    text-align: center; /* Asegura que el texto fluya al centro */
   }
 
   .hero-clean :global(.display-title) {
@@ -115,7 +121,7 @@ import SupportSection from "../components/conocenos/SupportSection.astro";
 
   .hero-subtext {
     max-width: 650px;
-    /* margin: 0 auto;  Si queremos centrado, pero align="left" arriba */
+    margin: 0 auto;  
     color: var(--text-gray);
     font-size: 1.15rem;
     line-height: 1.6;
