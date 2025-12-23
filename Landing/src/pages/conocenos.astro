@@ -1,7 +1,21 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import Header from "../components/Header.astro";
-import Footer from "../components/Footer.astro";
+import Header from '../components/index/Header.astro';
+import Footer from '../components/index/Footer.astro';
+import SectionTitle from "../components/ui/SectionTitle.astro";
+
+// Secciones Refactorizadas
+import IdentitySection from "../components/conocenos/IdentitySection.astro";
+import ValuesSection from "../components/conocenos/ValuesSection.astro";
+import TechSection from "../components/conocenos/TechSection.astro";
+import FlowSection from "../components/conocenos/FlowSection.astro";
+import SupportSection from "../components/conocenos/SupportSection.astro";
+
+/**
+ * @page Conocenos
+ * @description Página "Sobre Nosotros" de Pro-Finance.
+ * Estructura modularizada para facilitar mantenimiento.
+ */
 ---
 
 <Layout title="Conócenos | Pro-Finance">
@@ -10,139 +24,36 @@ import Footer from "../components/Footer.astro";
   <main class="about-page">
     <div class="bg-gradient-soft"></div>
 
+    <!-- Hero Section (Específico de esta página) -->
     <section class="hero-clean reveal">
       <div class="container">
         <div class="hero-wrapper">
-          <span class="badge">NUESTRA INSTITUCIÓN</span>
-          <h1 class="main-title">
-            Construyendo el futuro de la <span class="gold-text"
-              >gestión de capital.</span>
-          </h1>
-          <p class="hero-subtext">
-            Desde 2010, Pro-Finance fusiona la ingeniería financiera con la
-            ética tecnológica para ofrecer un ecosistema de inversión
-            transparente y global.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <section class="identity-section reveal">
-      <div class="container">
-        <div class="identity-grid">
-          <div class="identity-text">
-            <h2 class="section-label">IDENTIDAD</h2>
-            <h3 class="display-small">Transparencia como primer principio.</h3>
-            <p>
-              Pro-Finance nació con la visión de democratizar el acceso a los
-              mercados globales a través de tecnología de vanguardia y un
-              compromiso inquebrantable con la claridad absoluta.
+          <SectionTitle 
+            as="h1"
+            title="Construyendo el futuro de la gestión de capital."
+            highlight="gestión de capital."
+            label="NUESTRA INSTITUCIÓN"
+            align="left"
+          >
+             <p class="hero-subtext">
+              Desde 2010, Pro-Finance fusiona la ingeniería financiera con la
+              ética tecnológica para ofrecer un ecosistema de inversión
+              transparente y global.
             </p>
-            <p>
-              A lo largo de más de 15 años, hemos evolucionado para convertirnos
-              en un referente de innovación financiera, eliminando los
-              conflictos de interés y priorizando el éxito de nuestros socios.
-            </p>
-          </div>
-          <div class="identity-visual">
-            <div class="logo-container">
-              <img
-                src="/LOGOSINFONDO-35.png"
-                alt="Logo Pro-Finance"
-                class="floating-logo"
-              />
-            </div>
-          </div>
+          </SectionTitle>
         </div>
       </div>
     </section>
 
-    <section class="values-nu reveal">
-      <div class="container">
-        <div class="nu-grid">
-          <div class="nu-card">
-            <span class="card-num">01</span>
-            <h4>Cero Conflicto</h4>
-            <p>Modelo de negocio 100% alineado con el crecimiento del socio.</p>
-          </div>
-          <div class="nu-card">
-            <span class="card-num">02</span>
-            <h4>Tecnología Pro</h4>
-            <p>
-              Algoritmos de vanguardia diseñados para la preservación de
-              capital.
-            </p>
-          </div>
-          <div class="nu-card">
-            <span class="card-num">03</span>
-            <h4>Auditabilidad</h4>
-            <p>Reportes claros y procesos verificables en cada operación.</p>
-          </div>
-        </div>
-      </div>
-    </section>
+    <IdentitySection />
 
-    <section class="tech-section reveal">
-      <div class="container">
-        <div class="tech-card-large">
-          <div class="tech-content">
-            <h2 class="section-label dark">INFRAESTRUCTURA</h2>
-            <h3 class="dark-h3">Potencia de ejecución institucional.</h3>
-            <div class="tech-features">
-              <div class="feat">
-                <span class="feat-icon">⚡</span>
-                <div>
-                  <h5>Baja Latencia</h5>
-                  <p>
-                    Servidores en Equinix NY4 para ejecuciones en milisegundos.
-                  </p>
-                </div>
-              </div>
-              <div class="feat">
-                <span class="feat-icon">🛡️</span>
-                <div>
-                  <h5>Seguridad Tier-1</h5>
-                  <p>
-                    Fondos custodiados en cuentas segregadas de bancos globales.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="tech-image">
-            <img src="/tu-foto-hero.jpg" alt="Tecnología Pro-Finance" />
-          </div>
-        </div>
-      </div>
-    </section>
+    <ValuesSection />
 
-    <section class="flow-section reveal">
-      <div class="container">
-        <h2 class="section-label center">FLUJO DE VALOR</h2>
-        <div class="flow-visual">
-          <div class="flow-node">Socio</div>
-          <div class="flow-connector"></div>
-          <div class="flow-node highlight">Pro-Finance</div>
-          <div class="flow-connector"></div>
-          <div class="flow-node">Mercados</div>
-        </div>
-      </div>
-    </section>
+    <TechSection />
 
-    <section class="support-section reveal">
-      <div class="container">
-        <div class="support-banner">
-          <div class="support-info">
-            <h3>Asistencia Humana 24/7</h3>
-            <p>
-              No somos solo algoritmos; somos un equipo global listo para
-              acompañarte.
-            </p>
-          </div>
-          <a href="#" class="btn-gold">Ver Licencias →</a>
-        </div>
-      </div>
-    </section>
+    <FlowSection />
+
+    <SupportSection />
 
     <Footer />
   </main>
@@ -158,9 +69,11 @@ import Footer from "../components/Footer.astro";
 
   .about-page {
     background: var(--bg-black);
-    color: white;
+    color: white; /* var(--color-white) */
     overflow-x: hidden;
+    min-height: 100vh;
   }
+
   .container {
     max-width: 1140px;
     margin: 0 auto;
@@ -183,273 +96,48 @@ import Footer from "../components/Footer.astro";
     z-index: 0;
   }
 
-  /* Hero Section */
+  /* Hero Section Styles */
   .hero-clean {
     padding: 140px 0 80px;
-    text-align: center;
+    text-align: center; /* Override alignment inside hero if needed, but SectionTitle handles it */
   }
-  .badge {
-    color: var(--gold);
-    letter-spacing: 3px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    border: 1px solid rgba(189, 142, 72, 0.3);
-    padding: 0.5rem 1rem;
-    border-radius: 50px;
+
+  .hero-wrapper {
+    text-align: left; /* Volver a alinear a la izquierda para el SectionTitle si align='left' */
   }
-  .main-title {
-    font-size: clamp(2.5rem, 6vw, 4rem);
+
+  .hero-clean :global(.display-title) {
+    font-size: clamp(2.5rem, 6vw, 4rem); /* Override size for Hero H1 */
     font-weight: 700;
     margin: 2rem 0;
     line-height: 1.1;
   }
-  .gold-text {
-    color: var(--gold);
-  }
+
   .hero-subtext {
     max-width: 650px;
-    margin: 0 auto;
+    /* margin: 0 auto;  Si queremos centrado, pero align="left" arriba */
     color: var(--text-gray);
     font-size: 1.15rem;
     line-height: 1.6;
+    margin-top: 1.5rem;
   }
 
-  /* Identity Section (Logo control) */
-  .identity-section {
-    padding: 80px 0;
-  }
-  .identity-grid {
-    display: grid;
-    grid-template-columns: 1.2fr 0.8fr;
-    gap: 4rem;
-    align-items: center;
-  }
-  .section-label {
-    color: var(--gold);
-    font-size: 0.8rem;
-    letter-spacing: 2px;
-    margin-bottom: 1rem;
-    display: block;
-  }
-  .display-small {
-    font-size: 2rem;
-    margin-bottom: 1.5rem;
-  }
-  .identity-text p {
-    color: var(--text-gray);
-    line-height: 1.7;
-    margin-bottom: 1.5rem;
-    font-size: 1.05rem;
-  }
-
-  /* LOGO CONTROLADO */
-  .logo-container {
-    width: 280px;
-    height: 280px;
-    background: rgba(255, 255, 255, 0.02);
-    border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem;
-    margin: 0 auto;
-  }
-  .floating-logo {
-    width: 100%;
-    height: auto;
-    filter: drop-shadow(0 0 15px rgba(0, 0, 0, 0.5));
-  }
-
-  /* Values Nu Style */
-  .values-nu {
-    padding: 60px 0;
-  }
-  .nu-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.5rem;
-  }
-  .nu-card {
-    background: var(--card-dark);
-    padding: 3rem 2rem;
-    border-radius: 24px;
-    transition: 0.3s;
-  }
-  .nu-card:hover {
-    border: 1px solid rgba(189, 142, 72, 0.2);
-    transform: translateY(-5px);
-  }
-  .card-num {
-    color: var(--gold);
-    font-size: 0.8rem;
-    font-weight: 700;
-    opacity: 0.5;
-  }
-  .nu-card h4 {
-    margin: 1rem 0;
-    font-size: 1.2rem;
-  }
-  .nu-card p {
-    color: var(--text-gray);
-    font-size: 0.95rem;
-    line-height: 1.5;
-  }
-
-  /* Tech Card (Visual + Vital Info) */
-  .tech-section {
-    padding: 80px 0;
-  }
-  .tech-card-large {
-    background: white;
-    border-radius: 30px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    overflow: hidden;
-    min-height: 450px;
-    color: #000;
-  }
-  .tech-content {
-    padding: 4rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-  .section-label.dark {
-    color: #666;
-  }
-  .dark-h3 {
-    font-size: 2.2rem;
-    margin-bottom: 2rem;
-  }
-  .tech-features {
-    display: grid;
-    gap: 2rem;
-  }
-  .feat {
-    display: flex;
-    gap: 1.5rem;
-  }
-  .feat-icon {
-    font-size: 1.5rem;
-  }
-  .feat h5 {
-    font-size: 1.1rem;
-    margin-bottom: 0.3rem;
-  }
-  .feat p {
-    color: #555;
-    font-size: 0.95rem;
-  }
-  .tech-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  /* Flow section */
-  .flow-section {
-    padding: 80px 0;
-    text-align: center;
-  }
-  .flow-visual {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 3rem;
-    gap: 1rem;
-  }
-  .flow-node {
-    padding: 1rem 2rem;
-    border: 1px solid #333;
-    border-radius: 50px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-  .flow-node.highlight {
-    border-color: var(--gold);
-    color: var(--gold);
-    background: rgba(189, 142, 72, 0.05);
-  }
-  .flow-connector {
-    height: 1px;
-    width: 60px;
-    background: linear-gradient(90deg, #333, transparent);
-  }
-  .section-label.center {
-    text-align: center;
-  }
-
-  /* Support Banner */
-  .support-section {
-    padding: 80px 0 120px;
-  }
-  .support-banner {
-    background: linear-gradient(90deg, #111, #050505);
-    padding: 4rem;
-    border-radius: 30px;
-    border: 1px solid rgba(255, 255, 255, 0.03);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .btn-gold {
-    background: var(--gold);
-    color: black;
-    padding: 1rem 2rem;
-    border-radius: 50px;
-    font-weight: 700;
-    text-decoration: none;
-    transition: 0.3s;
-  }
-  .btn-gold:hover {
-    transform: scale(1.05);
-    box-shadow: 0 10px 20px rgba(189, 142, 72, 0.2);
-  }
-
-  /* Responsive */
-  @media (max-width: 992px) {
-    .identity-grid,
-    .nu-grid,
-    .tech-card-large,
-    .support-banner {
-      grid-template-columns: 1fr;
-      text-align: center;
-    }
-    .tech-image {
-      order: -1;
-      height: 300px;
-    }
-    .support-banner {
-      gap: 2rem;
-    }
-    .flow-visual {
-      flex-direction: column;
-    }
-    .flow-connector {
-      width: 1px;
-      height: 40px;
-    }
-    .logo-container {
-      width: 220px;
-      height: 220px;
-    }
-  }
-
-  /* Reveal Animation */
-  .reveal {
+  /* Reveal Animation Global Helper 
+     (Se asegura que todos los componentes que usen .reveal funcionen en este contexto)
+  */
+  :global(.reveal) {
     opacity: 0;
     transform: translateY(30px);
     transition: 0.8s ease-out;
   }
-  .reveal.active {
+  :global(.reveal.active) {
     opacity: 1;
     transform: translateY(0);
   }
 </style>
 
 <script>
+  // Observer para animaciones de entrada
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -458,5 +146,7 @@ import Footer from "../components/Footer.astro";
     },
     { threshold: 0.1 },
   );
+  
+  // Observamos todo elemento con clase .reveal (incluyendo los dentro de componentes hijos)
   document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
 </script>

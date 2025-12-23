@@ -1,9 +1,24 @@
 ---
+import GoldButton from '../ui/GoldButton.astro';
+
+/**
+ * @component Hero
+ * @description Sección Hero principal de la Landing Page.
+ * Muestra el título principal, subtítulo y llamadas a la acción (CTAs).
+ * Incluye contadores animados para estadísticas clave.
+ */
 ---
+
 <section id="hero" class="hero">
   <div class="hero-container">
     <!-- Logo Superior -->
-    <img src="/Background-recortado.png" alt="Pro-Finance Logo" class="hero-logo-top" />
+    <img 
+      src="/Background-recortado.png" 
+      alt="Pro-Finance Logo" 
+      class="hero-logo-top" 
+      width="300" 
+      height="240"
+    />
 
     <!-- Título Principal -->
     <div class="hero-content">
@@ -12,18 +27,21 @@
         <span class="text-gradient-gold">FUTURO FINANCIERO</span>
       </h1>
       <p class="hero-subtitle">
-        Somos el vínculo entre el capital y el crecimiento. <br />
+        Somos el vínculo entre el capital y el crecimiento, <br />
         construyendo confianza y resultados reales.
       </p>
 
       <!-- Botones -->
       <div class="hero-actions">
-        <a href="#operar" class="btn btn-primary">
-          <span class="btn-text">COMIENZA A OPERAR</span>
-        </a>
-        <a href="/conocenos" class="btn btn-outline">
+        <!-- COMIENZA A OPERAR -->
+        <GoldButton href="#operar" class="hero-btn">
+          COMIENZA A OPERAR
+        </GoldButton>
+        
+        <!-- NUESTRA HISTORIA -->
+        <GoldButton href="/conocenos" variant="outline" class="hero-btn">
           NUESTRA HISTORIA
-        </a>
+        </GoldButton>
       </div>
     </div>
 
@@ -53,6 +71,10 @@
 </section>
 
 <script>
+  /**
+   * Anima los contadores numéricos de estadísticas.
+   * Incrementa progresivamente el valor hasta llegar al target.
+   */
   function animateCounters() {
     const stats = document.querySelectorAll('.stat-number');
     
@@ -61,8 +83,9 @@
       const prefix = stat.getAttribute('data-prefix') || '';
       const suffix = stat.getAttribute('data-suffix') || '';
       const decimals = parseInt(stat.getAttribute('data-decimals') || '0');
-      const duration = 2500; // 2 segundos
-      const stepTime = 15;
+      
+      const duration = 2500; // Duración en ms
+      const stepTime = 15;   // Intervalo de actualización
       const steps = duration / stepTime;
       const increment = target / steps;
       let current = 0;
@@ -123,7 +146,7 @@
   }
 
   .hero-logo-top {
-    height: 240px; /* Un poco grande para que destaque solo */
+    height: 240px; 
     width: auto;
     object-fit: contain;
     margin-bottom: 1.5rem;
@@ -140,7 +163,7 @@
 
   .hero-subtitle {
     font-size: clamp(1rem, 2vw, 1.25rem);
-    color: #a0a0a0; /* Gris sutil CHECAR PALETA COLORES*/
+    color: #a0a0a0; 
     max-width: 800px;
     margin: 0 auto 3rem;
     line-height: 1.6;
@@ -154,29 +177,9 @@
     margin-bottom: 3.5rem;
   }
 
-  .btn-outline {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.75rem 2rem;
-    border-radius: 8px;
-    border: 1px solid var(--color-gold-start);
-    color: var(--color-gold-end);
-    font-family: var(--font-primary);
-    font-size: 0.9rem;
-    letter-spacing: 1px;
-    transition: all 0.3s ease;
-    background: transparent;
-  }
-
-  .btn-outline:hover {
-    background: rgba(189, 142, 72, 0.1);
-    transform: translateY(-2px);
-  }
-
-  /* Sobrescribir estilos de btn-primary para este contexto si es necesario */
-  :global(.btn-primary) {
-    border-radius: 8px !important;
+  /* Override para botones en Hero (si queremos mantener el border-radius específico) */
+  :global(.hero-btn) {
+    border-radius: 8px !important; 
     padding: 0.75rem 2rem !important;
   }
 
@@ -239,4 +242,3 @@
     }
   }
 </style>
-

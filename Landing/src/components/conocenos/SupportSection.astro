@@ -1,0 +1,67 @@
+---
+import GoldButton from '../ui/GoldButton.astro';
+
+/**
+ * @component SupportSection
+ * @description Banner final de llamada a la acción (CTA) para soporte o ver licencias.
+ */
+---
+
+<section class="support-section reveal">
+  <div class="container">
+    <div class="support-banner">
+      <div class="support-info">
+        <h3>Asistencia Humana 24/7</h3>
+        <p>
+          No somos solo algoritmos; somos un equipo global listo para
+          acompañarte.
+        </p>
+      </div>
+      <GoldButton href="#">Ver Licencias →</GoldButton>
+    </div>
+  </div>
+</section>
+
+<style>
+  .support-section {
+    padding: 80px 0 120px;
+  }
+  
+  .support-banner {
+    background: linear-gradient(90deg, #111, #050505);
+    padding: 4rem;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .support-info h3 {
+    font-size: 2rem; /* aprox dark-h3 size */
+    margin-bottom: 1rem;
+    font-family: var(--font-primary);
+  }
+
+  .support-info p {
+    color: #a0a0a0;
+  }
+
+  @media (max-width: 992px) {
+    .support-banner {
+      flex-direction: column;
+      text-align: center;
+      gap: 2rem;
+    }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: 0.8s ease-out;
+  }
+  .reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>

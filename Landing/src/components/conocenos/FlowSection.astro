@@ -1,0 +1,85 @@
+---
+import SectionTitle from '../ui/SectionTitle.astro';
+
+/**
+ * @component FlowSection
+ * @description Muestra un diagrama de flujo simple horizontal (Socio -> Pro-Finance -> Mercados).
+ * Representa el flujo de valor.
+ */
+---
+
+<section class="flow-section reveal">
+  <div class="container">
+    <SectionTitle 
+      title="" 
+      label="FLUJO DE VALOR" 
+      align="center"
+    />
+    
+    <div class="flow-visual">
+      <div class="flow-node">Socio</div>
+      <div class="flow-connector"></div>
+      <div class="flow-node highlight">Pro-Finance</div>
+      <div class="flow-connector"></div>
+      <div class="flow-node">Mercados</div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .flow-section {
+    padding: 80px 0;
+    text-align: center;
+  }
+
+  .flow-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 3rem;
+    gap: 1rem;
+  }
+
+  .flow-node {
+    padding: 1rem 2rem;
+    border: 1px solid #333;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--color-white, white);
+  }
+
+  .flow-node.highlight {
+    border-color: var(--color-gold-start, #bd8e48);
+    color: var(--color-gold-start, #bd8e48);
+    background: rgba(189, 142, 72, 0.05);
+  }
+
+  .flow-connector {
+    height: 1px;
+    width: 60px;
+    background: linear-gradient(90deg, #333, transparent);
+  }
+
+  @media (max-width: 992px) {
+    .flow-visual {
+      flex-direction: column;
+    }
+    .flow-connector {
+      width: 1px;
+      height: 40px;
+      background: linear-gradient(180deg, #333, transparent);
+    }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: 0.8s ease-out;
+  }
+  .reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>

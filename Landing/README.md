@@ -1,42 +1,58 @@
-# Landing Page - Pro-Finance
+# Pro-Finance Landing Page
 
-Este proyecto contiene la página de aterrizaje (landing page) para el sistema financiero Pro-Finance. Está construido con [Astro](https://astro.build/), utilizando HTML, CSS y JavaScript/TypeScript.
+Plataforma pública de alto impacto visual para Pro-Finance, construida con **Astro**.
+
+## Características Principales
+
+- ⚡ **Rendimiento**: Generación de sitio estático (SSG) para máxima velocidad.
+- 🎨 **Diseño**: Estilo "Dark Premium" con gradientes dorados y componentes animados.
+- 🧩 **Modularidad**: Componentes reutilizables siguiendo principios SOLID.
 
 ## Estructura del Proyecto
 
-El proyecto sigue la estructura estándar de Astro:
+```text
+src/
+├── components/
+│   ├── index/          # Componentes principales de la Home (Hero, Benefits, FAQ, etc.)
+│   ├── ui/             # Componentes reutilizables (Botones, Títulos, Cards)
+│   ├── conocenos/      # Secciones específicas de la página "Conócenos"
+│   └── ...             # Componentes adicionales
+│
+├── layouts/            # Plantilla base (HTML, Head)
+├── pages/              # Rutas (index, conocenos)
+└── styles/             # Variables CSS globales y fuentes
+```
 
-- **src/**: Código fuente del proyecto.
-  - **components/**: Componentes reutilizables de Astro.
-    - `Header.astro`: Barra de navegación superior.
-    - `Hero.astro`: Sección principal con mensaje de bienvenida y gráfica.
-    - `Benefits.astro`: Carrusel de beneficios con desplazamiento automático.
-    - `FAQ.astro`: Sección de preguntas frecuentes y formulario de contacto.
-    - `Footer.astro`: Pie de página con enlaces y derechos de autor.
-  - **layouts/**: Plantillas de diseño generales.
-    - `Layout.astro`: Estructura HTML base (head, body) compartida por las páginas.
-  - **pages/**: Rutas y páginas del sitio.
-    - `index.astro`: Página principal que ensambla todos los componentes.
-    - `conocenos.astro`: Página con la historia y detalles de la empresa.
-  - **styles/**: Archivos de estilos globales.
-    - `global.css`: Variables CSS, fuentes, reinicios y estilos utilitarios.
-- **public/**: Archivos estáticos servidos directamente (imágenes, fuentes, iconos).
+## Guía de Instalación y Uso
 
-## Ejecución del Proyecto
-
-1.  Instalar dependencias:
+1.  **Instalar dependencias**:
 
     ```bash
     npm install
     ```
 
-2.  Iniciar servidor de desarrollo de la landing:
+2.  **Iniciar servidor local**:
 
     ```bash
-    npm run landing:dev
+    npm run dev
     ```
 
-## Notas de Diseño
+    El sitio estará disponible en `http://localhost:4321`.
 
-- **Tipografía**: Se utilizan las fuentes "Faster Stroker" (para títulos) y "Candara" (para cuerpo), definidas en `global.css`.
-- **Colores**: Paleta de colores principal (Negro y Blanco), complementarios (#002e46 opcional, #7c7c7c) y el gradiente dorado característico.
+3.  **Construir para producción**:
+
+    ```bash
+    npm run build
+    ```
+
+## Stack Tecnológico
+
+- **Framework**: Astro 5.0
+- **Estilos**: CSS Nativo (Variables CSS, Scoped Styles).
+- **Lenguaje**: TypeScript (en bloques de script).
+
+## Estándares de Contribución
+
+- Utilizar componentes UI de `src/components/ui` siempre que sea posible.
+- Documentar nuevos componentes con **JSDoc** en Español.
+- Mantener el idioma de las variables en Inglés.

@@ -1,0 +1,71 @@
+---
+/**
+ * @component SectionTitle
+ * @description Muestra un título de sección con una etiqueta opcional (badge/label) y estilo tipográfico consistente.
+ * Se utiliza para encabezados de sección estándar a lo largo de la Landing Page.
+ *
+ * @prop {string} [label] - Texto pequeño en mayúsculas sobre el título (ej. "IDENTIDAD").
+ * @prop {string} title - El título principal.
+ * @prop {string} [highlight] - Parte del texto que debe ir en color dorado/gradiente (si aplica).
+ * @prop {'left' | 'center'} [align='left'] - Alineación del texto.
+ * @prop {boolean} [darkLabel=false] - Si la etiqueta debe ser oscura (para fondos claros).
+ */
+
+interface Props {
+  label?: string;
+  title: string;
+  highlight?: string;
+  align?: 'left' | 'center';
+  darkLabel?: boolean;
+  as?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+}
+
+const { label, title, highlight, align = 'left', darkLabel = false, as: Tag = 'h2' } = Astro.props;
+---
+
+<div class:list={['section-header', `align-${align}`]}>
+  {label && <span class:list={['section-label', { dark: darkLabel }]}>{label}</span>}
+  
+  <Tag class="display-title">
+    {title.split(highlight || '').map((part: string, index: number, array: string[]) => (
+      <>
+        {part}
+        {highlight && index < array.length - 1 && <span class="text-gradient-gold">{highlight}</span>}
+      </>
+    ))}
+    {/* Fallback si no hay highlight pero se quiere usar el título directo */}
+    {!highlight && title}
+  </Tag>
+  
+  <slot />
+</div>
+
+<style>
+  .section-header {
+    margin-bottom: 2rem;
+  }
+
+  .align-center {
+    text-align: center;
+  }
+
+  .section-label {
+    color: var(--color-gold-start, #bd8e48);
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    margin-bottom: 1rem;
+    display: block;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .section-label.dark {
+    color: #666;
+  }
+
+  .display-title {
+    font-size: clamp(2rem, 5vw, 2.5rem);
+    line-height: 1.2;
+    font-family: var(--font-primary, sans-serif);
+  }
+</style>

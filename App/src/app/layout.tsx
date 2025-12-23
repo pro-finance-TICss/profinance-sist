@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ProFinance - Sistema",
-  description: "Sistema financiero avanzado de ProFinance",
+  title: "ProFinance - App",
+  description: "App financiera avanzada de ProFinance",
 };
 
 export default function RootLayout({

@@ -1,5 +1,10 @@
----
+import GoldButton from '../ui/GoldButton.astro';
 
+/**
+ * @component FAQ
+ * @description Sección de Preguntas Frecuentes con acordeón y formulario de contacto.
+ * Incluye validación del lado del cliente para el formulario.
+ */
 ---
 
 <section id="faq" class="faq-section">
@@ -9,6 +14,7 @@
     </h2>
 
     <div class="faq-layout">
+      <!-- Lista de Preguntas -->
       <div class="faq-list">
         <div class="faq-item">
           <details>
@@ -66,19 +72,51 @@
       <div class="contact-card">
         <h3>¿Necesitas más ayuda?</h3>
         <p>Déjanos un mensaje y te contactaremos.</p>
-        <form class="contact-form">
+        
+        <form class="contact-form" id="contactForm" novalidate>
           <div class="form-group">
-            <input type="text" placeholder="Nombre completo" required />
+            <label for="contact-name" class="sr-only">Nombre completo</label>
+            <input 
+              type="text" 
+              id="contact-name" 
+              name="name" 
+              placeholder="Nombre completo" 
+              required 
+              minlength="2"
+              pattern="^[a-zA-ZñÑáéíóúÁÉÍÓÚ\s]+$"
+            />
+            <span class="error-msg">Ingresa un nombre válido.</span>
           </div>
+          
           <div class="form-group">
-            <input type="email" placeholder="Correo electrónico" required />
+             <label for="contact-email" class="sr-only">Correo electrónico</label>
+            <input 
+              type="email" 
+              id="contact-email" 
+              name="email" 
+              placeholder="Correo electrónico" 
+              required 
+            />
+             <span class="error-msg">Ingresa un correo válido.</span>
           </div>
+          
           <div class="form-group">
-            <textarea placeholder="Tu mensaje" rows="4" required></textarea>
+             <label for="contact-message" class="sr-only">Mensaje</label>
+            <textarea 
+              id="contact-message" 
+              name="message" 
+              placeholder="Tu mensaje" 
+              rows="4" 
+              required
+              minlength="10"
+              maxlength="500"
+            ></textarea>
+             <span class="error-msg">El mensaje debe tener al menos 10 caracteres.</span>
           </div>
-          <button type="submit" class="btn btn-primary">
-            <span class="btn-text">Enviar Mensaje</span>
-          </button>
+          
+          <GoldButton type="submit" class="submit-btn" style="width: 100%;">
+            Enviar Mensaje
+          </GoldButton>
         </form>
       </div>
     </div>
@@ -94,7 +132,7 @@
 
   .container {
     width: 90%;
-    max-width: 1400px; /* Ancho máximo aumentado para acomodar lado a lado */
+    max-width: 1400px; 
     margin: 0 auto;
   }
 
@@ -102,6 +140,7 @@
     font-size: 2.5rem;
     margin-bottom: 2rem;
     text-align: center;
+    font-family: var(--font-primary, sans-serif);
   }
 
   .faq-layout {
@@ -154,7 +193,7 @@
   summary::after {
     content: "+";
     font-size: 1.5rem;
-    color: var(--color-gold-start);
+    color: var(--color-gold-start, #bd8e48);
     transition: transform 0.3s;
   }
 
@@ -180,9 +219,10 @@
   }
 
   .contact-card h3 {
-    color: var(--color-gold-start);
+    color: var(--color-gold-start, #bd8e48);
     font-size: 1.5rem;
     margin-bottom: 0.5rem;
+    font-family: var(--font-primary, sans-serif);
   }
 
   .contact-card p {
@@ -197,6 +237,10 @@
     gap: 1rem;
   }
 
+  .form-group {
+    position: relative;
+  }
+
   .form-group input,
   .form-group textarea {
     width: 100%;
@@ -204,8 +248,8 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     padding: 1rem;
-    color: var(--color-white);
-    font-family: var(--font-secondary);
+    color: white; /* var(--color-white) */
+    font-family: var(--font-secondary, sans-serif);
     font-size: 1rem;
     transition: border-color 0.3s ease;
   }
@@ -213,10 +257,75 @@
   .form-group input:focus,
   .form-group textarea:focus {
     outline: none;
-    border-color: var(--color-gold-start);
+    border-color: var(--color-gold-start, #bd8e48);
+  }
+
+  .form-group input:invalid:not(:placeholder-shown),
+  .form-group textarea:invalid:not(:placeholder-shown) {
+     border-color: #ff6b6b;
+  }
+
+  .error-msg {
+    display: none;
+    color: #ff6b6b;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+  }
+
+  .form-group input:invalid:not(:placeholder-shown) + .error-msg,
+  .form-group textarea:invalid:not(:placeholder-shown) + .error-msg {
+    display: block;
   }
 
   .form-group textarea {
     resize: vertical;
   }
+  
+  /* Helper sr-only (Screen Reader Only) - si no está en global.css */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
 </style>
+
+<script>
+  // Simple Client-Side Validation Script
+  const form = document.getElementById('contactForm') as HTMLFormElement;
+  
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      // Check HTML5 validity
+      if (!form.checkValidity()) {
+        // Find first invalid input and focus
+        const firstInvalid = form.querySelector(':invalid') as HTMLElement;
+        if (firstInvalid) firstInvalid.focus();
+        return;
+      }
+      
+      // Sanitización básica (Solo demostrativa, el backend debe hacer la real)
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+      
+      // sanitize strings (simple replace < >)
+      const cleanData: any = {};
+      for (const [key, val] of Object.entries(data)) {
+        if (typeof val === 'string') {
+          cleanData[key] = val.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+      }
+
+      console.log("Datos seguros listos para enviar:", cleanData);
+      alert("¡Mensaje enviado correctamente! (Simulación)");
+      form.reset();
+    });
+  }
+</script>

@@ -1,0 +1,64 @@
+---
+import Card from '../ui/Card.astro';
+
+/**
+ * @component ValuesSection
+ * @description Muestra los 3 valores principales (Nu cards) usando el componente Card reutilizable.
+ * 1. Cero Conflicto
+ * 2. Tecnología Pro
+ * 3. Auditabilidad
+ */
+---
+
+<section class="values-nu reveal">
+  <div class="container">
+    <div class="nu-grid">
+      <Card number="01" title="Cero Conflicto" class="nu-card-custom">
+        Modelo de negocio 100% alineado con el crecimiento del socio.
+      </Card>
+      
+      <Card number="02" title="Tecnología Pro" class="nu-card-custom">
+        Algoritmos de vanguardia diseñados para la preservación de capital.
+      </Card>
+      
+      <Card number="03" title="Auditabilidad" class="nu-card-custom">
+        Reportes claros y procesos verificables en cada operación.
+      </Card>
+    </div>
+  </div>
+</section>
+
+<style>
+  .values-nu {
+    padding: 60px 0;
+  }
+
+  .nu-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+
+  /* Si necesitamos override específico para estas cards */
+  .nu-card-custom {
+    background: var(--card-dark, #0f0f0f);
+  }
+
+  @media (max-width: 992px) {
+    .nu-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: 0.8s ease-out;
+  }
+  
+  :global(.active) .reveal, /* si el padre tiene active */
+  .reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>

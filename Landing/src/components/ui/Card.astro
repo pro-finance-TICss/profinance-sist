@@ -1,0 +1,84 @@
+---
+/**
+ * @component Card
+ * @description Tarjeta genérica con efecto de blur y borde suave. 
+ * Usada para mostrar características, valores o beneficios.
+ *
+ * @prop {string} [title] - Título de la tarjeta.
+ * @prop {string} [icon] - Icono o emoji opcional.
+ * @prop {string|number} [number] - Número opcional (ej. "01") para listas ordenadas.
+ * @prop {boolean} [hoverEffect=true] - Habilitar animación de hover.
+ */
+
+interface Props {
+  title?: string;
+  icon?: string;
+  number?: string | number;
+  hoverEffect?: boolean;
+  class?: string;
+}
+
+const { title, icon, number, hoverEffect = true, class: className } = Astro.props;
+---
+
+<article class:list={['card-base', { hover: hoverEffect }, className]}>
+  {number && <span class="card-num">{number}</span>}
+  {icon && <span class="card-icon">{icon}</span>}
+  
+  {title && <h3>{title}</h3>}
+  
+  <div class="card-content">
+    <slot />
+  </div>
+</article>
+
+<style>
+  .card-base {
+    background: rgba(255, 255, 255, 0.04);
+    /* Fallback por si no existe variable de color card */
+    background: var(--card-dark, rgba(15, 15, 15, 1)); 
+    padding: 2.5rem 2rem;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .card-base.hover:hover {
+    border-color: rgba(189, 142, 72, 0.3);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+
+  .card-num {
+    color: var(--color-gold-start, #bd8e48);
+    font-size: 0.9rem;
+    font-weight: 700;
+    opacity: 0.6;
+    margin-bottom: 0.5rem;
+    font-family: var(--font-secondary, sans-serif);
+  }
+
+  .card-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    display: block;
+  }
+
+  h3 {
+    margin: 0.5rem 0 1rem;
+    font-size: 1.3rem;
+    color: white;
+    font-family: var(--font-primary, sans-serif);
+  }
+
+  .card-content {
+    color: #a0a0a0;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    width: 100%;
+  }
+</style>

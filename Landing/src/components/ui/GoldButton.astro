@@ -1,0 +1,61 @@
+---
+/**
+ * @component GoldButton
+ * @description Botón principal con estilo dorado y efecto de brillo.
+ * Soporta variantes 'primary' (relleno dorado) y 'outline' (borde dorado).
+ * Puede renderizarse como `<a>` o `<button>` dependiendo de si se pasa `href`.
+ *
+ * @prop {string} [href] - URL destino. Si existe, se renderiza un enlace `<a>`.
+ * @prop {string} [type='button'] - Tipo de botón para formularios html.
+ * @prop {'primary' | 'outline'} [variant='primary'] - Estilo visual del botón.
+ * @prop {string} [class] - Clases adicionales.
+ */
+
+interface Props {
+  href?: string;
+  type?: "button" | "submit" | "reset";
+  variant?: 'primary' | 'outline';
+  class?: string;
+  [key: string]: any; 
+}
+
+const { href, type = "button", variant = 'primary', class: className, ...rest } = Astro.props;
+
+const initialClass = variant === 'primary' ? 'btn-primary' : 'btn-outline';
+---
+
+{
+  href ? (
+    <a href={href} class:list={[initialClass, className]} {...rest}>
+      {variant === 'primary' ? <span class="btn-text"><slot /></span> : <slot />}
+    </a>
+  ) : (
+    <button type={type} class:list={[initialClass, className]} {...rest}>
+      {variant === 'primary' ? <span class="btn-text"><slot /></span> : <slot />}
+    </button>
+  )
+}
+
+<style>
+  /* Estilos locales para outline si no existen globalmente o para asegurar encapsulamiento */
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 2rem;
+    border-radius: 9999px; /* Pill shape por defecto en el componente */
+    border: 1px solid var(--color-gold-start, #bd8e48);
+    color: var(--color-gold-end, #f8df8f);
+    font-family: var(--font-primary, sans-serif);
+    font-size: 1rem;
+    letter-spacing: 1px;
+    background: transparent;
+    transition: all 0.3s ease;
+    text-decoration: none;
+  }
+
+  .btn-outline:hover {
+    background: rgba(189, 142, 72, 0.1);
+    transform: translateY(-2px);
+  }
+</style>

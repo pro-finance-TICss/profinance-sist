@@ -1,0 +1,160 @@
+---
+import Card from '../ui/Card.astro';
+
+/**
+ * @component Benefits
+ * @description Sección de beneficios con carrusel infinito (CSS-only animation).
+ * Muestra tarjetas con iconos y descripciones de las ventajas competitivas.
+ */
+
+const benefits = [
+  {
+    icon: "📈",
+    title: "Rentabilidad Alta",
+    text: "Maximizamos tu inversión con estrategias sólidas y comprobadas."
+  },
+  {
+    icon: "🛡️",
+    title: "Seguridad Total",
+    text: "Protección avanzada para tu patrimonio y tu información."
+  },
+  {
+    icon: "🤝",
+    title: "Asesoría 24/7",
+    text: "Acompañamiento experto cuando lo necesites."
+  },
+  {
+    icon: "📱",
+    title: "Tecnología Punta",
+    text: "Gestión financiera ágil desde cualquier dispositivo."
+  }
+];
+---
+
+<section id="beneficios" class="benefits-section">
+  <div class="container">
+    <h2 class="section-title">
+      Nuestros <span class="text-gradient-gold">Beneficios</span>
+    </h2>
+
+    <div class="carousel">
+      <div class="carousel-track">
+
+        <!-- Grupo original -->
+        <div class="group">
+          {benefits.map((b) => (
+            <div class="card-wrapper">
+              <Card 
+                title={b.title} 
+                icon={b.icon} 
+                hoverEffect={true}
+                class="benefit-card"
+              >
+                {b.text}
+              </Card>
+            </div>
+          ))}
+        </div>
+
+        <!-- Grupo clonado para efecto infinito -->
+        <div class="group" aria-hidden="true">
+          {benefits.map((b) => (
+            <div class="card-wrapper">
+               <Card 
+                title={b.title} 
+                icon={b.icon} 
+                hoverEffect={true}
+                class="benefit-card"
+              >
+                {b.text}
+              </Card>
+            </div>
+          ))}
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+.benefits-section {
+  padding: 6rem 0;
+  background: linear-gradient(to bottom, transparent, rgba(124,124,124,.15));
+}
+
+.container {
+  max-width: 1600px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.section-title {
+  font-size: 2.5rem;
+  margin-bottom: 3rem;
+  font-family: var(--font-primary, sans-serif);
+}
+
+/* Carousel Logic */
+.carousel {
+  overflow: hidden;
+  position: relative;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 15%,
+    black 85%,
+    transparent
+  );
+}
+
+.carousel-track {
+  display: flex;
+  flex-wrap: nowrap;
+  width: max-content;
+  animation: scroll 30s linear infinite;
+}
+
+.carousel:hover .carousel-track {
+  animation-play-state: paused;
+}
+
+.group {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 2rem;
+  padding: 2rem 0; /* evita corte en hover */
+  padding-right: 2rem; /* A bit of spacing between groups */
+}
+
+@keyframes scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%); /* Ajustado para mover todo el grupo si usamos 2 grupos idénticos de ancho completo? No, con 2 grupos, suele ser -50% si el track contiene ambos. */
+    /* El original era -50% y tenía 2 grupos. Mantendremos -50%. */
+    transform: translateX(-50%);
+  }
+}
+
+/* 
+   Wrapper para controlar el layout flex dentro del track.
+   El componente Card ocupa 100% de su contenedor padre, así que le damos tamaño al wrapper.
+*/
+.card-wrapper {
+  flex: 0 0 280px;
+  width: 280px;
+}
+
+/* Estilos específicos pasados al componente Card vía prop class */
+/* Nota: Card usa class:list, así que .benefit-card se aplica al article base */
+:global(.benefit-card) {
+  height: 100%;
+  backdrop-filter: blur(6px); /* Restore original blur */
+}
+
+:global(.benefit-card:hover) {
+    box-shadow: 0 10px 40px rgba(212,175,55,.15);
+}
+</style>
