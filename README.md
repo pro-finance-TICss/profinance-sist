@@ -63,6 +63,6 @@ npm run dev
 
 ## Contribución
 
-1.  Crear rama desde `develop`: `git checkout -b feature/nombre-feature`.
+1.  Crear rama.
 2.  Realizar cambios siguiendo los estándares.
 3.  Pull Request con descripción de cambios.
