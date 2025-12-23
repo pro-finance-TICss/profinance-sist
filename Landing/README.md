@@ -34,7 +34,7 @@ src/
 2.  **Iniciar servidor local**:
 
     ```bash
-    npm run dev
+    npm run landing:dev
     ```
 
     El sitio estará disponible en `http://localhost:4321`.
@@ -42,7 +42,7 @@ src/
 3.  **Construir para producción**:
 
     ```bash
-    npm run build
+    npm run landing:build
     ```
 
 ## Stack Tecnológico
@@ -55,4 +55,3 @@ src/
 
 - Utilizar componentes UI de `src/components/ui` siempre que sea posible.
 - Documentar nuevos componentes con **JSDoc** en Español.
-- Mantener el idioma de las variables en Inglés.
