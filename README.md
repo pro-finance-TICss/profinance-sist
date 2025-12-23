@@ -1,6 +1,6 @@
-# Pro-Finance System
+# Pro-Finance
 
-Sistema integral de gestión de inversiones y plataforma web pública.
+Proyectos de software para Pro-finance
 
 ## Estructura del Proyecto
 
