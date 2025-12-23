@@ -47,9 +47,9 @@ src/
 
 ## Scripts Disponibles
 
-- `npm run dev`: Servidor de desarrollo.
-- `npm run build`: Compilar para producción.
-- `npm run lint`: Verificar errores de estilo y código.
+- `npm run app:dev`: Servidor de desarrollo.
+- `npm run app:build`: Compilar para producción.
+- `npm run app:lint`: Verificar errores de estilo y código.
 
 ## Stack Tecnológico
 
