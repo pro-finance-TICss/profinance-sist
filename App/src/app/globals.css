@@ -47,7 +47,8 @@ body {
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start; /* Cambiado a flex-start para mejor control con scroll */
+  padding: 140px 1rem 60px; /* Incrementado para alejar del header fijo */
   overflow-x: hidden;
 }
 
@@ -65,7 +66,7 @@ body {
   align-items: center;
   background-color: var(--color-black);
 }
-
+/* ... background dots ... */
 .background-container::before {
   content: "";
   position: absolute;
@@ -105,13 +106,19 @@ body {
   position: relative;
   z-index: 10;
   width: 100%;
-  max-width: 450px;
-  padding: 2rem;
+  max-width: 450px; /* Ajustado para dar espacio a los inputs de apellidos */
+  padding: 0;
 }
 
 .auth-card {
-  background: transparent;
-  backdrop-filter: blur(8px);
+  background: rgba(
+    255,
+    255,
+    255,
+    0.03
+  ); /* Casi transparente para ver el fondo */
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 12px;
   padding: 3rem 2.5rem;
@@ -128,7 +135,7 @@ body {
 
 /* Header */
 .auth-header {
-  margin-bottom: 3rem;
+  margin-bottom: 2.5rem;
   text-align: center;
 }
 
@@ -154,27 +161,28 @@ body {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.2rem; /* Reducido de 1.5rem */
 }
 
 .input-group {
   position: relative;
+  width: 100%;
 }
 
 .input-group input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 1.2rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0.8rem 1rem; /* Reducido de 1.2rem */
   color: var(--color-white);
   font-family: var(--font-secondary);
-  font-size: 1rem;
+  font-size: 0.95rem;
   transition: all 0.3s ease;
   border-radius: 8px;
 }
 
 .input-group input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.2);
   font-weight: 300;
 }
 
@@ -349,14 +357,17 @@ body {
   left: 50%;
   transform: translateX(-50%);
   width: 90%;
-  max-width: 1400px;
-  padding: 0.8rem 2rem;
+  max-width: 1600px; /* Igual que en Landing */
+  padding: 0.8rem 2.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   z-index: 100;
+
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2); /* Borde sutil gris igual que Landing */
   border-radius: 12px;
 }
 
@@ -365,48 +376,78 @@ body {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 1.2rem;
+  gap: 1rem;
+  text-decoration: none;
 }
 
 .header-logo {
-  height: 50px;
-  width: auto;
+  width: 60px;
+  height: auto;
+  max-height: 40px;
   object-fit: contain;
+  display: block;
 }
 
 .header-brand {
   font-family: var(--font-primary);
-  font-size: 2rem;
+  font-size: 1.5rem; /* Reducido de 2rem para igualar Landing */
   background: var(--bg-gradient-gold);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* Navegación tipo Landing */
+.header-nav {
+  display: flex;
+  gap: 2rem;
+}
+
+.header-nav .nav-link {
+  font-family: var(--font-secondary);
+  font-size: 1.1rem;
+  color: var(--color-white);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.header-nav .nav-link:hover {
+  color: var(--color-gold-start);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
 }
 
 .header-slogan {
   font-family: var(--font-secondary);
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   color: var(--color-white);
   opacity: 0.8;
   letter-spacing: 0.5px;
 }
 
+@media (max-width: 992px) {
+  .header-nav {
+    display: none; /* Ocultar nav en tablets/móvil para evitar colapso de diseño en estos forms */
+  }
+}
+
 @media (max-width: 768px) {
-  .header-inner {
-    flex-direction: column;
-    gap: 0.8rem;
-    text-align: center;
+  .system-header {
+    width: 95%;
+    padding: 0.8rem 1.2rem;
   }
 
   .header-slogan {
-    font-size: 1rem;
+    display: none; /* Ocultar slogan en móvil */
   }
 }

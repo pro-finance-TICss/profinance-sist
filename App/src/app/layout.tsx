@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "ProFinance - App",
-  description: "App financiera avanzada de ProFinance",
+  description: "App financiera - ProFinance",
 };
 
 export default function RootLayout({

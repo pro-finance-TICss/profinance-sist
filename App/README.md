@@ -58,6 +58,43 @@ src/
 - **Validación**: Zod.
 - **Estilos**: CSS Modules / Global CSS.
 
+## 🔐 Módulo de Autenticación
+
+El sistema cuenta con un módulo de autenticación completo y seguro que incluye:
+
+- **Login y Registro** con validación de datos (Zod)
+- **Hashing de contraseñas** con bcrypt
+- **Protección de rutas** mediante Middleware
+- **Autenticación de Dos Factores (2FA)** mockeada para desarrollo
+
+### Credenciales de Prueba (Desarrollo)
+
+El sistema utiliza una base de datos local SQLite (`dev.db`). Puedes registrar un nuevo usuario en `/register`.
+
+### Flujo de 2FA (Mockeado)
+
+1. Al iniciar sesión, se genera un código de 6 dígitos.
+2. Este código se imprime en la **consola del servidor** (terminal donde ejecutas `npm run dev`).
+3. Copia el código e ingrésalo en la pantalla de verificación.
+
+### Comandos Útiles
+
+```bash
+# Ver la base de datos (GUI)
+npx prisma studio
+
+# Resetear base de datos
+npx prisma migrate reset
+```
+
+## 🛠️ Tecnologías
+
+- **Next.js 14** (App Router)
+- **Prisma ORM** (Base de datos)
+- **NextAuth.js v5** (Autenticación)
+- **Zod** (Validaciones)
+- **React Hook Form** (Manejo de formularios)
+
 ## Seguridad
 
 - Todos los formularios deben usar **Zod** para validar datos tanto en cliente como en servidor.
