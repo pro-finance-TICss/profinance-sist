@@ -106,13 +106,14 @@ export default function RegisterPage() {
       {/* Header del sistema */}
       <SystemHeader />
 
-      {/* Fondo con logo */}
-      <div className="background-container">
-        <div className="bg-logo-placeholder" />
-      </div>
-
       <main className="auth-container">
-        <div className="auth-card">
+        <div
+          className="auth-card"
+          style={{
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+          }}
+        >
           {/* Header del formulario */}
           <header className="auth-header">
             <p className={styles.subtitle}>Crea tu cuenta</p>

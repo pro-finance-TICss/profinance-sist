@@ -5,21 +5,33 @@ Aplicación Web Progresiva (PWA) para la gestión de inversiones y dashboard de 
 ## Funcionalidades Core
 
 - 🔐 **Autenticación**: Login y Registro seguros con validación Zod.
+- 🧪 **Diseño Experimental**: Nuevas rutas `/login2` y `/register2` con layout Split-Screen.
 - 📊 **Dashboard**: Visualización de métricas financieras (Próximamente).
-- 🛡️ **Seguridad**: Sanitización de inputs y manejo de sesiones.
+- 🛡️ **Seguridad**: Sanitización de inputs, Bcrypt para hashing y manejo de sesiones seguro.
 
 ## Estructura del Proyecto
 
 ```text
 src/
-├── app/                # Rutas (App Router)
-│   ├── login/          # Página de Inicio de Sesión
-│   └── ...
-├── components/         # Componentes de React
-│   ├── ui/             # Componentes base (Input, Button)
-│   └── SystemHeader.tsx
+├── app/                  # Rutas (App Router)
+│   ├── login/            # Login v1 (Glassmorphism centrado)
+│   ├── login2/           # [NUEVO] Login v2 (Split-Screen layout)
+│   ├── register/         # Registro v1
+│   ├── register2/        # [NUEVO] Registro v2
+│   ├── dashboard/        # Área privada
+│   ├── verification/     # Página 2FA
+│   └── api/              # API Routes (NextAuth, etc)
+├── components/           # Componentes de React
+│   ├── ui/               # Componentes atómicos (Input, Button) - Reutilizables (DRY)
+│   └── SystemHeader.tsx  # Header global
 ├── lib/
-│   └── schemas.ts      # Esquemas de validación (Zod)
+│   ├── actions/          # Server Actions (Lógica de negocio y DB)
+│   ├── validations/      # Esquemas Zod (Auth, Users) - Single Source of Truth
+│   ├── prisma.ts         # Instancia Singleton de Prisma
+│   └── utils.ts          # Helpers generales
+├── prisma/
+│   └── schema.prisma     # Modelado de base de datos (SQLite/Postgres)
+└── public/               # Assets estáticos (imágenes, fuentes)
 ```
 
 ## Guía de Instalación y Uso
@@ -51,12 +63,25 @@ src/
 - `npm run app:build`: Compilar para producción.
 - `npm run app:lint`: Verificar errores de estilo y código.
 
-## Stack Tecnológico
+## 🏗️ Stack Tecnológico y Arquitectura
 
 - **Framework**: Next.js 15+ (App Router).
-- **Lenguaje**: TypeScript.
-- **Validación**: Zod.
-- **Estilos**: CSS Modules / Global CSS.
+- **Lenguaje**: TypeScript (Strict Mode).
+- **ORM**: Prisma (Gestión de esquema y migraciones).
+- **Base de Datos**: SQLite (Desarrollo) / Postgres (Producción).
+- **Autenticación**: NextAuth.js v5 (Beta).
+- **Validación**: Zod (Cliente y Servidor).
+- **Formularios**: React Hook Form.
+- **Estilos**: CSS Modules + Variables CSS Globales.
+
+## 📐 Principios de Desarrollo
+
+Este proyecto sigue buenas prácticas de ingeniería de software:
+
+1.  **DRY (Don't Repeat Yourself)**: Reutilización de componentes UI (`Input`, `Button`) y lógica de validación (`auth.ts`).
+2.  **KISS (Keep It Simple, Stupid)**: Estructura de carpetas intuitiva y Server Actions directas en lugar de APIs complejas innecesarias.
+3.  **SOLID**: Responsabilidad única en componentes y separación de capas (UI vs Lógica de Negocio).
+4.  **Clean Code**: Nombres de variables descriptivos y código autodocumentado.
 
 ## 🔐 Módulo de Autenticación
 
