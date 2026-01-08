@@ -45,7 +45,13 @@ export default function VerificationPage() {
 
   return (
     <main className="auth-container">
-      <div className="auth-card">
+      <div
+        className="auth-card"
+        style={{
+          backdropFilter: "blur(20px) saturate(160%)",
+          WebkitBackdropFilter: "blur(20px) saturate(160%)",
+        }}
+      >
         <header className="auth-header">
           <h1 className="company-name">ProFinance</h1>
           <h2
