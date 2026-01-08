@@ -228,9 +228,7 @@ export default function Login2Page() {
               className={styles.customForm}
               onSubmit={twoFactorForm.handleSubmit(onSubmit2FA)}
             >
-              <p
-                style={{ color: "rgba(255,255,255,0.7)", marginBottom: "1rem" }}
-              >
+              <p style={{ color: "rgba(0,0,0,0.6)", marginBottom: "1rem" }}>
                 Ingresa el código enviado a <strong>{email}</strong>
               </p>
 

@@ -192,9 +192,7 @@ export default function Register2Page() {
                 />
               </div>
 
-              <div
-                style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.4)" }}
-              >
+              <div style={{ fontSize: "0.8rem", color: "rgba(0,0,0,0.5)" }}>
                 La contraseña debe tener 8+ caracteres, mayúscula, número y
                 símbolo.
               </div>
@@ -206,7 +204,7 @@ export default function Register2Page() {
                     gap: "0.5rem",
                     alignItems: "flex-start",
                     fontSize: "0.9rem",
-                    color: "rgba(255,255,255,0.6)",
+                    color: "rgba(0,0,0,0.7)",
                   }}
                 >
                   <input
@@ -240,7 +238,7 @@ export default function Register2Page() {
             style={{
               marginTop: "2rem",
               textAlign: "center",
-              color: "rgba(255,255,255,0.5)",
+              color: "rgba(0,0,0,0.6)",
               fontSize: "0.9rem",
             }}
           >
