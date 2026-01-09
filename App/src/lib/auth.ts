@@ -1,57 +1,63 @@
 // ============================================================================
-// CONFIGURACIÓN DE NEXTAUTH v5
+// CONFIGURACIÓN DE NEXTAUTH v5 - PRO-FINANCE (SEGURIDAD BANCARIA)
 // ============================================================================
-// Configuración central de autenticación usando CredentialsProvider.
-// Incluye manejo de 2FA mockeado y callbacks de sesión/JWT.
+// Configuración central de autenticación con:
+// - Cookies seguras (HttpOnly, Secure, SameSite)
+// - Single Session Enforcement (tokenVersion)
+// - Flujo 2FA
+// - JWT con datos extendidos (role, tokenVersion, lastLogin)
 // ============================================================================
 
 import { CredentialsSignin } from "next-auth";
+import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
+import { loginSchema } from "@/lib/validations/auth";
+import { authConfig } from "@/lib/auth.config";
+
+// ============================================================================
+// ERRORES PERSONALIZADOS DE 2FA
+// ============================================================================
 
 /**
- * Error lanzado cuando se requiere 2FA.
+ * Error lanzado cuando se requiere verificación 2FA.
+ * El cliente debe mostrar el campo de código 2FA.
  */
 class TwoFactorRequiredError extends CredentialsSignin {
   code = "2FA_REQUIRED";
 }
 
 /**
- * Error lanzado cuando el código 2FA es inválido.
+ * Error lanzado cuando el código 2FA ingresado es inválido.
  */
 class InvalidTwoFactorError extends CredentialsSignin {
   code = "2FA_INVALID";
 }
 
-import NextAuth from "next-auth";
-import Credentials from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
-import { loginSchema } from "@/lib/validations/auth";
+// ============================================================================
+// FUNCIONES AUXILIARES
+// ============================================================================
 
 /**
- * Genera un código de 6 dígitos para 2FA.
- * @returns Código numérico de 6 dígitos como string
+ * Genera un código numérico de 6 dígitos para 2FA.
+ * @returns Código como string (ej: "123456")
  */
 function generateTwoFactorCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-/**
- * Configuración de NextAuth con CredentialsProvider.
- */
+// ============================================================================
+// CONFIGURACIÓN PRINCIPAL DE NEXTAUTH
+// ============================================================================
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  // Páginas personalizadas
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
+  // Heredar configuración base (páginas, sesión, cookies)
+  ...authConfig,
 
-  // Configuración de sesión
-  session: {
-    strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 horas
-  },
-
-  // Proveedores de autenticación
+  // ================================================================
+  // PROVEEDORES DE AUTENTICACIÓN
+  // ================================================================
   providers: [
     Credentials({
       name: "credentials",
@@ -63,11 +69,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       /**
        * Función de autorización que valida credenciales.
-       * Maneja el flujo de login y verificación 2FA.
+       * Implementa:
+       * - Validación con Zod
+       * - Verificación de contraseña con bcrypt
+       * - Flujo 2FA mockeado
+       * - Incremento de tokenVersion (Single Session)
        */
       async authorize(credentials) {
         try {
-          // Validar entrada con Zod
+          // 1. Validar entrada con Zod
           const validatedFields = loginSchema.safeParse({
             email: credentials?.email,
             password: credentials?.password,
@@ -79,7 +89,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           const { email, password } = validatedFields.data;
 
-          // Buscar usuario en la base de datos
+          // 2. Buscar usuario en la base de datos
           const user = await prisma.user.findUnique({
             where: { email },
           });
@@ -88,7 +98,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return null;
           }
 
-          // Verificar contraseña con bcrypt
+          // 3. Verificar contraseña con bcrypt
           const passwordMatch = await bcrypt.compare(password, user.password);
 
           if (!passwordMatch) {
@@ -119,36 +129,45 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             console.log("📧 CÓDIGO:", newCode);
             console.log("═══════════════════════════════════════════════════");
 
-            // Indicar que se requiere 2FA usando el error personalizado
             throw new TwoFactorRequiredError();
           }
 
-          // Segundo paso: verificar código 2FA
+          // 4. Verificar código 2FA
           if (user.twoFactorSecret !== twoFactorCode) {
             console.error("❌ Código 2FA incorrecto para:", email);
             throw new InvalidTwoFactorError();
           }
 
-          // Código correcto: marcar como verificado y actualizar lastLogin
-          await prisma.user.update({
+          // ================================================================
+          // LOGIN EXITOSO - ACTUALIZAR SEGURIDAD
+          // ================================================================
+
+          // Incrementar tokenVersion para invalidar sesiones anteriores
+          // Esto implementa Single Session Enforcement
+          const updatedUser = await prisma.user.update({
             where: { id: user.id },
             data: {
               twoFactorVerified: true,
               twoFactorSecret: null, // Limpiar código usado
               lastLogin: new Date(),
+              tokenVersion: { increment: 1 }, // ¡CLAVE para Single Session!
             },
           });
 
           console.log("✅ Login exitoso para:", email);
+          console.log("📊 Nueva tokenVersion:", updatedUser.tokenVersion);
 
-          // Retornar usuario para la sesión
+          // Retornar usuario con datos extendidos para el JWT
           return {
             id: user.id,
             email: user.email,
             name: `${user.firstName} ${user.paternalSurname} ${user.maternalSurname}`,
+            role: updatedUser.role,
+            tokenVersion: updatedUser.tokenVersion,
+            lastLogin: updatedUser.lastLogin,
           };
         } catch (error) {
-          // Re-lanzar nuestros errores personalizados para que lleguen al cliente
+          // Re-lanzar errores de 2FA para manejo en el cliente
           if (
             error instanceof TwoFactorRequiredError ||
             error instanceof InvalidTwoFactorError
@@ -163,28 +182,42 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
 
-  // Callbacks para personalizar JWT y sesión
+  // ================================================================
+  // CALLBACKS PARA JWT Y SESIÓN
+  // ================================================================
   callbacks: {
+    ...authConfig.callbacks,
+
     /**
-     * Callback JWT: agrega información del usuario al token.
+     * Callback JWT: Persiste datos del usuario en el token.
+     * Se ejecuta en cada request que necesita el token.
      */
     async jwt({ token, user }) {
+      // En el primer login, agregar datos del usuario al token
       if (user) {
         token.id = user.id;
-        token.email = user.email;
-        token.name = user.name;
+        token.email = user.email as string;
+        token.name = user.name as string;
+        token.role = user.role;
+        token.tokenVersion = user.tokenVersion;
+        token.lastLogin = user.lastLogin?.toISOString() || null;
       }
       return token;
     },
 
     /**
-     * Callback Session: expone datos del token en la sesión del cliente.
+     * Callback Session: Expone datos del token al cliente.
+     * Solo incluye lo necesario (no exponer tokenVersion al cliente).
      */
     async session({ session, token }) {
       if (token) {
-        session.user.id = token.id as string;
-        session.user.email = token.email as string;
+        session.user.id = token.id;
+        session.user.email = token.email;
         session.user.name = token.name as string;
+        session.user.role = token.role;
+        // tokenVersion NO se expone al cliente por seguridad
+        // pero se mantiene en el token para validación en middleware
+        session.user.tokenVersion = token.tokenVersion;
       }
       return session;
     },

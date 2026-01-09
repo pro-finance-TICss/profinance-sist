@@ -51,6 +51,13 @@ model User {
   /// Indica si el usuario ha verificado su 2FA en la sesión actual
   twoFactorVerified Boolean @default(false)
 
+  /// Rol del usuario para control de acceso (USER, ADMIN, etc.)
+  role              String    @default("USER")
+  
+  /// Versión del token para invalidar sesiones concurrentes (Single Session)
+  /// Se incrementa en cada login exitoso, invalidando tokens anteriores
+  tokenVersion      Int       @default(0)
+
   // Índice para búsquedas rápidas por email
   @@index([email])
 }

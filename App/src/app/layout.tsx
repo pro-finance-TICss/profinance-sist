@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/components/security/AuthProvider";
 
 export const metadata: Metadata = {
   title: "ProFinance - App",
@@ -14,10 +15,13 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
-        <div className="background-container">
-          <div className="bg-logo-placeholder"></div>
-        </div>
-        {children}
+        {/* Proveedor de autenticación con detección de inactividad */}
+        <AuthProvider>
+          <div className="background-container">
+            <div className="bg-logo-placeholder"></div>
+          </div>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
