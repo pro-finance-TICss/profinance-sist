@@ -1,0 +1,56 @@
+// ============================================================================
+// PRISMA SCHEMA - PRO-FINANCE
+// ============================================================================
+// Este archivo define la estructura de la base de datos.
+// En desarrollo usamos SQLite, en producción se puede cambiar a PostgreSQL.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Modelo de Usuario para autenticación y gestión de cuentas.
+/// Incluye campos de seguridad y auditoría.
+model User {
+  /// Identificador único generado automáticamente (CUID)
+  id              String    @id @default(cuid())
+  
+  /// Correo electrónico del usuario (único, usado para login)
+  email           String    @unique
+  
+  /// Contraseña hasheada con bcrypt (NUNCA texto plano)
+  password        String
+  
+  /// Nombre(s) del usuario
+  firstName       String
+  
+  /// Apellido Paterno
+  paternalSurname String
+  
+  /// Apellido Materno
+  maternalSurname String
+  
+  /// Fecha y hora de creación del registro
+  createdAt       DateTime  @default(now())
+  
+  /// Fecha y hora de última actualización
+  updatedAt       DateTime  @updatedAt
+  
+  /// Fecha y hora del último inicio de sesión (auditoría)
+  lastLogin       DateTime?
+  
+  /// Secreto para autenticación de dos factores (2FA)
+  /// En producción contendrá el código temporal generado
+  twoFactorSecret String?
+  
+  /// Indica si el usuario ha verificado su 2FA en la sesión actual
+  twoFactorVerified Boolean @default(false)
+
+  // Índice para búsquedas rápidas por email
+  @@index([email])
+}

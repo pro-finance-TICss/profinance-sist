@@ -10,17 +10,19 @@ export function SystemHeader() {
   return (
     <header className="system-header">
       <div className="header-inner">
-        <div className="header-left">
+        {/* Logo y Nombre */}
+        <a href="/" className="header-left">
           <img
             src="/logo2temp.png"
-            alt="ProFinance Logo"
+            alt="Pro-Finance Logo"
             className="header-logo"
-            // Optimización: en producción usar Image de next/image
-            width="40"
+            width="60"
             height="40"
           />
           <span className="header-brand">PRO-FINANCE</span>
-        </div>
+        </a>
+
+        {/* Eslogan / Botón */}
         <div className="header-right">
           <span className="header-slogan">
             Empoderando tu futuro financiero
