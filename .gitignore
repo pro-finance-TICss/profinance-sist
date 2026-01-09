@@ -22,3 +22,4 @@ out/
 .idea/
 .DS_Store
 Thumbs.db
+App/prisma/dev.db
