@@ -1,35 +1,37 @@
-import React from "react";
-import styles from "./Card.module.css";
+"use client";
+import React from 'react';
 
-/**
- * Props del componente Card.
- */
 interface CardProps {
-  /** Título opcional del card */
-  title?: string;
-  /** Contenido del card */
-  children: React.ReactNode;
-  /** Clases CSS adicionales */
-  className?: string;
+    children: React.ReactNode;
+    title?: string;
 }
 
-/**
- * @component Card
- * @description Contenedor glassmorphism reutilizable para secciones de contenido.
- * Proporciona un diseño consistente con efectos visuales del estilo Pro-Finance.
- *
- * @example
- * ```tsx
- * <Card title="Balance Actual">
- *   <p>$10,000.00</p>
- * </Card>
- * ```
- */
-export function Card({ title, children, className = "" }: CardProps) {
-  return (
-    <article className={`${styles.card} ${className}`}>
-      {title && <h3 className={styles.cardTitle}>{title}</h3>}
-      <div className={styles.cardContent}>{children}</div>
-    </article>
-  );
+export function Card({ children, title }: CardProps) {
+    return (
+        <div style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.02)',
+            borderRadius: '24px',
+            padding: '30px',
+            border: '1px solid rgba(189, 142, 72, 0.15)', // Tu dorado institucional
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative',
+            overflow: 'hidden'
+        }}>
+            {title && (
+                <h3 style={{
+                    fontSize: '1rem',
+                    color: 'rgba(255,255,255,0.5)',
+                    marginBottom: '20px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1.5px',
+                    fontWeight: '500'
+                }}>
+                    {title}
+                </h3>
+            )}
+            {children}
+        </div>
+    );
 }

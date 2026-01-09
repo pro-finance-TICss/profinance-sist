@@ -1,5 +1,5 @@
 ---
-import Card from '../ui/Card.astro';
+import Card from "../ui/Card.astro";
 
 /**
  * @component ValuesSection
@@ -16,11 +16,11 @@ import Card from '../ui/Card.astro';
       <Card number="01" title="Cero Conflicto" class="nu-card-custom">
         Modelo de negocio 100% alineado con el crecimiento del socio.
       </Card>
-      
+
       <Card number="02" title="Tecnología Pro" class="nu-card-custom">
         Algoritmos de vanguardia diseñados para la preservación de capital.
       </Card>
-      
+
       <Card number="03" title="Auditabilidad" class="nu-card-custom">
         Reportes claros y procesos verificables en cada operación.
       </Card>
@@ -29,11 +29,11 @@ import Card from '../ui/Card.astro';
 </section>
 
 <style>
-    .container {
+  .container {
     width: 100%;
     max-width: 1200px; /* Ajusta según el ancho de tu Header */
-    margin: 0 auto;    /* Centra el bloque horizontalmente */
-    padding: 0 2rem;   /* Evita que el texto toque los bordes en móviles */
+    margin: 0 auto; /* Centra el bloque horizontalmente */
+    padding: 0 2rem; /* Evita que el texto toque los bordes en móviles */
     box-sizing: border-box; /* Asegura que el padding no sume al ancho total */
   }
 
@@ -63,7 +63,7 @@ import Card from '../ui/Card.astro';
     transform: translateY(30px);
     transition: 0.8s ease-out;
   }
-  
+
   :global(.active) .reveal, /* si el padre tiene active */
   .reveal.active {
     opacity: 1;
