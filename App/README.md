@@ -18,12 +18,11 @@ src/
 │   ├── login2/           # [NUEVO] Login v2 (Split-Screen layout)
 │   ├── register/         # Registro v1
 │   ├── register2/        # [NUEVO] Registro v2
-│   ├── dashboard/        # Área privada
-│   ├── verification/     # Página 2FA
-│   └── api/              # API Routes (NextAuth, etc)
+│   ├── dashboard/        # Dashboard Unificado (SPA-like interface)
+│   └── verification/     # Página 2FA
 ├── components/           # Componentes de React
-│   ├── ui/               # Componentes atómicos (Input, Button) - Reutilizables (DRY)
-│   └── SystemHeader.tsx  # Header global
+│   ├── dashboard/        # Componentes del Dashboard (Balance, Actividad, etc.)
+│   └── ui/               # Componentes atómicos (Card, Input, Button)
 ├── lib/
 │   ├── actions/          # Server Actions (Lógica de negocio y DB)
 │   ├── validations/      # Esquemas Zod (Auth, Users) - Single Source of Truth

@@ -26,7 +26,7 @@ type LoginStep = "credentials" | "twoFactor";
 export default function Login2Page() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard/fondos";
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
   const [step, setStep] = useState<LoginStep>("credentials");
   const [serverError, setServerError] = useState<string | null>(null);

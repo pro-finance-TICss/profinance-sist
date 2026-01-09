@@ -93,7 +93,7 @@ export default auth(async function middleware(request: NextRequest) {
 
   // Si el usuario SÍ tiene sesión y trata de acceder a ruta de guest
   if (session && matchesRoute(pathname, GUEST_ROUTES)) {
-    return NextResponse.redirect(new URL("/dashboard/fondos", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return response;

@@ -41,7 +41,7 @@ type LoginStep = "credentials" | "twoFactor";
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard/fondos";
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
   // Estado del paso actual del login
   const [step, setStep] = useState<LoginStep>("credentials");
