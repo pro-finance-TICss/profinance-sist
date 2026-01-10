@@ -84,10 +84,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           });
 
           if (!validatedFields.success) {
+            console.error(
+              "❌ Validación de Zod falló:",
+              validatedFields.error.format()
+            );
             return null;
           }
 
           const { email, password } = validatedFields.data;
+          console.log("🔍 Intentando login para:", email);
 
           // 2. Buscar usuario en la base de datos
           const user = await prisma.user.findUnique({
@@ -95,8 +100,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           });
 
           if (!user) {
+            console.error("❌ Usuario no encontrado:", email);
             return null;
           }
+
+          console.log("👤 Usuario encontrado:", user.email);
 
           // 3. Verificar contraseña con bcrypt
           const passwordMatch = await bcrypt.compare(password, user.password);
