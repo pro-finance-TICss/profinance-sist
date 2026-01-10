@@ -44,13 +44,177 @@ model User {
   /// Fecha y hora del último inicio de sesión (auditoría)
   lastLogin       DateTime?
   
-  /// Secreto para autenticación de dos factores (2FA)
-  /// En producción contendrá el código temporal generado
-  twoFactorSecret String?
+  /// Secreto TOTP encriptado para autenticación de dos factores (base32)
+  /// Generado durante el registro, usado para validar códigos TOTP
+  totpSecret        String?
   
-  /// Indica si el usuario ha verificado su 2FA en la sesión actual
-  twoFactorVerified Boolean @default(false)
+  /// Indica si el usuario ha completado la configuración de TOTP
+  /// true = puede usar 2FA, false = debe configurarlo (usuarios legacy pueden omitirlo)
+  totpEnabled       Boolean @default(false)
+
+  /// Rol del usuario para control de acceso (USER, ADMIN, etc.)
+  role              String    @default("USER")
+  
+  /// Versión del token para invalidar sesiones concurrentes (Single Session)
+  /// Se incrementa en cada login exitoso, invalidando tokens anteriores
+  tokenVersion      Int       @default(0)
+
+  // ================================================================
+  // CAMPOS FINANCIEROS (WALLET)
+  // ================================================================
+  
+  /// Capital total invertido por el usuario (suma de todos los depósitos confirmados)
+  investedCapital   Decimal   @default(0)
+  
+  /// Balance disponible para retiro (puede diferir del capital invertido)
+  availableBalance  Decimal   @default(0)
+
+  // ================================================================
+  // RELACIONES
+  // ================================================================
+  
+  /// Transacciones del usuario (depósitos y retiros)
+  transactions      Transaction[]
+  
+  /// Solicitudes de retiro del usuario
+  withdrawalRequests WithdrawalRequest[]
 
   // Índice para búsquedas rápidas por email
   @@index([email])
+
+  // ================================================================
+  // SEGURIDAD EXTENDIDA (Recovery Codes)
+  // ================================================================
+  
+  /// Códigos de recuperación para acceso de emergencia
+  recoveryCodes         RecoveryCode[]
+  
+  /// Auditoría de códigos de recuperación
+  recoveryCodesViewedAt DateTime?
+  
+  /// Intentos fallidos de uso de recovery codes (Rate Limiting)
+  failedRecoveryAttempts Int @default(0)
+  
+  /// Fecha del último intento fallido
+  lastFailedRecoveryAt   DateTime?
+
+  /// Notificaciones del usuario
+  notifications          Notification[]
+}
+
+// ============================================================================
+// MODELO DE NOTIFICACIONES
+// ============================================================================
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO | WARNING | SUCCESS | ERROR
+  read      Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([read])
+}
+
+// ============================================================================
+// MODELO DE CÓDIGOS DE RECUPERACIÓN
+// ============================================================================
+/// Códigos de un solo uso para bypass de 2FA
+model RecoveryCode {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  /// Hash bcrypt del código (nunca texto plano)
+  codeHash   String
+  
+  /// Fecha de uso (null = disponible, fecha = usado)
+  usedAt     DateTime?
+  
+  /// Fecha de generación
+  createdAt  DateTime  @default(now())
+  
+  @@index([userId])
+}
+
+// ============================================================================
+// MODELO DE TRANSACCIONES
+// ============================================================================
+/// Registra todos los movimientos financieros (depósitos y retiros confirmados)
+model Transaction {
+  /// Identificador único de la transacción
+  id              String   @id @default(cuid())
+  
+  /// ID del usuario asociado
+  userId          String
+  
+  /// Relación con el usuario
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  /// Tipo de transacción (DEPOSIT o WITHDRAWAL)
+  type            String   // DEPOSIT | WITHDRAWAL
+  
+  /// Monto de la transacción
+  amount          Decimal
+  
+  /// Estado de la transacción (PENDING, COMPLETED, FAILED)
+  status          String   @default("PENDING") // PENDING | COMPLETED | FAILED
+  
+  /// ID de pago del proveedor (Mercado Pago payment_id o preference_id)
+  paymentId       String?  @unique
+  
+  /// Fecha de creación de la transacción
+  createdAt       DateTime @default(now())
+  
+  /// Fecha de última actualización
+  updatedAt       DateTime @updatedAt
+  
+  /// Índices para búsquedas eficientes
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// MODELO DE SOLICITUDES DE RETIRO
+// ============================================================================
+/// Gestiona las solicitudes de retiro que requieren aprobación administrativa
+model WithdrawalRequest {
+  /// Identificador único de la solicitud
+  id            String    @id @default(cuid())
+  
+  /// ID del usuario que solicita el retiro
+  userId        String
+  
+  /// Relación con el usuario
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  /// Monto solicitado para retiro
+  amount        Decimal
+  
+  /// Estado de la solicitud (PENDING, APPROVED, REJECTED)
+  status        String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  
+  /// Fecha en que se realizó la solicitud
+  requestedAt   DateTime  @default(now())
+  
+  /// Fecha en que se procesó la solicitud (aprobación o rechazo)
+  processedAt   DateTime?
+  
+  /// ID del administrador que procesó la solicitud
+  processedBy   String?
+  
+  /// Notas del administrador sobre la solicitud
+  notes         String?
+  
+  /// Índices para búsquedas eficientes
+  @@index([userId])
+  @@index([status])
+  @@index([requestedAt])
 }

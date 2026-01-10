@@ -1,94 +1,104 @@
 // ============================================================================
-// CONFIGURACIÓN DE NEXTAUTH v5
+// CONFIGURACIÓN DE NEXTAUTH v5 - PRO-FINANCE (SEGURIDAD BANCARIA)
 // ============================================================================
-// Configuración central de autenticación usando CredentialsProvider.
-// Incluye manejo de 2FA mockeado y callbacks de sesión/JWT.
+// Configuración central de autenticación con:
+// - Cookies seguras (HttpOnly, Secure, SameSite)
+// - Single Session Enforcement (tokenVersion)
+// - Flujo TOTP (Time-based One-Time Password)
+// - JWT con datos extendidos (role, tokenVersion, lastLogin)
 // ============================================================================
 
 import { CredentialsSignin } from "next-auth";
+import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
+import { loginSchema } from "@/lib/validations/auth";
+import { authConfig } from "@/lib/auth.config";
+import { verifyTotpToken } from "@/lib/totp";
+
+import { verifyRecoveryCode } from "@/lib/actions/recovery-codes";
+
+// ============================================================================
+// ERRORES PERSONALIZADOS DE 2FA
+// ============================================================================
 
 /**
- * Error lanzado cuando se requiere 2FA.
+ * Error lanzado cuando se requiere verificación TOTP.
+ * El cliente debe mostrar el campo de código TOTP.
  */
 class TwoFactorRequiredError extends CredentialsSignin {
   code = "2FA_REQUIRED";
 }
 
 /**
- * Error lanzado cuando el código 2FA es inválido.
+ * Error lanzado cuando el código TOTP ingresado es inválido.
  */
 class InvalidTwoFactorError extends CredentialsSignin {
   code = "2FA_INVALID";
 }
 
-import NextAuth from "next-auth";
-import Credentials from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
-import { loginSchema } from "@/lib/validations/auth";
+// ============================================================================
+// CONFIGURACIÓN PRINCIPAL DE NEXTAUTH
+// ============================================================================
 
-/**
- * Genera un código de 6 dígitos para 2FA.
- * @returns Código numérico de 6 dígitos como string
- */
-function generateTwoFactorCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-/**
- * Configuración de NextAuth con CredentialsProvider.
- */
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  // Páginas personalizadas
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
+  // Heredar configuración base (páginas, sesión, cookies)
+  ...authConfig,
 
-  // Configuración de sesión
-  session: {
-    strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 horas
-  },
-
-  // Proveedores de autenticación
+  // ================================================================
+  // PROVEEDORES DE AUTENTICACIÓN
+  // ================================================================
   providers: [
     Credentials({
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        twoFactorCode: { label: "2FA Code", type: "text" },
+        twoFactorCode: { label: "TOTP Code", type: "text" },
+        recoveryCode: { label: "Recovery Code", type: "text" },
       },
 
       /**
        * Función de autorización que valida credenciales.
-       * Maneja el flujo de login y verificación 2FA.
+       * Implementa:
+       * - Validación con Zod
+       * - Verificación de contraseña con bcrypt
+       * - Verificación TOTP (obligatorio para usuarios nuevos, opcional para legacy)
+       * - Incremento de tokenVersion (Single Session)
        */
       async authorize(credentials) {
         try {
-          // Validar entrada con Zod
+          // 1. Validar entrada con Zod
           const validatedFields = loginSchema.safeParse({
             email: credentials?.email,
             password: credentials?.password,
           });
 
           if (!validatedFields.success) {
+            console.error(
+              "❌ Validación de Zod falló:",
+              validatedFields.error.format()
+            );
             return null;
           }
 
           const { email, password } = validatedFields.data;
+          console.log("🔍 Intentando login para:", email);
 
-          // Buscar usuario en la base de datos
+          // 2. Buscar usuario en la base de datos
           const user = await prisma.user.findUnique({
             where: { email },
           });
 
           if (!user) {
+            console.error("❌ Usuario no encontrado:", email);
             return null;
           }
 
-          // Verificar contraseña con bcrypt
+          console.log("👤 Usuario encontrado:", user.email);
+
+          // 3. Verificar contraseña con bcrypt
           const passwordMatch = await bcrypt.compare(password, user.password);
 
           if (!passwordMatch) {
@@ -97,58 +107,88 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
 
           // ================================================================
-          // FLUJO 2FA MOCKEADO
+          // VERIFICACIÓN TOTP / RECOVERY CODE
           // ================================================================
-          const twoFactorCode = credentials?.twoFactorCode as
-            | string
-            | undefined;
+          const totpCode = credentials?.twoFactorCode as string | undefined;
+          const recoveryCode = credentials?.recoveryCode as string | undefined;
 
-          if (!twoFactorCode) {
-            // Primer paso: generar y "enviar" código 2FA
-            const newCode = generateTwoFactorCode();
+          // Verificar si el usuario tiene TOTP habilitado
+          if (user.totpEnabled && user.totpSecret) {
+            // Caso 1: Usuario intenta entrar con Recovery Code
+            if (recoveryCode) {
+              console.log(
+                "🚑 Intentando acceso con Recovery Code para:",
+                email
+              );
+              const verification = await verifyRecoveryCode(
+                user.id,
+                recoveryCode
+              );
 
-            // Guardar código en la DB (temporal)
-            await prisma.user.update({
-              where: { id: user.id },
-              data: { twoFactorSecret: newCode, twoFactorVerified: false },
-            });
+              if (!verification.success) {
+                console.error(
+                  "❌ Recovery Code inválido:",
+                  verification.message
+                );
+                throw new Error(
+                  verification.message || "Código de recuperación inválido."
+                );
+              }
 
-            // SIMULACIÓN: Imprimir código en consola del servidor
-            console.log("═══════════════════════════════════════════════════");
-            console.log("🔐 CÓDIGO 2FA PARA:", email);
-            console.log("📧 CÓDIGO:", newCode);
-            console.log("═══════════════════════════════════════════════════");
-
-            // Indicar que se requiere 2FA usando el error personalizado
-            throw new TwoFactorRequiredError();
+              console.log("✅ Acceso concedido por Recovery Code");
+              // Nota: verifyRecoveryCode ya incrementa tokenVersion e invalida sesiones
+            }
+            // Caso 2: Usuario intenta entrar con TOTP (flujo normal)
+            else if (totpCode) {
+              // Verificar código TOTP
+              if (!verifyTotpToken(totpCode, user.totpSecret)) {
+                console.error("❌ Código TOTP inválido para:", email);
+                throw new InvalidTwoFactorError();
+              }
+              console.log("✅ Código TOTP verificado para:", email);
+            }
+            // Caso 3: No envió ningún código
+            else {
+              console.log("📱 Se requiere código TOTP para:", email);
+              throw new TwoFactorRequiredError();
+            }
+          } else {
+            // Usuario legacy sin TOTP - permitir login sin 2FA
+            // Esto aplica para usuarios admin y test existentes
+            console.log(
+              "⚠️ Usuario sin TOTP habilitado, permitiendo acceso:",
+              email
+            );
           }
 
-          // Segundo paso: verificar código 2FA
-          if (user.twoFactorSecret !== twoFactorCode) {
-            console.error("❌ Código 2FA incorrecto para:", email);
-            throw new InvalidTwoFactorError();
-          }
+          // ================================================================
+          // LOGIN EXITOSO - ACTUALIZAR SEGURIDAD
+          // ================================================================
 
-          // Código correcto: marcar como verificado y actualizar lastLogin
-          await prisma.user.update({
+          // Incrementar tokenVersion para invalidar sesiones anteriores
+          // Esto implementa Single Session Enforcement
+          const updatedUser = await prisma.user.update({
             where: { id: user.id },
             data: {
-              twoFactorVerified: true,
-              twoFactorSecret: null, // Limpiar código usado
               lastLogin: new Date(),
+              tokenVersion: { increment: 1 }, // ¡CLAVE para Single Session!
             },
           });
 
           console.log("✅ Login exitoso para:", email);
+          console.log("📊 Nueva tokenVersion:", updatedUser.tokenVersion);
 
-          // Retornar usuario para la sesión
+          // Retornar usuario con datos extendidos para el JWT
           return {
             id: user.id,
             email: user.email,
             name: `${user.firstName} ${user.paternalSurname} ${user.maternalSurname}`,
+            role: updatedUser.role,
+            tokenVersion: updatedUser.tokenVersion,
+            lastLogin: updatedUser.lastLogin,
           };
         } catch (error) {
-          // Re-lanzar nuestros errores personalizados para que lleguen al cliente
+          // Re-lanzar errores de 2FA para manejo en el cliente
           if (
             error instanceof TwoFactorRequiredError ||
             error instanceof InvalidTwoFactorError
@@ -163,28 +203,45 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
 
-  // Callbacks para personalizar JWT y sesión
+  // ================================================================
+  // CALLBACKS PARA JWT Y SESIÓN
+  // ================================================================
   callbacks: {
+    ...authConfig.callbacks,
+
     /**
-     * Callback JWT: agrega información del usuario al token.
+     * Callback JWT: Persiste datos del usuario en el token.
+     * Se ejecuta en cada request que necesita el token.
      */
     async jwt({ token, user }) {
+      // En el primer login, agregar datos del usuario al token
       if (user) {
         token.id = user.id;
-        token.email = user.email;
-        token.name = user.name;
+        token.email = user.email as string;
+        token.name = user.name as string;
+        token.role = user.role;
+        token.tokenVersion = user.tokenVersion;
+        token.lastLogin =
+          user.lastLogin instanceof Date
+            ? user.lastLogin.toISOString()
+            : user.lastLogin || null;
       }
       return token;
     },
 
     /**
-     * Callback Session: expone datos del token en la sesión del cliente.
+     * Callback Session: Expone datos del token al cliente.
+     * Solo incluye lo necesario (no exponer tokenVersion al cliente).
      */
     async session({ session, token }) {
       if (token) {
-        session.user.id = token.id as string;
-        session.user.email = token.email as string;
-        session.user.name = token.name as string;
+        session.user.id = token.id;
+        session.user.email = token.email;
+        session.user.name = token.name;
+        session.user.role = token.role;
+        session.user.lastLogin = token.lastLogin;
+        // tokenVersion NO se expone al cliente por seguridad
+        // pero se mantiene en el token para validación en middleware
       }
       return session;
     },

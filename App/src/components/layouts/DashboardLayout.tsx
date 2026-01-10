@@ -1,5 +1,6 @@
-import React from "react";
-import { Sidebar } from "../Sidebar";
+"use client";
+import React, { useState } from "react";
+import { Sidebar } from "../ui/Sidebar";
 import { DashboardHeader } from "../DashboardHeader";
 import styles from "./DashboardLayout.module.css";
 
@@ -26,9 +27,11 @@ interface DashboardLayoutProps {
  * ```
  */
 export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
+  const [activeItem, setActiveItem] = useState(pageTitle || "Inicio");
+
   return (
     <div className={styles.layout}>
-      <Sidebar />
+      <Sidebar activeItem={activeItem} setActiveItem={setActiveItem} />
       <DashboardHeader pageTitle={pageTitle} />
       <main className={styles.mainContent}>{children}</main>
     </div>
