@@ -66,7 +66,14 @@ export const authConfig: NextAuthConfig = {
       const pathname = nextUrl.pathname;
 
       // Rutas protegidas que requieren autenticación
-      const protectedRoutes = ["/dashboard", "/home", "/settings", "/profile"];
+      const protectedRoutes = [
+        "/dashboard",
+        "/home",
+        "/settings",
+        "/profile",
+        "/admin",
+        "/superadmin",
+      ];
       const isProtectedRoute = protectedRoutes.some(
         (route) => pathname === route || pathname.startsWith(`${route}/`)
       );

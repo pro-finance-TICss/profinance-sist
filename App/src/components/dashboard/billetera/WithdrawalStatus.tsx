@@ -58,6 +58,13 @@ export function WithdrawalStatus({
         border: "rgba(76, 175, 80, 0.3)",
         color: "#4caf50",
       },
+      PAID: {
+        icon: <CheckCircle size={16} />, // Doble check o similar
+        text: "Pagado",
+        bg: "rgba(189, 142, 72, 0.2)",
+        border: "rgb(189, 142, 72)",
+        color: "#bd8e48",
+      },
       REJECTED: {
         icon: <XCircle size={16} />,
         text: "Rechazado",
