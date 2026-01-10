@@ -49,9 +49,12 @@ export function SessionValidator() {
   // ================================================================
   // RUTAS DONDE NO SE APLICA EL VALIDATOR
   // ================================================================
-  const isAuthPage = ["/login", "/login2", "/register", "/register2"].some(
-    (route) => pathname?.startsWith(route)
-  );
+  const isAuthPage = [
+    "/login",
+    "/register",
+    "/login_backup",
+    "/register_backup",
+  ].some((route) => pathname?.startsWith(route));
 
   // ================================================================
   // RESETEAR TIMER DE INACTIVIDAD
@@ -151,7 +154,7 @@ export function SessionValidator() {
 
   const handleLogout = useCallback(async () => {
     console.log("🚪 Cerrando sesión...");
-    await signOut({ callbackUrl: "/login2" });
+    await signOut({ callbackUrl: "/login" });
   }, []);
 
   // ================================================================

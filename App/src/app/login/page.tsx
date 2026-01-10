@@ -11,29 +11,204 @@ import { loginSchema, twoFactorSchema } from "@/lib/validations/auth";
 import type { LoginFormData, TwoFactorFormData } from "@/lib/validations/auth";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { SystemHeader } from "@/components/SystemHeader";
 
-import styles from "./page.module.css";
+import styles from "./login.module.css";
 
 // ============================================================================
 // TIPOS
 // ============================================================================
-
-/**
- * Estados posibles del flujo de login.
- */
 type LoginStep = "credentials" | "twoFactor";
 
 // ============================================================================
-// COMPONENTE INTERNO (LOGIC)
+// COMPONENTE: PASO DE 2FA / RECOVERY
 // ============================================================================
+function LoginForm2FAStep({
+  email,
+  password,
+  callbackUrl,
+  onBack,
+}: {
+  email: string;
+  password: string;
+  callbackUrl: string;
+  onBack: () => void;
+}) {
+  const router = useRouter();
+  const [mode, setMode] = useState<"totp" | "recovery">("totp");
+  const [serverError, setServerError] = useState<string | null>(null);
 
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    defaultValues: { code: "" },
+  });
+
+  const onSubmit = async (data: { code: string }) => {
+    setServerError(null);
+
+    try {
+      // Preparamos las credenciales según el modo
+      const credentials = {
+        email,
+        password,
+        redirect: false,
+        ...(mode === "totp"
+          ? { twoFactorCode: data.code }
+          : { recoveryCode: data.code }),
+      };
+
+      const result = (await signIn("credentials", credentials as any)) as
+        | {
+            error: string; // Puede ser string o null/undefined en la práctica, pero al comprobar result?.error TypeScript lo maneja
+            code?: string;
+            ok: boolean;
+            status: number;
+            url: string | null;
+          }
+        | undefined;
+
+      if (result?.error) {
+        // Mensaje específico si es Recovery Code y excedió límites
+        if (
+          result.error.includes("espera 1 hora") ||
+          result.code === "RATE_LIMIT"
+        ) {
+          setServerError(
+            "Límite de intentos excedido. Por favor espera 1 hora."
+          );
+        } else {
+          setServerError(
+            mode === "totp"
+              ? "Código incorrecto. Verifica tu autenticador."
+              : "Código inválido o ya usado."
+          );
+        }
+        return;
+      }
+
+      router.push(callbackUrl);
+      router.refresh();
+    } catch (error) {
+      console.error("Error en Auth:", error);
+      setServerError("Error de conexión.");
+    }
+  };
+
+  return (
+    <form className={styles.customForm} onSubmit={handleSubmit(onSubmit)}>
+      <h3
+        style={{
+          fontSize: "1.2rem",
+          color: "black",
+          marginBottom: "10px",
+          textAlign: "center",
+        }}
+      >
+        {mode === "totp"
+          ? "Autenticación de Dos Factores"
+          : "Recuperación de Cuenta"}
+      </h3>
+
+      <p
+        style={{
+          color: "black",
+          marginBottom: "1.5rem",
+          textAlign: "center",
+          fontSize: "0.9rem",
+        }}
+      >
+        {mode === "totp"
+          ? "Ingresa el código de 6 dígitos de tu aplicación de autenticación."
+          : "Ingresa uno de tus códigos de recuperación de emergencia."}
+      </p>
+
+      {serverError && (
+        <div className={styles.errorAlert} style={{ marginBottom: "15px" }}>
+          {serverError}
+        </div>
+      )}
+
+      <div className={styles.inputWrapper}>
+        <Input
+          label={mode === "totp" ? "Código TOTP" : "Código de Recuperación"}
+          type="text"
+          placeholder={mode === "totp" ? "123456" : "XXXXX-XXXXX"}
+          maxLength={mode === "totp" ? 6 : undefined}
+          {...register("code", { required: "El código es requerido" })}
+          error={errors.code?.message}
+          style={
+            mode === "recovery"
+              ? { letterSpacing: "2px", textTransform: "uppercase" }
+              : { letterSpacing: "5px", textAlign: "center" }
+          }
+        />
+      </div>
+
+      <Button
+        type="submit"
+        className={styles.submitBtn}
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? "Verificando..." : "Verificar"}
+      </Button>
+
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          marginTop: "1rem",
+          alignItems: "center",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            setMode(mode === "totp" ? "recovery" : "totp");
+            setServerError(null);
+          }}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#bd8e48",
+            fontSize: "0.85rem",
+            textDecoration: "underline",
+          }}
+        >
+          {mode === "totp"
+            ? "¿Perdiste acceso a tu autenticador?"
+            : "Usar código de autenticador"}
+        </button>
+
+        <button
+          type="button"
+          onClick={onBack}
+          className={styles.link}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "rgba(255,255,255,0.5)",
+          }}
+        >
+          Volver al inicio
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ============================================================================
+// COMPONENTE INTERNO
+// ============================================================================
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
-  // Estado del paso actual del login
   const [step, setStep] = useState<LoginStep>("credentials");
   const [serverError, setServerError] = useState<string | null>(null);
   const [email, setEmail] = useState<string>("");
@@ -49,20 +224,11 @@ function LoginContent() {
     },
   });
 
-  // ================================================================
-  // FORMULARIO DE 2FA
-  // ================================================================
-  const twoFactorForm = useForm<TwoFactorFormData>({
-    resolver: zodResolver(twoFactorSchema),
-    defaultValues: {
-      code: "",
-    },
-  });
+  // (twoFactorForm ya no es necesario aquí arriba porque se mueve a LoginForm2FAStep, pero lo dejaré limpio)
 
   // ================================================================
   // HANDLERS
   // ================================================================
-
   const onSubmitCredentials = async (data: LoginFormData) => {
     setServerError(null);
 
@@ -80,14 +246,7 @@ function LoginContent() {
         ) {
           setEmail(data.email);
           setStep("twoFactor");
-          console.log(
-            "📱 Se requiere verificación 2FA. Revisa la consola del servidor."
-          );
-        } else if (
-          result.code === "2FA_INVALID" ||
-          result.error.includes("2FA_INVALID")
-        ) {
-          setServerError("Error en el sistema de autenticación.");
+          console.log("📱 Se requiere código TOTP del autenticador.");
         } else if (result.error.includes("CredentialsSignin")) {
           setServerError("Correo o contraseña incorrectos.");
         } else {
@@ -105,62 +264,49 @@ function LoginContent() {
     }
   };
 
-  const onSubmit2FA = async (data: TwoFactorFormData) => {
-    setServerError(null);
-
-    try {
-      const result = await signIn("credentials", {
-        email: email,
-        password: credentialsForm.getValues("password"),
-        twoFactorCode: data.code,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        if (
-          result.code === "2FA_INVALID" ||
-          result.error.includes("2FA_INVALID")
-        ) {
-          setServerError("Código incorrecto. Verifica e intenta de nuevo.");
-        } else {
-          setServerError("Error de verificación. Intenta de nuevo.");
-        }
-        return;
-      }
-
-      router.push(callbackUrl);
-      router.refresh();
-    } catch (error) {
-      console.error("Error en 2FA:", error);
-      setServerError("Error de conexión. Intenta de nuevo.");
-    }
-  };
-
   const handleBack = () => {
     setStep("credentials");
     setServerError(null);
-    twoFactorForm.reset();
   };
 
+  // ================================================================
+  // RENDER
+  // ================================================================
   return (
-    <>
-      <SystemHeader />
+    <div className={styles.container}>
+      {/* COLUMNA IZQUIERDA: BRANDING */}
+      <div className={styles.brandingSection}>
+        <div className={styles.brandingContent}>
+          <h1 className={styles.brandingTitle}>PRO-FINANCE</h1>
+          <img
+            src="/Background-recortado.png"
+            alt="ProFinance Logo"
+            className={styles.logo}
+            style={{ borderRadius: "20%" }}
+          />
+          <p className={styles.brandingTagline}>
+            Empoderando tu futuro financiero
+          </p>
+        </div>
+      </div>
 
-      <main className="auth-container">
-        <div
-          className="auth-card"
-          style={{
-            backdropFilter: "blur(8px)",
-            WebkitBackdropFilter: "blur(8px)",
-          }}
-        >
-          <header className="auth-header">
-            <p className={styles.subtitle}>
-              {step === "credentials"
-                ? "Accede a tu cuenta"
-                : "Verificación de seguridad"}
-            </p>
-          </header>
+      {/* COLUMNA DERECHA: FORMULARIO */}
+      <div className={styles.formSection}>
+        <div className={styles.formContainer}>
+          <div className={styles.formHeader}>
+            <div className={styles.topSwitch}>
+              <a
+                href="#"
+                className={`${styles.switchBtn} ${styles.switchBtnActive}`}
+              >
+                Iniciar Sesión
+              </a>
+              <Link href="/register" className={styles.switchBtn}>
+                Registrarse
+              </Link>
+            </div>
+            <h2 className={styles.title}>Iniciar Sesión</h2>
+          </div>
 
           {serverError && (
             <div className={styles.errorAlert}>{serverError}</div>
@@ -168,104 +314,69 @@ function LoginContent() {
 
           {step === "credentials" && (
             <form
-              className="auth-form"
+              className={styles.customForm}
               onSubmit={credentialsForm.handleSubmit(onSubmitCredentials)}
               noValidate
             >
-              <Input
-                label="Correo Electrónico"
-                type="email"
-                placeholder="tu@email.com"
-                autoComplete="email"
-                {...credentialsForm.register("email")}
-                error={credentialsForm.formState.errors.email?.message}
-              />
+              <div className={styles.inputWrapper}>
+                <Input
+                  label="Correo Electrónico"
+                  type="email"
+                  placeholder="tu@email.com"
+                  {...credentialsForm.register("email")}
+                  error={credentialsForm.formState.errors.email?.message}
+                />
+              </div>
 
-              <Input
-                label="Contraseña"
-                type="password"
-                placeholder="••••••••"
-                autoComplete="current-password"
-                {...credentialsForm.register("password")}
-                error={credentialsForm.formState.errors.password?.message}
-              />
-
-              <div className="form-actions">
-                <Link href="/forgot-password" className="forgot-password">
-                  ¿Olvidaste tu contraseña?
-                </Link>
+              <div className={styles.inputWrapper}>
+                <Input
+                  label="Contraseña"
+                  type="password"
+                  placeholder="••••••••"
+                  {...credentialsForm.register("password")}
+                  error={credentialsForm.formState.errors.password?.message}
+                />
               </div>
 
               <Button
                 type="submit"
-                variant="primary"
+                className={styles.submitBtn}
                 disabled={credentialsForm.formState.isSubmitting}
               >
                 {credentialsForm.formState.isSubmitting
-                  ? "VERIFICANDO..."
-                  : "INICIAR SESIÓN"}
+                  ? "Verificando..."
+                  : "Iniciar Sesión"}
               </Button>
 
-              <div className="auth-footer">
-                ¿No tienes cuenta?
-                <Link href="/register">Regístrate</Link>
+              <div
+                className={styles.toggleContainer}
+                style={{ justifyContent: "flex-end" }}
+              >
+                <Link href="/forgot-password" className={styles.link}>
+                  ¿Olvidaste tu contraseña?
+                </Link>
               </div>
             </form>
           )}
 
+          {/* 2FA STEP */}
           {step === "twoFactor" && (
-            <form
-              className="auth-form"
-              onSubmit={twoFactorForm.handleSubmit(onSubmit2FA)}
-              noValidate
-            >
-              <p className={styles.twoFactorInfo}>
-                Hemos enviado un código de verificación a tu correo.
-                <br />
-                <strong>
-                  Revisa la consola del servidor para ver el código.
-                </strong>
-              </p>
-
-              <Input
-                label="Código de Verificación"
-                type="text"
-                placeholder="123456"
-                maxLength={6}
-                autoComplete="one-time-code"
-                {...twoFactorForm.register("code")}
-                error={twoFactorForm.formState.errors.code?.message}
-              />
-
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={twoFactorForm.formState.isSubmitting}
-              >
-                {twoFactorForm.formState.isSubmitting
-                  ? "VERIFICANDO..."
-                  : "VERIFICAR CÓDIGO"}
-              </Button>
-
-              <button
-                type="button"
-                className={styles.backButton}
-                onClick={handleBack}
-              >
-                ← Volver al inicio de sesión
-              </button>
-            </form>
+            <LoginForm2FAStep
+              email={email}
+              password={credentialsForm.getValues("password")}
+              callbackUrl={callbackUrl}
+              onBack={handleBack}
+            />
           )}
         </div>
-      </main>
-    </>
+      </div>
+    </div>
   );
 }
 
 // ============================================================================
-// COMPONENTE PRINCIPAL (PAGE WRAPPER)
+// COMPONENTE PRINCIPAL WRAPPER
 // ============================================================================
-
 export default function LoginPage() {
   return (
     <Suspense

@@ -4,7 +4,7 @@
 // Configuración central de autenticación con:
 // - Cookies seguras (HttpOnly, Secure, SameSite)
 // - Single Session Enforcement (tokenVersion)
-// - Flujo 2FA
+// - Flujo TOTP (Time-based One-Time Password)
 // - JWT con datos extendidos (role, tokenVersion, lastLogin)
 // ============================================================================
 
@@ -15,36 +15,27 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validations/auth";
 import { authConfig } from "@/lib/auth.config";
+import { verifyTotpToken } from "@/lib/totp";
+
+import { verifyRecoveryCode } from "@/lib/actions/recovery-codes";
 
 // ============================================================================
 // ERRORES PERSONALIZADOS DE 2FA
 // ============================================================================
 
 /**
- * Error lanzado cuando se requiere verificación 2FA.
- * El cliente debe mostrar el campo de código 2FA.
+ * Error lanzado cuando se requiere verificación TOTP.
+ * El cliente debe mostrar el campo de código TOTP.
  */
 class TwoFactorRequiredError extends CredentialsSignin {
   code = "2FA_REQUIRED";
 }
 
 /**
- * Error lanzado cuando el código 2FA ingresado es inválido.
+ * Error lanzado cuando el código TOTP ingresado es inválido.
  */
 class InvalidTwoFactorError extends CredentialsSignin {
   code = "2FA_INVALID";
-}
-
-// ============================================================================
-// FUNCIONES AUXILIARES
-// ============================================================================
-
-/**
- * Genera un código numérico de 6 dígitos para 2FA.
- * @returns Código como string (ej: "123456")
- */
-function generateTwoFactorCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 // ============================================================================
@@ -64,7 +55,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        twoFactorCode: { label: "2FA Code", type: "text" },
+        twoFactorCode: { label: "TOTP Code", type: "text" },
+        recoveryCode: { label: "Recovery Code", type: "text" },
       },
 
       /**
@@ -72,7 +64,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
        * Implementa:
        * - Validación con Zod
        * - Verificación de contraseña con bcrypt
-       * - Flujo 2FA mockeado
+       * - Verificación TOTP (obligatorio para usuarios nuevos, opcional para legacy)
        * - Incremento de tokenVersion (Single Session)
        */
       async authorize(credentials) {
@@ -115,35 +107,58 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
 
           // ================================================================
-          // FLUJO 2FA MOCKEADO
+          // VERIFICACIÓN TOTP / RECOVERY CODE
           // ================================================================
-          const twoFactorCode = credentials?.twoFactorCode as
-            | string
-            | undefined;
+          const totpCode = credentials?.twoFactorCode as string | undefined;
+          const recoveryCode = credentials?.recoveryCode as string | undefined;
 
-          if (!twoFactorCode) {
-            // Primer paso: generar y "enviar" código 2FA
-            const newCode = generateTwoFactorCode();
+          // Verificar si el usuario tiene TOTP habilitado
+          if (user.totpEnabled && user.totpSecret) {
+            // Caso 1: Usuario intenta entrar con Recovery Code
+            if (recoveryCode) {
+              console.log(
+                "🚑 Intentando acceso con Recovery Code para:",
+                email
+              );
+              const verification = await verifyRecoveryCode(
+                user.id,
+                recoveryCode
+              );
 
-            // Guardar código en la DB (temporal)
-            await prisma.user.update({
-              where: { id: user.id },
-              data: { twoFactorSecret: newCode, twoFactorVerified: false },
-            });
+              if (!verification.success) {
+                console.error(
+                  "❌ Recovery Code inválido:",
+                  verification.message
+                );
+                throw new Error(
+                  verification.message || "Código de recuperación inválido."
+                );
+              }
 
-            // SIMULACIÓN: Imprimir código en consola del servidor
-            console.log("═══════════════════════════════════════════════════");
-            console.log("🔐 CÓDIGO 2FA PARA:", email);
-            console.log("📧 CÓDIGO:", newCode);
-            console.log("═══════════════════════════════════════════════════");
-
-            throw new TwoFactorRequiredError();
-          }
-
-          // 4. Verificar código 2FA
-          if (user.twoFactorSecret !== twoFactorCode) {
-            console.error("❌ Código 2FA incorrecto para:", email);
-            throw new InvalidTwoFactorError();
+              console.log("✅ Acceso concedido por Recovery Code");
+              // Nota: verifyRecoveryCode ya incrementa tokenVersion e invalida sesiones
+            }
+            // Caso 2: Usuario intenta entrar con TOTP (flujo normal)
+            else if (totpCode) {
+              // Verificar código TOTP
+              if (!verifyTotpToken(totpCode, user.totpSecret)) {
+                console.error("❌ Código TOTP inválido para:", email);
+                throw new InvalidTwoFactorError();
+              }
+              console.log("✅ Código TOTP verificado para:", email);
+            }
+            // Caso 3: No envió ningún código
+            else {
+              console.log("📱 Se requiere código TOTP para:", email);
+              throw new TwoFactorRequiredError();
+            }
+          } else {
+            // Usuario legacy sin TOTP - permitir login sin 2FA
+            // Esto aplica para usuarios admin y test existentes
+            console.log(
+              "⚠️ Usuario sin TOTP habilitado, permitiendo acceso:",
+              email
+            );
           }
 
           // ================================================================
@@ -155,8 +170,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const updatedUser = await prisma.user.update({
             where: { id: user.id },
             data: {
-              twoFactorVerified: true,
-              twoFactorSecret: null, // Limpiar código usado
               lastLogin: new Date(),
               tokenVersion: { increment: 1 }, // ¡CLAVE para Single Session!
             },

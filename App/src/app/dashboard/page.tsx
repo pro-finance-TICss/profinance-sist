@@ -209,17 +209,6 @@ export default function DashboardPage() {
               <ProductsView />
             ) : activeSection === "Mi Billetera" ? (
               <WalletView />
-            ) : activeSection === "Seguridad" ? (
-              /* ✅ VISTA ESPECÍFICA DE SEGURIDAD */
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "24px",
-                }}
-              >
-                <SecuritySettings />
-              </div>
             ) : activeSection === "Ajustes" ? (
               /* ✅ VISTA ESPECÍFICA DE AJUSTES GENERALES */
               <div
@@ -230,6 +219,7 @@ export default function DashboardPage() {
                 }}
               >
                 <ProfileSettings />
+                <SecuritySettings />
                 <GeneralSettings />
               </div>
             ) : (

@@ -16,6 +16,7 @@ async function main() {
       paternalSurname: "de",
       maternalSurname: "Prueba",
       role: "USER",
+      totpEnabled: false, // Usuario legacy sin TOTP
     },
   });
 
@@ -29,6 +30,7 @@ async function main() {
       paternalSurname: "Sist",
       maternalSurname: "Pro",
       role: "ADMIN",
+      totpEnabled: false, // Usuario legacy sin TOTP
     },
   });
 

@@ -1,9 +1,5 @@
-<<<<<<< Updated upstream
 "use client";
 import React, { useState } from "react";
-=======
-import React from "react";
->>>>>>> Stashed changes
 import { Sidebar } from "../ui/Sidebar";
 import { DashboardHeader } from "../DashboardHeader";
 import styles from "./DashboardLayout.module.css";
@@ -35,11 +31,7 @@ export function DashboardLayout({ children, pageTitle }: DashboardLayoutProps) {
 
   return (
     <div className={styles.layout}>
-<<<<<<< Updated upstream
       <Sidebar activeItem={activeItem} setActiveItem={setActiveItem} />
-=======
-      <Sidebar activeItem={pageTitle} setActiveItem={() => {}} />
->>>>>>> Stashed changes
       <DashboardHeader pageTitle={pageTitle} />
       <main className={styles.mainContent}>{children}</main>
     </div>

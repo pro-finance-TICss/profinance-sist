@@ -27,7 +27,6 @@ export function Sidebar({ activeItem, setActiveItem }: SidebarProps) {
     { icon: <BarChart3 size={22} />, label: "Inversiones" },
     { icon: <Wallet size={22} />, label: "Mi Billetera" },
     { icon: <History size={22} />, label: "Transacciones" },
-    { icon: <ShieldCheck size={22} />, label: "Seguridad" },
     { icon: <Settings2 size={22} />, label: "Ajustes" },
   ];
 
@@ -188,7 +187,7 @@ export function Sidebar({ activeItem, setActiveItem }: SidebarProps) {
 
       <div style={{ padding: "0 15px" }}>
         <button
-          onClick={() => signOut({ callbackUrl: "/login2" })}
+          onClick={() => signOut({ callbackUrl: "/login" })}
           style={{
             display: "flex",
             alignItems: "center",

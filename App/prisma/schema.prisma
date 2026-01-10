@@ -44,12 +44,13 @@ model User {
   /// Fecha y hora del último inicio de sesión (auditoría)
   lastLogin       DateTime?
   
-  /// Secreto para autenticación de dos factores (2FA)
-  /// En producción contendrá el código temporal generado
-  twoFactorSecret String?
+  /// Secreto TOTP encriptado para autenticación de dos factores (base32)
+  /// Generado durante el registro, usado para validar códigos TOTP
+  totpSecret        String?
   
-  /// Indica si el usuario ha verificado su 2FA en la sesión actual
-  twoFactorVerified Boolean @default(false)
+  /// Indica si el usuario ha completado la configuración de TOTP
+  /// true = puede usar 2FA, false = debe configurarlo (usuarios legacy pueden omitirlo)
+  totpEnabled       Boolean @default(false)
 
   /// Rol del usuario para control de acceso (USER, ADMIN, etc.)
   role              String    @default("USER")
@@ -80,6 +81,65 @@ model User {
 
   // Índice para búsquedas rápidas por email
   @@index([email])
+
+  // ================================================================
+  // SEGURIDAD EXTENDIDA (Recovery Codes)
+  // ================================================================
+  
+  /// Códigos de recuperación para acceso de emergencia
+  recoveryCodes         RecoveryCode[]
+  
+  /// Auditoría de códigos de recuperación
+  recoveryCodesViewedAt DateTime?
+  
+  /// Intentos fallidos de uso de recovery codes (Rate Limiting)
+  failedRecoveryAttempts Int @default(0)
+  
+  /// Fecha del último intento fallido
+  lastFailedRecoveryAt   DateTime?
+
+  /// Notificaciones del usuario
+  notifications          Notification[]
+}
+
+// ============================================================================
+// MODELO DE NOTIFICACIONES
+// ============================================================================
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO | WARNING | SUCCESS | ERROR
+  read      Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([read])
+}
+
+// ============================================================================
+// MODELO DE CÓDIGOS DE RECUPERACIÓN
+// ============================================================================
+/// Códigos de un solo uso para bypass de 2FA
+model RecoveryCode {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  /// Hash bcrypt del código (nunca texto plano)
+  codeHash   String
+  
+  /// Fecha de uso (null = disponible, fecha = usado)
+  usedAt     DateTime?
+  
+  /// Fecha de generación
+  createdAt  DateTime  @default(now())
+  
+  @@index([userId])
 }
 
 // ============================================================================

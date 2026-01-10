@@ -16,8 +16,8 @@ export const authConfig: NextAuthConfig = {
   // PÁGINAS PERSONALIZADAS
   // ================================================================
   pages: {
-    signIn: "/login2",
-    error: "/login2",
+    signIn: "/login",
+    error: "/login",
   },
 
   // ================================================================
@@ -72,7 +72,7 @@ export const authConfig: NextAuthConfig = {
       );
 
       // Rutas de invitado (solo para usuarios no autenticados)
-      const guestRoutes = ["/login", "/login2", "/register", "/register2"];
+      const guestRoutes = ["/login", "/register"];
       const isGuestRoute = guestRoutes.some(
         (route) => pathname === route || pathname.startsWith(`${route}/`)
       );

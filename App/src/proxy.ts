@@ -18,7 +18,7 @@ import { auth } from "@/lib/auth";
 
 /**
  * Rutas que requieren autenticación.
- * Si el usuario no tiene sesión válida, será redirigido a /login2.
+ * Si el usuario no tiene sesión válida, será redirigido a /login.
  */
 const PROTECTED_ROUTES = ["/dashboard", "/home", "/settings", "/profile"];
 
@@ -26,7 +26,12 @@ const PROTECTED_ROUTES = ["/dashboard", "/home", "/settings", "/profile"];
  * Rutas exclusivas para usuarios no autenticados.
  * Si el usuario YA tiene sesión, será redirigido a /dashboard.
  */
-const GUEST_ROUTES = ["/login", "/login2", "/register", "/register2"];
+const GUEST_ROUTES = [
+  "/login",
+  "/register",
+  "/login_backup",
+  "/register_backup",
+];
 
 /**
  * Rutas públicas que no requieren autenticación.
@@ -115,7 +120,7 @@ export default auth(async function middleware(request: NextRequest) {
   // RUTAS PROTEGIDAS - Requieren autenticación
   // ================================================================
   if (!session && matchesRoute(pathname, PROTECTED_ROUTES)) {
-    const loginUrl = new URL("/login2", request.url);
+    const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }

@@ -11,22 +11,29 @@ import { loginSchema, twoFactorSchema } from "@/lib/validations/auth";
 import type { LoginFormData, TwoFactorFormData } from "@/lib/validations/auth";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { SystemHeader } from "@/components/SystemHeader";
 
-import styles from "./login2.module.css";
+import styles from "./page.module.css";
 
 // ============================================================================
 // TIPOS
 // ============================================================================
+
+/**
+ * Estados posibles del flujo de login.
+ */
 type LoginStep = "credentials" | "twoFactor";
 
 // ============================================================================
-// COMPONENTE INTERNO
+// COMPONENTE INTERNO (LOGIC)
 // ============================================================================
-function Login2Content() {
+
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
+  // Estado del paso actual del login
   const [step, setStep] = useState<LoginStep>("credentials");
   const [serverError, setServerError] = useState<string | null>(null);
   const [email, setEmail] = useState<string>("");
@@ -55,6 +62,7 @@ function Login2Content() {
   // ================================================================
   // HANDLERS
   // ================================================================
+
   const onSubmitCredentials = async (data: LoginFormData) => {
     setServerError(null);
 
@@ -109,11 +117,14 @@ function Login2Content() {
       });
 
       if (result?.error) {
-        setServerError(
-          result.code === "2FA_INVALID" || result.error.includes("2FA_INVALID")
-            ? "Código incorrecto."
-            : "Error de verificación."
-        );
+        if (
+          result.code === "2FA_INVALID" ||
+          result.error.includes("2FA_INVALID")
+        ) {
+          setServerError("Código incorrecto. Verifica e intenta de nuevo.");
+        } else {
+          setServerError("Error de verificación. Intenta de nuevo.");
+        }
         return;
       }
 
@@ -121,7 +132,7 @@ function Login2Content() {
       router.refresh();
     } catch (error) {
       console.error("Error en 2FA:", error);
-      setServerError("Error de conexión.");
+      setServerError("Error de conexión. Intenta de nuevo.");
     }
   };
 
@@ -131,44 +142,25 @@ function Login2Content() {
     twoFactorForm.reset();
   };
 
-  // ================================================================
-  // RENDER
-  // ================================================================
   return (
-    <div className={styles.container}>
-      {/* COLUMNA IZQUIERDA: BRANDING */}
-      <div className={styles.brandingSection}>
-        <div className={styles.brandingContent}>
-          <h1 className={styles.brandingTitle}>PRO-FINANCE</h1>
-          <img
-            src="/Background-recortado.png"
-            alt="ProFinance Logo"
-            className={styles.logo}
-            style={{ borderRadius: "20%" }}
-          />
-          <p className={styles.brandingTagline}>
-            Empoderando tu futuro financiero
-          </p>
-        </div>
-      </div>
+    <>
+      <SystemHeader />
 
-      {/* COLUMNA DERECHA: FORMULARIO */}
-      <div className={styles.formSection}>
-        <div className={styles.formContainer}>
-          <div className={styles.formHeader}>
-            <div className={styles.topSwitch}>
-              <a
-                href="#"
-                className={`${styles.switchBtn} ${styles.switchBtnActive}`}
-              >
-                Iniciar Sesión
-              </a>
-              <Link href="/register2" className={styles.switchBtn}>
-                Registrarse
-              </Link>
-            </div>
-            <h2 className={styles.title}>Iniciar Sesión</h2>
-          </div>
+      <main className="auth-container">
+        <div
+          className="auth-card"
+          style={{
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+          }}
+        >
+          <header className="auth-header">
+            <p className={styles.subtitle}>
+              {step === "credentials"
+                ? "Accede a tu cuenta"
+                : "Verificación de seguridad"}
+            </p>
+          </header>
 
           {serverError && (
             <div className={styles.errorAlert}>{serverError}</div>
@@ -176,104 +168,105 @@ function Login2Content() {
 
           {step === "credentials" && (
             <form
-              className={styles.customForm}
+              className="auth-form"
               onSubmit={credentialsForm.handleSubmit(onSubmitCredentials)}
               noValidate
             >
-              <div className={styles.inputWrapper}>
-                <Input
-                  label="Correo Electrónico"
-                  type="email"
-                  placeholder="tu@email.com"
-                  {...credentialsForm.register("email")}
-                  error={credentialsForm.formState.errors.email?.message}
-                />
-              </div>
+              <Input
+                label="Correo Electrónico"
+                type="email"
+                placeholder="tu@email.com"
+                autoComplete="email"
+                {...credentialsForm.register("email")}
+                error={credentialsForm.formState.errors.email?.message}
+              />
 
-              <div className={styles.inputWrapper}>
-                <Input
-                  label="Contraseña"
-                  type="password"
-                  placeholder="••••••••"
-                  {...credentialsForm.register("password")}
-                  error={credentialsForm.formState.errors.password?.message}
-                />
+              <Input
+                label="Contraseña"
+                type="password"
+                placeholder="••••••••"
+                autoComplete="current-password"
+                {...credentialsForm.register("password")}
+                error={credentialsForm.formState.errors.password?.message}
+              />
+
+              <div className="form-actions">
+                <Link href="/forgot-password" className="forgot-password">
+                  ¿Olvidaste tu contraseña?
+                </Link>
               </div>
 
               <Button
                 type="submit"
-                className={styles.submitBtn}
+                variant="primary"
                 disabled={credentialsForm.formState.isSubmitting}
               >
                 {credentialsForm.formState.isSubmitting
-                  ? "Verificando..."
-                  : "Iniciar Sesión"}
+                  ? "VERIFICANDO..."
+                  : "INICIAR SESIÓN"}
               </Button>
 
-              <div
-                className={styles.toggleContainer}
-                style={{ justifyContent: "flex-end" }}
-              >
-                <Link href="/forgot-password" className={styles.link}>
-                  ¿Olvidaste tu contraseña?
-                </Link>
+              <div className="auth-footer">
+                ¿No tienes cuenta?
+                <Link href="/register">Regístrate</Link>
               </div>
             </form>
           )}
 
           {step === "twoFactor" && (
             <form
-              className={styles.customForm}
+              className="auth-form"
               onSubmit={twoFactorForm.handleSubmit(onSubmit2FA)}
+              noValidate
             >
-              <p style={{ color: "rgba(0,0,0,0.6)", marginBottom: "1rem" }}>
-                Ingresa el código enviado a <strong>{email}</strong>
+              <p className={styles.twoFactorInfo}>
+                Hemos enviado un código de verificación a tu correo.
+                <br />
+                <strong>
+                  Revisa la consola del servidor para ver el código.
+                </strong>
               </p>
 
-              <div className={styles.inputWrapper}>
-                <Input
-                  label="Código 2FA"
-                  type="text"
-                  placeholder="123456"
-                  maxLength={6}
-                  {...twoFactorForm.register("code")}
-                  error={twoFactorForm.formState.errors.code?.message}
-                />
-              </div>
+              <Input
+                label="Código de Verificación"
+                type="text"
+                placeholder="123456"
+                maxLength={6}
+                autoComplete="one-time-code"
+                {...twoFactorForm.register("code")}
+                error={twoFactorForm.formState.errors.code?.message}
+              />
 
               <Button
                 type="submit"
-                className={styles.submitBtn}
+                variant="primary"
                 disabled={twoFactorForm.formState.isSubmitting}
               >
-                Verificar
+                {twoFactorForm.formState.isSubmitting
+                  ? "VERIFICANDO..."
+                  : "VERIFICAR CÓDIGO"}
               </Button>
 
               <button
                 type="button"
+                className={styles.backButton}
                 onClick={handleBack}
-                className={styles.link}
-                style={{
-                  background: "none",
-                  border: "none",
-                  marginTop: "1rem",
-                  cursor: "pointer",
-                }}
               >
-                Volver
+                ← Volver al inicio de sesión
               </button>
             </form>
           )}
         </div>
-      </div>
-    </div>
+      </main>
+    </>
   );
 }
 
 // ============================================================================
-// COMPONENTE PRINCIPAL WRAPPER
+// COMPONENTE PRINCIPAL (PAGE WRAPPER)
 // ============================================================================
-export default function Login2Page() {
+
+export default function LoginPage() {
   return (
     <Suspense
       fallback={
@@ -290,7 +283,7 @@ export default function Login2Page() {
         </div>
       }
     >
-      <Login2Content />
+      <LoginContent />
     </Suspense>
   );
 }
