@@ -8,7 +8,8 @@ import {
   ShieldCheck,
   Settings2,
   LogOut,
-  Package, // Icono ideal para "Productos"
+  Package,
+  LifeBuoy,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -28,6 +29,7 @@ export function Sidebar({ activeItem, setActiveItem }: SidebarProps) {
     { icon: <Wallet size={22} />, label: "Mi Billetera" },
     { icon: <History size={22} />, label: "Transacciones" },
     { icon: <Settings2 size={22} />, label: "Ajustes" },
+    { icon: <LifeBuoy size={22} />, label: "Soporte" },
   ];
 
   return (

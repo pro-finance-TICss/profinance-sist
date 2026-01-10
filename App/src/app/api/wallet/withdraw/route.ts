@@ -35,44 +35,52 @@ export async function POST(req: NextRequest) {
 
     const { amount } = validation.data;
 
-    // 3. Verificar que el usuario tenga balance suficiente
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { availableBalance: true, email: true },
-    });
+    // 3. Crear solicitud y descontar balance en una transacción atómica
+    const withdrawalResult = await prisma.$transaction(async (tx) => {
+      // a. Leer balance dentro de la transacción (para bloqueo/consistencia si fuera Postgres con FOR UPDATE, pero en SQLite serializa)
+      const user = await tx.user.findUnique({
+        where: { id: session.user.id },
+        select: { availableBalance: true, email: true },
+      });
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "Usuario no encontrado" },
-        { status: 404 }
-      );
-    }
+      if (!user) throw new Error("USER_NOT_FOUND");
 
-    const availableBalance = decimalToNumber(user.availableBalance);
+      const currentBalance = decimalToNumber(user.availableBalance);
 
-    if (amount > availableBalance) {
-      return NextResponse.json(
-        {
-          error: "Balance insuficiente",
-          message: `Tu balance disponible es $${availableBalance.toFixed(2)}`,
+      if (amount > currentBalance) {
+        throw new Error("INSUFFICIENT_FUNDS");
+      }
+
+      // b. Descontar balance
+      await tx.user.update({
+        where: { id: session.user.id },
+        data: { availableBalance: { decrement: amount } },
+      });
+
+      // c. Crear solicitud
+      const request = await tx.withdrawalRequest.create({
+        data: {
+          userId: session.user.id,
+          amount,
+          status: "PENDING",
         },
-        { status: 400 }
-      );
-    }
+      });
 
-    // 4. Crear solicitud de retiro
-    const withdrawalRequest = await prisma.withdrawalRequest.create({
-      data: {
-        userId: session.user.id,
-        amount,
-        status: "PENDING",
-      },
+      return { request, user };
     });
 
-    console.log(`📤 Solicitud de retiro creada: $${amount} para ${user.email}`);
+    const { request, user } = withdrawalResult;
+
+    console.log(
+      `📤 Solicitud de retiro creada y balance bloqueado: $${amount} para ${user.email}`
+    );
+
+    // LOG DE AUDITORÍA
+    // Nota: Importamos dynamicamente o usamos fetch interno si logAudit es server-only.
+    // Pero logAudit usa auth(), que funciona aqui.
+    // Sin embargo, logAudit escribe en DB. Podemos llamarlo despues de la tx.
 
     // 5. TODO: Enviar notificación por email al departamento de finanzas
-    // Aquí se integraría con un servicio de email (Resend, SendGrid, etc.)
     const financeEmail = process.env.FINANCE_DEPARTMENT_EMAIL;
     console.log(
       `📧 [SIMULADO] Email enviado a ${financeEmail}:`,
@@ -84,13 +92,19 @@ export async function POST(req: NextRequest) {
       success: true,
       message: "Solicitud de retiro enviada exitosamente",
       withdrawal: {
-        id: withdrawalRequest.id,
-        amount: decimalToNumber(withdrawalRequest.amount),
-        status: withdrawalRequest.status,
-        requestedAt: withdrawalRequest.requestedAt,
+        id: request.id,
+        amount: decimalToNumber(request.amount),
+        status: request.status,
+        requestedAt: request.requestedAt,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === "INSUFFICIENT_FUNDS") {
+      return NextResponse.json(
+        { error: "Balance insuficiente" },
+        { status: 400 }
+      );
+    }
     console.error("❌ Error creando solicitud de retiro:", error);
     return NextResponse.json(
       { error: "Error al procesar solicitud" },

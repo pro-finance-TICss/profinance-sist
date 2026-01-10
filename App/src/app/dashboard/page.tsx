@@ -21,6 +21,7 @@ import { ProfileSettings } from "../../components/dashboard/ajustes/ProfileSetti
 import { SecuritySettings } from "../../components/dashboard/ajustes/SecuritySettings";
 import { GeneralSettings } from "../../components/dashboard/ajustes/GeneralSettings";
 import { WalletView } from "../../components/dashboard/billetera/WalletView";
+import { TicketsView } from "../../components/dashboard/tickets/TicketsView";
 
 export default function DashboardPage() {
   const [activeSection, setActiveSection] = useState("Dashboard");
@@ -222,6 +223,8 @@ export default function DashboardPage() {
                 <SecuritySettings />
                 <GeneralSettings />
               </div>
+            ) : activeSection === "Soporte" ? (
+              <TicketsView />
             ) : (
               <div
                 style={{

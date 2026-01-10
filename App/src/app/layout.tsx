@@ -20,7 +20,9 @@ export default function RootLayout({
           <div className="background-container">
             <div className="bg-logo-placeholder"></div>
           </div>
-          {children}
+          <div style={{ position: "relative", zIndex: 1, width: "100%" }}>
+            {children}
+          </div>
         </AuthProvider>
       </body>
     </html>

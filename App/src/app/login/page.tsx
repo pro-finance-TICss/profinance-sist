@@ -88,6 +88,29 @@ function LoginForm2FAStep({
         return;
       }
 
+      // Check for role-based redirect
+      try {
+        const sessionRes = await fetch("/api/auth/session");
+        const session = await sessionRes.json();
+
+        if (session?.user?.role) {
+          const role = session.user.role;
+          let targetUrl = callbackUrl;
+
+          if (callbackUrl === "/dashboard") {
+            if (role === "SUPER_ADMIN") targetUrl = "/superadmin";
+            else if (role === "ADMIN") targetUrl = "/admin";
+            else targetUrl = "/dashboard";
+          }
+
+          router.push(targetUrl);
+          router.refresh();
+          return;
+        }
+      } catch (e) {
+        console.error("Error fetching session for redirect", e);
+      }
+
       router.push(callbackUrl);
       router.refresh();
     } catch (error) {
@@ -254,6 +277,43 @@ function LoginContent() {
           setServerError("Error al iniciar sesión. Verifica tus datos.");
         }
         return;
+      }
+
+      // Check for role-based redirect
+      try {
+        // Fetch the session to get the latest user role
+        // Note: Since we manipulate cookies, we might need a hard refresh or specific fetch
+        // We can use a server action or just a simple fetch to a custom API,
+        // OR just trust that if we don't have a callbackUrl, we check the role.
+
+        // However, we are client side. getting session might be tricky immediately without reload.
+        // But let's try reading the user from the response if possible? No.
+
+        // Let's rely on a helper function or an API route?
+        // Actually, we can just hard refresh to the root and let middleware handle it?
+        // But middleware in this project seems to point to /dashboard/fondos.
+
+        // Better: client-side fetch to /api/auth/session
+        const sessionRes = await fetch("/api/auth/session");
+        const session = await sessionRes.json();
+
+        if (session?.user?.role) {
+          const role = session.user.role;
+          let targetUrl = callbackUrl;
+
+          // Only override callbackUrl if it is the default "/dashboard"
+          if (callbackUrl === "/dashboard") {
+            if (role === "SUPER_ADMIN") targetUrl = "/superadmin";
+            else if (role === "ADMIN") targetUrl = "/admin";
+            else targetUrl = "/dashboard";
+          }
+
+          router.push(targetUrl);
+          router.refresh();
+          return;
+        }
+      } catch (e) {
+        console.error("Error fetching session for redirect", e);
       }
 
       router.push(callbackUrl);
