@@ -162,12 +162,12 @@ export default auth(async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
+     * Coincidir con todas las rutas excepto las que comienzan con:
+     * - _next/static (archivos estáticos)
+     * - _next/image (archivos de optimización de imágenes)
+     * - favicon.ico (archivo favicon)
      * - public folder assets (.png, .jpg, etc.)
-     * - api/auth (NextAuth API routes)
+     * - api/auth (Rutas API de NextAuth)
      */
     "/((?!_next/static|_next/image|favicon.ico|.*\\..*|api/auth).*)",
   ],

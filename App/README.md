@@ -2,35 +2,39 @@
 
 Aplicación Web Progresiva (PWA) para la gestión de inversiones y dashboard de usuarios. Desarrollada con **Next.js**.
 
-## Funcionalidades Core
+## Funcionalidades Principales
 
-- 🔐 **Autenticación**: Login y Registro seguros con validación Zod.
-- 🧪 **Diseño Experimental**: Nuevas rutas `/login2` y `/register2` con layout Split-Screen.
-- 📊 **Dashboard**: Visualización de métricas financieras (Próximamente).
-- 🛡️ **Seguridad**: Sanitización de inputs, Bcrypt para hashing y manejo de sesiones seguro.
+- 🔐 **Autenticación Robusta**: Login y Registro con validación Zod, autenticación de dos factores (2FA) y códigos de recuperación.
+- 🎨 **Diseño Moderno**: Interfaz con Split-Screen layout para autenticación y Dashboard estilo SPA.
+- 📊 **Dashboard Financiero**: Visualización de balance, estados de cuenta y gestión de retiros.
+- 🛡️ **Seguridad Bancaria**: Sanitización de inputs, Bcrypt, manejo seguro de sesiones (Single Session Enforcement) y protección contra CSRF/XSS.
+- 👑 **Roles y Permisos**: Sistema de roles (USER, ADMIN, SUPER_ADMIN) con portales dedicados.
 
 ## Estructura del Proyecto
 
 ```text
 src/
 ├── app/                  # Rutas (App Router)
-│   ├── login/            # Login v1 (Glassmorphism centrado)
-│   ├── login2/           # [NUEVO] Login v2 (Split-Screen layout)
-│   ├── register/         # Registro v1
-│   ├── register2/        # [NUEVO] Registro v2
-│   ├── dashboard/        # Dashboard Unificado (SPA-like interface)
-│   └── verification/     # Página 2FA
+│   ├── admin/            # Portal de Administrador
+│   ├── api/              # Endpoints de API (Wallet, Auth, etc.)
+│   ├── dashboard/        # Dashboard de Usuario (Billetera, Perfil)
+│   ├── login/            # Login (Diseño Split-Screen)
+│   ├── register/         # Registro de Usuarios
+│   ├── superadmin/       # Portal de Super Admin
+│   └── verification/     # Página de Verificación (Legacy/Fallback)
 ├── components/           # Componentes de React
-│   ├── dashboard/        # Componentes del Dashboard (Balance, Actividad, etc.)
+│   ├── auth/             # Componentes de Autenticación (Modales, Forms)
+│   ├── dashboard/        # Componentes del Dashboard (Graficos, Tablas)
 │   └── ui/               # Componentes atómicos (Card, Input, Button)
 ├── lib/
-│   ├── actions/          # Server Actions (Lógica de negocio y DB)
-│   ├── validations/      # Esquemas Zod (Auth, Users) - Single Source of Truth
-│   ├── prisma.ts         # Instancia Singleton de Prisma
-│   └── utils.ts          # Helpers generales
+│   ├── actions/          # Server Actions
+│   ├── validations/      # Esquemas Zod (Auth, Wallet)
+│   ├── auth.ts           # Configuración principal de NextAuth
+│   ├── prisma.ts         # Cliente de Prisma singleton
+│   └── utils.ts          # Utilidades generales
 ├── prisma/
-│   └── schema.prisma     # Modelado de base de datos (SQLite/Postgres)
-└── public/               # Assets estáticos (imágenes, fuentes)
+│   └── schema.prisma     # Modelado de base de datos
+└── public/               # Assets estáticos
 ```
 
 ## Guía de Instalación y Uso
@@ -66,60 +70,39 @@ src/
 
 - **Framework**: Next.js 15+ (App Router).
 - **Lenguaje**: TypeScript (Strict Mode).
-- **ORM**: Prisma (Gestión de esquema y migraciones).
+- **ORM**: Prisma.
 - **Base de Datos**: SQLite (Desarrollo) / Postgres (Producción).
-- **Autenticación**: NextAuth.js v5 (Beta).
-- **Validación**: Zod (Cliente y Servidor).
+- **Autenticación**: NextAuth.js v5.
+- **Validación**: Zod.
 - **Formularios**: React Hook Form.
 - **Estilos**: CSS Modules + Variables CSS Globales.
 
-## 📐 Principios de Desarrollo
+## 🔐 Módulo de Autenticación y Seguridad
 
-Este proyecto sigue buenas prácticas de ingeniería de software:
+El sistema implementa un modelo de seguridad por capas:
 
-1.  **DRY (Don't Repeat Yourself)**: Reutilización de componentes UI (`Input`, `Button`) y lógica de validación (`auth.ts`).
-2.  **KISS (Keep It Simple, Stupid)**: Estructura de carpetas intuitiva y Server Actions directas en lugar de APIs complejas innecesarias.
-3.  **SOLID**: Responsabilidad única en componentes y separación de capas (UI vs Lógica de Negocio).
-4.  **Clean Code**: Nombres de variables descriptivos y código autodocumentado.
+1.  **Autenticación**:
 
-## 🔐 Módulo de Autenticación
+    - Credenciales (Email/Password) con hashing seguro.
+    - **2FA (Doble Factor)**: Integración con aplicaciones TOTP (Google Authenticator, Authy).
+    - **Códigos de Recuperación**: Códigos de un solo uso para emergencias.
 
-El sistema cuenta con un módulo de autenticación completo y seguro que incluye:
+2.  **Manejo de Sesiones**:
 
-- **Login y Registro** con validación de datos (Zod)
-- **Hashing de contraseñas** con bcrypt
-- **Protección de rutas** mediante Middleware
-- **Autenticación de Dos Factores (2FA)** mockeada para desarrollo
+    - **Single Session Enforcement**: Invalida sesiones anteriores al iniciar sesión nueva.
+    - **Cookies Seguras**: HttpOnly, Secure, SameSite.
+    - **Expiración Automática**: 30 minutos de inactividad.
 
-### Credenciales de Prueba (Desarrollo)
+3.  **Protección de Rutas**:
+    - Middleware compatible con Edge para verificar tokens JWT.
+    - Redirección inteligente basada en roles (Admin/User).
 
-El sistema utiliza una base de datos local SQLite (`dev.db`). Puedes registrar un nuevo usuario en `/register`.
-
-### Flujo de 2FA (Mockeado)
-
-1. Al iniciar sesión, se genera un código de 6 dígitos.
-2. Este código se imprime en la **consola del servidor** (terminal donde ejecutas `npm run dev`).
-3. Copia el código e ingrésalo en la pantalla de verificación.
-
-### Comandos Útiles
+### Comandos Útiles de Prisma
 
 ```bash
 # Ver la base de datos (GUI)
 npx prisma studio
 
-# Resetear base de datos
+# Resetear base de datos (¡Precaución!)
 npx prisma migrate reset
 ```
-
-## 🛠️ Tecnologías
-
-- **Next.js 14** (App Router)
-- **Prisma ORM** (Base de datos)
-- **NextAuth.js v5** (Autenticación)
-- **Zod** (Validaciones)
-- **React Hook Form** (Manejo de formularios)
-
-## Seguridad
-
-- Todos los formularios deben usar **Zod** para validar datos tanto en cliente como en servidor.
-- No commitear nunca el archivo `.env`.

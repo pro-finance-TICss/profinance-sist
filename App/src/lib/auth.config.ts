@@ -27,7 +27,7 @@ export const authConfig: NextAuthConfig = {
     strategy: "jwt",
     // 30 minutos de sesión máxima (estándar bancario)
     maxAge: 30 * 60,
-    // Actualizar sesión cada 5 minutos si hay actividad (rolling session)
+    // Actualizar sesión cada 5 minutos si hay actividad (sesión rodante)
     updateAge: 5 * 60,
   },
 
