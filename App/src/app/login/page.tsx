@@ -1,12 +1,6 @@
-// ============================================================================
-// PÁGINA DE LOGIN - PRO-FINANCE
-// ============================================================================
-// Formulario de inicio de sesión con React Hook Form, Zod y soporte 2FA.
-// ============================================================================
-
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
@@ -31,14 +25,10 @@ import styles from "./page.module.css";
 type LoginStep = "credentials" | "twoFactor";
 
 // ============================================================================
-// COMPONENTE PRINCIPAL
+// COMPONENTE INTERNO (LOGIC)
 // ============================================================================
 
-/**
- * Página de inicio de sesión.
- * Maneja el flujo de credenciales y verificación 2FA.
- */
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
@@ -73,10 +63,6 @@ export default function LoginPage() {
   // HANDLERS
   // ================================================================
 
-  /**
-   * Maneja el envío del formulario de credenciales.
-   * Si las credenciales son válidas, pasa al paso de 2FA.
-   */
   const onSubmitCredentials = async (data: LoginFormData) => {
     setServerError(null);
 
@@ -88,13 +74,10 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        // En NextAuth v5, los errores custom a veces llegan como "Configuration" o "CallbackRouteError"
-        // pero el código interno es el que definimos. Intentamos detectar el string en el código.
         if (
           result.code === "2FA_REQUIRED" ||
           result.error.includes("2FA_REQUIRED")
         ) {
-          // Credenciales correctas, requerimos 2FA
           setEmail(data.email);
           setStep("twoFactor");
           console.log(
@@ -108,17 +91,12 @@ export default function LoginPage() {
         } else if (result.error.includes("CredentialsSignin")) {
           setServerError("Correo o contraseña incorrectos.");
         } else {
-          // Si es el primer paso y falló pero no es credenciales inválidas conocidas,
-          // podría ser que NextAuth enmascaró el error 2FA_REQUIRED.
-          // Vamos a asumir que si llegamos aquí es un error real, PERO
-          // imprimiremos el error real en consola para depurar si sigue fallando.
           console.log("Login Error Raw:", result);
           setServerError("Error al iniciar sesión. Verifica tus datos.");
         }
         return;
       }
 
-      // Login exitoso sin 2FA (no debería ocurrir con la config actual)
       router.push(callbackUrl);
       router.refresh();
     } catch (error) {
@@ -127,9 +105,6 @@ export default function LoginPage() {
     }
   };
 
-  /**
-   * Maneja el envío del código 2FA.
-   */
   const onSubmit2FA = async (data: TwoFactorFormData) => {
     setServerError(null);
 
@@ -153,7 +128,6 @@ export default function LoginPage() {
         return;
       }
 
-      // Login exitoso
       router.push(callbackUrl);
       router.refresh();
     } catch (error) {
@@ -162,22 +136,14 @@ export default function LoginPage() {
     }
   };
 
-  /**
-   * Volver al paso de credenciales.
-   */
   const handleBack = () => {
     setStep("credentials");
     setServerError(null);
     twoFactorForm.reset();
   };
 
-  // ================================================================
-  // RENDER
-  // ================================================================
-
   return (
     <>
-      {/* Header del sistema */}
       <SystemHeader />
 
       <main className="auth-container">
@@ -188,7 +154,6 @@ export default function LoginPage() {
             WebkitBackdropFilter: "blur(8px)",
           }}
         >
-          {/* Header del formulario */}
           <header className="auth-header">
             <p className={styles.subtitle}>
               {step === "credentials"
@@ -197,12 +162,10 @@ export default function LoginPage() {
             </p>
           </header>
 
-          {/* Error del servidor */}
           {serverError && (
             <div className={styles.errorAlert}>{serverError}</div>
           )}
 
-          {/* ========== PASO 1: CREDENCIALES ========== */}
           {step === "credentials" && (
             <form
               className="auth-form"
@@ -250,7 +213,6 @@ export default function LoginPage() {
             </form>
           )}
 
-          {/* ========== PASO 2: CÓDIGO 2FA ========== */}
           {step === "twoFactor" && (
             <form
               className="auth-form"
@@ -297,5 +259,31 @@ export default function LoginPage() {
         </div>
       </main>
     </>
+  );
+}
+
+// ============================================================================
+// COMPONENTE PRINCIPAL (PAGE WRAPPER)
+// ============================================================================
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            display: "flex",
+            height: "100vh",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "white",
+          }}
+        >
+          Cargando...
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

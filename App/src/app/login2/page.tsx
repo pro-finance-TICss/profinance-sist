@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 
 import { loginSchema, twoFactorSchema } from "@/lib/validations/auth";
 import type { LoginFormData, TwoFactorFormData } from "@/lib/validations/auth";
@@ -21,9 +20,9 @@ import styles from "./login2.module.css";
 type LoginStep = "credentials" | "twoFactor";
 
 // ============================================================================
-// COMPONENTE PRINCIPAL
+// COMPONENTE INTERNO
 // ============================================================================
-export default function Login2Page() {
+function Login2Content() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
@@ -35,7 +34,6 @@ export default function Login2Page() {
   // ================================================================
   // FORMULARIO DE CREDENCIALES
   // ================================================================
-  // NOTA: Reutilizamos la misma lógica que en login/page.tsx (DRY)
   const credentialsForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -269,5 +267,30 @@ export default function Login2Page() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ============================================================================
+// COMPONENTE PRINCIPAL WRAPPER
+// ============================================================================
+export default function Login2Page() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            display: "flex",
+            height: "100vh",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "white",
+          }}
+        >
+          Cargando...
+        </div>
+      }
+    >
+      <Login2Content />
+    </Suspense>
   );
 }

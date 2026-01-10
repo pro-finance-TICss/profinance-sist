@@ -208,7 +208,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.name = user.name as string;
         token.role = user.role;
         token.tokenVersion = user.tokenVersion;
-        token.lastLogin = user.lastLogin?.toISOString() || null;
+        token.lastLogin =
+          user.lastLogin instanceof Date
+            ? user.lastLogin.toISOString()
+            : user.lastLogin || null;
       }
       return token;
     },
@@ -221,11 +224,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (token) {
         session.user.id = token.id;
         session.user.email = token.email;
-        session.user.name = token.name as string;
+        session.user.name = token.name;
         session.user.role = token.role;
+        session.user.lastLogin = token.lastLogin;
         // tokenVersion NO se expone al cliente por seguridad
         // pero se mantiene en el token para validación en middleware
-        session.user.tokenVersion = token.tokenVersion;
       }
       return session;
     },

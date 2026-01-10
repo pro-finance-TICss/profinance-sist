@@ -21,7 +21,7 @@ declare module "next-auth" {
     /** Versión del token para validación de single-session */
     tokenVersion: number;
     /** Fecha del último inicio de sesión */
-    lastLogin?: Date | null;
+    lastLogin?: Date | string | null;
   }
 
   /**
@@ -33,8 +33,8 @@ declare module "next-auth" {
       email: string;
       name: string;
       role: string;
-      tokenVersion: number;
-    };
+      lastLogin?: string | null;
+    } & import("next-auth").DefaultSession["user"];
   }
 }
 
@@ -45,6 +45,10 @@ declare module "next-auth/jwt" {
   interface JWT {
     /** ID único del usuario */
     id: string;
+    /** Email del usuario */
+    email: string;
+    /** Nombre del usuario */
+    name: string;
     /** Rol del usuario */
     role: string;
     /** Versión del token para validación */
