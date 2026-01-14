@@ -3,6 +3,7 @@
   min-height: 650px;
   width: 100%;
   max-width: 1000px;
+  margin: 0 auto; /* Centrar horizontalmente */
   border-radius: 30px;
   overflow: hidden;
   background-color: var(--color-black);

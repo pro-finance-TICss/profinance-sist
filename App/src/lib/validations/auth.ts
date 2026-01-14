@@ -122,6 +122,10 @@ export const registerSchema = z
       .regex(PASSWORD_REGEX, { message: PASSWORD_ERROR_MESSAGE }),
 
     confirmPassword: z.string().min(1, { message: "Confirma tu contraseña." }),
+
+    terms: z.boolean().refine((val) => val === true, {
+      message: "Debes aceptar los términos y condiciones.",
+    }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Las contraseñas no coinciden.",

@@ -20,7 +20,7 @@ import styles from "./register.module.css";
 // ============================================================================
 
 /** Pasos del flujo de registro */
-type RegisterStep = "form" | "totp" | "success";
+type RegisterStep = "personal-info" | "security" | "totp" | "success";
 
 /** Datos de configuración TOTP recibidos del servidor */
 interface TotpSetupData {
@@ -37,7 +37,7 @@ export default function RegisterPage() {
   const router = useRouter();
 
   // Estados del flujo
-  const [step, setStep] = useState<RegisterStep | "recovery">("form");
+  const [step, setStep] = useState<RegisterStep | "recovery">("personal-info");
   const [serverError, setServerError] = useState<string | null>(null);
   const [totpData, setTotpData] = useState<TotpSetupData | null>(null);
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
@@ -46,6 +46,7 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
+    trigger,
     formState: { errors, isSubmitting },
     setError,
   } = useForm<RegisterFormData>({
@@ -57,12 +58,28 @@ export default function RegisterPage() {
       email: "",
       password: "",
       confirmPassword: "",
+      terms: false,
     },
   });
 
   // ================================================================
   // HANDLERS
   // ================================================================
+
+  /**
+   * Valida paso 1 antes de avanzar
+   */
+  const handleNextStep = async () => {
+    const isValid = await trigger([
+      "firstName",
+      "paternalSurname",
+      "maternalSurname",
+      "email",
+    ]);
+    if (isValid) {
+      setStep("security");
+    }
+  };
 
   /**
    * Maneja el envío del formulario de registro.
@@ -120,16 +137,8 @@ export default function RegisterPage() {
    * Callback cuando la verificación TOTP es exitosa.
    */
   const handleTotpSuccess = () => {
-    // Si tenemos códigos de recuperación, los mostramos
-    if (recoveryCodes.length > 0) {
-      setStep("recovery");
-    } else {
-      // Si por alguna razón no hay códigos, vamos directo a success
-      setStep("success");
-      setTimeout(() => {
-        router.push("/login");
-      }, 2500);
-    }
+    // Siempre vamos a recovery codes porque confirmTotpSetup siempre los genera
+    setStep("recovery");
   };
 
   const handleFinishRecovery = () => {
@@ -139,9 +148,12 @@ export default function RegisterPage() {
     }, 2500);
   };
 
+  const [isCopied, setIsCopied] = useState(false);
+
   const copyToClipboard = () => {
     navigator.clipboard.writeText(recoveryCodes.join("\n"));
-    alert("Códigos copiados al portapapeles");
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   // ================================================================
@@ -169,8 +181,8 @@ export default function RegisterPage() {
       {/* FORM SECTION */}
       <div className={styles.formSection}>
         <div className={styles.formContainer} style={{ maxWidth: "550px" }}>
-          {/* HEADER - Solo mostrar en paso de formulario */}
-          {step === "form" && (
+          {/* HEADER - Mostrar en pasos de formulario */}
+          {(step === "personal-info" || step === "security") && (
             <div className={styles.formHeader}>
               <div className={styles.topSwitch}>
                 <Link href="/login" className={styles.switchBtn}>
@@ -187,8 +199,8 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* PASO 1: FORMULARIO DE REGISTRO */}
-          {step === "form" && (
+          {/* FORMULARIO DE REGISTRO (Paso 1 y 2) */}
+          {(step === "personal-info" || step === "security") && (
             <>
               {serverError && (
                 <div className={styles.errorAlert}>{serverError}</div>
@@ -198,106 +210,155 @@ export default function RegisterPage() {
                 className={styles.customForm}
                 onSubmit={handleSubmit(onSubmit)}
               >
-                <div className={styles.inputWrapper}>
-                  <Input
-                    label="Nombre(s)"
-                    type="text"
-                    placeholder="Tu nombre"
-                    {...register("firstName")}
-                    error={errors.firstName?.message}
-                  />
-                </div>
+                {/* PASO 1: INFORMACIÓN PERSONAL */}
+                {step === "personal-info" && (
+                  <>
+                    <div className={styles.inputWrapper}>
+                      <Input
+                        label="Nombre(s)"
+                        type="text"
+                        placeholder="Tu nombre"
+                        {...register("firstName")}
+                        error={errors.firstName?.message}
+                      />
+                    </div>
 
-                <div style={{ display: "flex", gap: "1rem" }}>
-                  <div className={styles.inputWrapper} style={{ flex: 1 }}>
-                    <Input
-                      label="Apellido Paterno"
-                      type="text"
-                      placeholder="Paterno"
-                      {...register("paternalSurname")}
-                      error={errors.paternalSurname?.message}
-                    />
-                  </div>
-                  <div className={styles.inputWrapper} style={{ flex: 1 }}>
-                    <Input
-                      label="Apellido Materno"
-                      type="text"
-                      placeholder="Materno"
-                      {...register("maternalSurname")}
-                      error={errors.maternalSurname?.message}
-                    />
-                  </div>
-                </div>
+                    <div style={{ display: "flex", gap: "1rem" }}>
+                      <div className={styles.inputWrapper} style={{ flex: 1 }}>
+                        <Input
+                          label="Apellido Paterno"
+                          type="text"
+                          placeholder="Paterno"
+                          {...register("paternalSurname")}
+                          error={errors.paternalSurname?.message}
+                        />
+                      </div>
+                      <div className={styles.inputWrapper} style={{ flex: 1 }}>
+                        <Input
+                          label="Apellido Materno"
+                          type="text"
+                          placeholder="Materno"
+                          {...register("maternalSurname")}
+                          error={errors.maternalSurname?.message}
+                        />
+                      </div>
+                    </div>
 
-                <div className={styles.inputWrapper}>
-                  <Input
-                    label="Correo Electrónico"
-                    type="email"
-                    placeholder="tu@email.com"
-                    {...register("email")}
-                    error={errors.email?.message}
-                  />
-                </div>
+                    <div className={styles.inputWrapper}>
+                      <Input
+                        label="Correo Electrónico"
+                        type="email"
+                        placeholder="tu@email.com"
+                        {...register("email")}
+                        error={errors.email?.message}
+                      />
+                    </div>
 
-                <div className={styles.inputWrapper}>
-                  <Input
-                    label="Contraseña"
-                    type="password"
-                    placeholder="••••••••"
-                    {...register("password")}
-                    error={errors.password?.message}
-                  />
-                </div>
+                    <Button
+                      type="button"
+                      onClick={handleNextStep}
+                      className={styles.submitBtn}
+                    >
+                      Continuar
+                    </Button>
+                  </>
+                )}
 
-                <div className={styles.inputWrapper}>
-                  <Input
-                    label="Confirmar Contraseña"
-                    type="password"
-                    placeholder="••••••••"
-                    {...register("confirmPassword")}
-                    error={errors.confirmPassword?.message}
-                  />
-                </div>
+                {/* PASO 2: SEGURIDAD Y LEGAL */}
+                {step === "security" && (
+                  <>
+                    <div className={styles.inputWrapper}>
+                      <Input
+                        label="Contraseña"
+                        type="password"
+                        placeholder="••••••••"
+                        {...register("password")}
+                        error={errors.password?.message}
+                      />
+                    </div>
 
-                <div style={{ fontSize: "0.8rem", color: "rgba(0,0,0,0.5)" }}>
-                  La contraseña debe tener 8+ caracteres, mayúscula, número y
-                  símbolo.
-                </div>
+                    <div className={styles.inputWrapper}>
+                      <Input
+                        label="Confirmar Contraseña"
+                        type="password"
+                        placeholder="••••••••"
+                        {...register("confirmPassword")}
+                        error={errors.confirmPassword?.message}
+                      />
+                    </div>
 
-                <div style={{ marginTop: "1rem" }}>
-                  <label
-                    style={{
-                      display: "flex",
-                      gap: "0.5rem",
-                      alignItems: "flex-start",
-                      fontSize: "0.9rem",
-                      color: "rgba(0,0,0,0.7)",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
+                    <div
                       style={{
-                        marginTop: "0.2rem",
-                        accentColor: "var(--color-gold-start)",
+                        fontSize: "0.8rem",
+                        color: "rgba(0,0,0,0.5)",
                       }}
-                    />
-                    <span>
-                      Acepto los{" "}
-                      <a href="#" className={styles.link}>
-                        términos y condiciones
-                      </a>{" "}
-                      de servicio.
-                    </span>
-                  </label>
-                </div>
+                    >
+                      La contraseña debe tener 8 o más caracteres. Mínimo una
+                      mayúscula, un número y un símbolo.
+                    </div>
 
-                <Button
-                  type="submit"
-                  className={styles.submitBtn}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "Registrando..." : "Continuar"}
-                </Button>
+                    <div style={{ marginTop: "1rem" }}>
+                      <label
+                        style={{
+                          display: "flex",
+                          gap: "0.5rem",
+                          alignItems: "flex-start",
+                          fontSize: "0.9rem",
+                          color: "rgba(0,0,0,0.7)",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          {...register("terms")}
+                          style={{
+                            marginTop: "0.2rem",
+                            accentColor: "var(--color-gold-start)",
+                          }}
+                        />
+                        <span>
+                          Acepto los{" "}
+                          <a href="#" className={styles.link}>
+                            términos y condiciones
+                          </a>{" "}
+                          de servicio.
+                        </span>
+                      </label>
+                      {errors.terms && (
+                        <p
+                          style={{
+                            color: "red",
+                            fontSize: "0.8rem",
+                            marginTop: "0.2rem",
+                          }}
+                        >
+                          {errors.terms.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <Button
+                        type="button"
+                        className={styles.submitBtn}
+                        style={{
+                          background: "#ccc",
+                          flex: "0 0 30%",
+                        }}
+                        onClick={() => setStep("personal-info")}
+                      >
+                        Atrás
+                      </Button>
+                      <Button
+                        type="submit"
+                        className={styles.submitBtn}
+                        style={{ flex: 1 }}
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? "Registrando..." : "Registrarse"}
+                      </Button>
+                    </div>
+                  </>
+                )}
               </form>
 
               <div
@@ -338,7 +399,7 @@ export default function RegisterPage() {
               }}
             >
               <h3 style={{ color: "#333", marginBottom: "1rem" }}>
-                ¡IMPORTANTE! Guada estos códigos
+                ¡IMPORTANTE! Guarda estos códigos
               </h3>
               <p
                 style={{
@@ -384,15 +445,18 @@ export default function RegisterPage() {
                   onClick={copyToClipboard}
                   className={styles.submitBtn}
                   style={{
-                    backgroundColor: "#6c757d",
+                    backgroundColor: isCopied ? "#28a745" : "#6c757d",
                     backgroundImage: "none",
+                    fontFamily: "Candara",
+                    transition: "background-color 0.3s ease",
                   }}
                 >
-                  Copiar Códigos
+                  {isCopied ? "¡Copiado!" : "Copiar Códigos"}
                 </Button>
                 <Button
                   onClick={handleFinishRecovery}
                   className={styles.submitBtn}
+                  style={{ fontFamily: "Candara" }}
                 >
                   He guardado mis códigos
                 </Button>

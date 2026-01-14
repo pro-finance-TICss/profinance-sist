@@ -1,8 +1,9 @@
 .container {
   display: flex;
-  min-height: 750px;
+  min-height: 650px; /* Estandarizado con Login */
   width: 100%;
-  max-width: 1100px;
+  max-width: 1000px; /* Estandarizado con Login */
+  margin: 0 auto; /* Centrar horizontalmente */
   border-radius: 30px;
   overflow: hidden;
   background-color: var(--color-black);
