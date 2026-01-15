@@ -1,3 +1,10 @@
+# 🎯 Ejemplo Práctico: Refactorización de layout.tsx
+
+Este archivo muestra cómo quedaría tu `layout.tsx` después de integrar el `DashboardContext`.
+
+## ✅ Versión Refactorizada (Recomendada)
+
+```typescript
 "use client";
 
 import React from "react";
@@ -29,18 +36,22 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   // Validar sesión cada 30 segundos y cuando la ventana recupere el foco
   useSessionValidator(30000);
 
+  // ❌ ELIMINADO: Estados locales duplicados
+  // const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // const [isMobile, setIsMobile] = useState(false);
+  // useEffect(() => { ... resize listener ... }, []);
+
   // Determinar título basado en la ruta
   const getTitle = (path: string) => {
     if (path === "/dashboard") return "Resumen Financiero";
     if (path.includes("/productos")) return "Productos";
     if (path.includes("/billetera")) return "Mi Billetera";
-    if (path.includes("/ajustes/dispositivos"))
-      return "Dispositivos Conectados";
+    if (path.includes("/ajustes/dispositivos")) return "Dispositivos Conectados";
     if (path.includes("/ajustes")) return "Ajustes";
     if (path.includes("/soporte")) return "Soporte";
     if (path.includes("/inversiones")) return "Inversiones";
     if (path.includes("/transacciones")) return "Transacciones";
-    if (path.includes("/seguridad")) return "Seguridad"; // Fallback
+    if (path.includes("/seguridad")) return "Seguridad";
     return "Dashboard";
   };
 
@@ -72,7 +83,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           backgroundSize: "contain",
           opacity: 0.04,
           pointerEvents: "none",
-          zIndex: Z_INDEX.BACKGROUND,
+          zIndex: Z_INDEX.BACKGROUND, // ← Usando constante
         }}
       />
 
@@ -83,8 +94,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           flexShrink: 0,
           backgroundColor: "#000",
           borderRight: "1px solid rgba(189, 142, 72, 0.1)",
-          zIndex: Z_INDEX.SIDEBAR,
-          position: isMobile || isTablet ? "absolute" : "relative",
+          zIndex: Z_INDEX.SIDEBAR, // ← Usando constante
+          position: isMobile || isTablet ? "absolute" : "relative", // ← Soporte tablet
           left: isMobile || isTablet ? (isSidebarOpen ? "0" : "-260px") : "0",
           transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           height: "100%",
@@ -101,7 +112,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             position: "absolute",
             inset: 0,
             backgroundColor: "rgba(0,0,0,0.6)",
-            zIndex: Z_INDEX.OVERLAY,
+            zIndex: Z_INDEX.OVERLAY, // ← Usando constante
             backdropFilter: "blur(4px)",
           }}
         />
@@ -114,11 +125,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           display: "flex",
           flexDirection: "column",
           minWidth: 0,
-          zIndex: Z_INDEX.CONTENT,
+          zIndex: Z_INDEX.CONTENT, // ← Usando constante
           position: "relative",
           backgroundColor: "transparent",
         }}
       >
+        {/* Botón de menú móvil */}
         {(isMobile || isTablet) && (
           <button
             onClick={toggleSidebar}
@@ -126,11 +138,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               position: "absolute",
               top: "20px",
               left: "20px",
-              zIndex: Z_INDEX.MOBILE_MENU_BUTTON,
+              zIndex: Z_INDEX.MOBILE_MENU_BUTTON, // ← Usando constante
               background: "rgba(189, 142, 72, 0.1)",
               border: "1px solid rgba(189, 142, 72, 0.3)",
               borderRadius: "8px",
-              padding: "12px",
+              padding: "12px", // ← Aumentado de 8px a 12px (área táctil 48x48px)
               color: "#bd8e48",
               cursor: "pointer",
             }}
@@ -150,21 +162,21 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             flexDirection: "column",
             backgroundColor: "transparent",
             position: "relative",
-            height: "100%", // Asegurar altura para scroll
+            height: "100%",
           }}
         >
           <div
             style={{
-              padding: isMobile ? "20px" : isTablet ? "25px" : "30px 40px",
+              padding: isMobile ? "20px" : isTablet ? "25px" : "30px 40px", // ← Soporte tablet
               display: "flex",
               flexDirection: "column",
               gap: isMobile ? "1.5rem" : "2.5rem",
-              marginTop: isMobile || isTablet ? "60px" : "0",
+              marginTop: isMobile || isTablet ? "60px" : "0", // ← Ajuste para botón móvil
               flex: "1 0 auto",
               minHeight: "min-content",
             }}
           >
-            {/* Header de la sección actual se renderiza aquí para consistencia */}
+            {/* Header de la sección actual */}
             <div>
               <h1
                 style={{
@@ -179,15 +191,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 {title === "Resumen Financiero"
                   ? "Monitorea tus activos en tiempo real."
                   : title === "Ajustes"
-                    ? "Gestiona tu perfil y preferencias."
-                    : `Gestión de ${title.toLowerCase()}.`}
+                  ? "Gestiona tu perfil y preferencias."
+                  : `Gestión de ${title.toLowerCase()}.`}
               </p>
             </div>
 
             {children}
           </div>
 
-          {/* Footer al final del flujo, flex-shrink 0 para no encogerse */}
+          {/* Footer al final del flujo */}
           <div style={{ flexShrink: 0, marginTop: "auto" }}>
             <Footer />
           </div>
@@ -196,3 +208,32 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+```
+
+## 📊 Cambios Realizados
+
+### ✅ Eliminado
+- ❌ `const [isMobile, setIsMobile] = useState(false)`
+- ❌ `const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)`
+- ❌ `useEffect(() => { ... resize listener ... }, [])`
+
+### ✅ Agregado
+- ✅ `import { DashboardProvider, useDashboard } from "@/contexts/DashboardContext"`
+- ✅ `import { Z_INDEX } from "@/constants/zIndex"`
+- ✅ Wrapper `<DashboardProvider>` alrededor del contenido
+- ✅ Componente interno `DashboardLayoutContent` que consume el contexto
+- ✅ Uso de `const { isMobile, isTablet, isDesktop, isSidebarOpen, closeSidebar, toggleSidebar } = useDashboard()`
+
+### ✅ Mejorado
+- ✅ Soporte para tablets (`isTablet`)
+- ✅ Z-index usando constantes centralizadas
+- ✅ Área táctil del botón de menú aumentada a 48x48px
+- ✅ Padding adaptativo para tablets
+
+## 🎯 Beneficios
+
+1. **Menos código**: ~15 líneas eliminadas
+2. **Mejor rendimiento**: Un solo event listener en lugar de múltiples
+3. **Escalabilidad**: Fácil añadir nuevos breakpoints o estados
+4. **Mantenibilidad**: Cambios en un solo lugar
+5. **Type-safety**: TypeScript valida el uso del contexto

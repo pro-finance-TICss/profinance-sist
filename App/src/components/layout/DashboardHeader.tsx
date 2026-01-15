@@ -1,18 +1,21 @@
 "use client";
 import React from "react";
 import { Search, Bell, User } from "lucide-react";
+import { useDashboard } from "@/contexts/DashboardContext";
 
 export const DashboardHeader = ({ title }: { title: string }) => {
+  const { isMobile, isTablet } = useDashboard();
+
   return (
     <header
       style={{
-        height: "80px",
-        padding: "0 30px",
+        height: isMobile ? "60px" : "80px",
+        padding: isMobile ? "0 15px" : "0 30px",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        backgroundColor: "rgba(0, 0, 0, 0.8)", // Fondo oscuro con transparencia
-        backdropFilter: "blur(10px)", // Efecto cristal
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
+        backdropFilter: "blur(10px)",
         borderBottom: "1px solid rgba(189, 142, 72, 0.2)",
         position: "sticky",
         top: 0,
@@ -20,65 +23,69 @@ export const DashboardHeader = ({ title }: { title: string }) => {
         width: "100%",
       }}
     >
-      {/* 1. TÍTULO DINÁMICO (Ahora aprovecha el espacio izquierdo) */}
-      <div style={{ minWidth: "200px" }}>
-        <h2
-          style={{
-            margin: 0,
-            fontSize: "1.4rem",
-            color: "#fff",
-            fontWeight: "600",
-            letterSpacing: "0.5px",
-            textTransform: "uppercase",
-          }}
-        >
-          {title}
-        </h2>
-        <span
-          style={{
-            fontSize: "0.75rem",
-            color: "#bd8e48",
-            opacity: 0.8,
-            fontWeight: "500",
-          }}
-        >
-          SISTEMA DE GESTIÓN PRO
-        </span>
-      </div>
+      {/* 1. TÍTULO DINÁMICO (Oculto en móvil para ahorrar espacio) */}
+      {!isMobile && (
+        <div style={{ minWidth: "200px" }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: "1.4rem",
+              color: "#fff",
+              fontWeight: "600",
+              letterSpacing: "0.5px",
+              textTransform: "uppercase",
+            }}
+          >
+            {title}
+          </h2>
+          <span
+            style={{
+              fontSize: "0.75rem",
+              color: "#bd8e48",
+              opacity: 0.8,
+              fontWeight: "500",
+            }}
+          >
+            SISTEMA DE GESTIÓN PRO
+          </span>
+        </div>
+      )}
 
-      {/* 2. BUSCADOR CENTRAL MEJORADO */}
-      <div style={{ flex: 0.4, position: "relative" }}>
-        <Search
-          size={16}
-          color="#bd8e48"
-          style={{
-            position: "absolute",
-            left: "15px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            opacity: 0.6,
-          }}
-        />
-        <input
-          type="text"
-          placeholder="Buscar activos, transacciones..."
-          style={{
-            width: "100%",
-            backgroundColor: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(189, 142, 72, 0.15)",
-            borderRadius: "12px",
-            padding: "12px 15px 12px 45px",
-            color: "#fff",
-            fontSize: "0.85rem",
-            outline: "none",
-            transition: "all 0.3s ease",
-          }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = "#bd8e48")}
-          onBlur={(e) =>
-            (e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.15)")
-          }
-        />
-      </div>
+      {/* 2. BUSCADOR CENTRAL MEJORADO (Oculto en móvil) */}
+      {!isMobile && (
+        <div style={{ flex: isTablet ? 0.3 : 0.4, position: "relative" }}>
+          <Search
+            size={16}
+            color="#bd8e48"
+            style={{
+              position: "absolute",
+              left: "15px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              opacity: 0.6,
+            }}
+          />
+          <input
+            type="text"
+            placeholder="Buscar activos, transacciones..."
+            style={{
+              width: "100%",
+              backgroundColor: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(189, 142, 72, 0.15)",
+              borderRadius: "12px",
+              padding: "12px 15px 12px 45px",
+              color: "#fff",
+              fontSize: "0.85rem",
+              outline: "none",
+              transition: "all 0.3s ease",
+            }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "#bd8e48")}
+            onBlur={(e) =>
+              (e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.15)")
+            }
+          />
+        </div>
+      )}
 
       {/* 3. PERFIL Y NOTIFICACIONES */}
       <div style={{ display: "flex", alignItems: "center", gap: "25px" }}>
@@ -232,7 +239,7 @@ function NotificationBell() {
         style={{
           cursor: "pointer",
           position: "relative",
-          padding: "8px",
+          padding: "12px",
           borderRadius: "8px",
           transition: "background 0.3s",
           backgroundColor: isOpen ? "rgba(189, 142, 72, 0.1)" : "transparent",

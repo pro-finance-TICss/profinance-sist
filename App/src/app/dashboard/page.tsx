@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useDashboard } from "@/contexts/DashboardContext";
 import { BalanceSection } from "../../components/dashboard/BalanceSection";
 import { ActivitySection } from "../../components/dashboard/ActivitySection";
 import { QuickActions } from "../../components/dashboard/QuickActions";
@@ -9,7 +10,7 @@ import { ActionModal } from "../../components/dashboard/ActionModal";
 import { DepositForm } from "../../components/dashboard/DepositForm";
 
 export default function DashboardPage() {
-  const [isMobile, setIsMobile] = useState(false);
+  const { isMobile } = useDashboard();
 
   // --- ESTADOS PARA EL MODAL ---
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -20,13 +21,6 @@ export default function DashboardPage() {
     setIsModalOpen(true);
   };
   // ---------------------------------------
-
-  React.useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
 
   return (
     <>

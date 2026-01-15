@@ -14,14 +14,17 @@ import {
 import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { useDashboard } from "@/contexts/DashboardContext";
 
 interface SidebarProps {
   onNavigate?: () => void;
 }
 
 export function Sidebar({ onNavigate }: SidebarProps) {
-  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  // AGREGA ESTA LÍNEA AQUÍ:
+  const { isSidebarOpen, isMobile, isTablet } = useDashboard();
   const pathname = usePathname();
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const menuItems = [
     {
@@ -75,10 +78,14 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         padding: "40px 0",
         display: "flex",
         flexDirection: "column",
-        position: "fixed",
-        left: 0,
+
+        // --- ESTO ES LO QUE DEBES AGREGAR ---
+        position: (isMobile || isTablet) ? "fixed" : "relative", // En móvil flota, en PC empuja el contenido
+        left: (isMobile || isTablet) ? (isSidebarOpen ? "0" : "-260px") : "0",
         top: 0,
-        zIndex: 100,
+        zIndex: 100, // Para que en móvil pase por encima del contenido
+        transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)", // Animación suave al abrir/cerrar
+        // ------------------------------------
       }}
     >
       {/* HEADER DEL SIDEBAR: LOGO CON CONTENEDOR ESTÉTICO */}
@@ -177,21 +184,21 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                     backgroundColor: isActive
                       ? "#bd8e48"
                       : isHovered
-                      ? "rgba(189, 142, 72, 0.05)"
-                      : "transparent",
+                        ? "rgba(189, 142, 72, 0.05)"
+                        : "transparent",
 
                     boxShadow:
                       isHovered && !isActive
                         ? "0 0 15px rgba(189, 142, 72, 0.3), inset 0 0 10px rgba(189, 142, 72, 0.1)"
                         : isActive
-                        ? "0 4px 20px rgba(189, 142, 72, 0.4)"
-                        : "none",
+                          ? "0 4px 20px rgba(189, 142, 72, 0.4)"
+                          : "none",
 
                     color: isActive
                       ? "#000"
                       : isHovered
-                      ? "#fff"
-                      : "rgba(255,255,255,0.4)",
+                        ? "#fff"
+                        : "rgba(255,255,255,0.4)",
                     transform:
                       !isActive && isHovered
                         ? "translateX(8px)"
