@@ -126,6 +126,45 @@ model User {
 
   /// Cuentas bancarias para retiros
   bankAccounts           BankAccount[]
+
+  /// Dispositivos de confianza (sesiones donde no se requiere TOTP)
+  trustedDevices         TrustedDevice[]
+}
+
+// ============================================================================
+// MODELO DE DISPOSITIVOS DE CONFIANZA
+// ============================================================================
+/// Dispositivos/navegadores donde el usuario ha verificado TOTP.
+/// Permite omitir TOTP por 30 días en ese dispositivo.
+model TrustedDevice {
+  /// Identificador único del dispositivo
+  id            String   @id @default(cuid())
+  
+  /// ID del usuario propietario
+  userId        String
+  
+  /// Relación con el usuario
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  /// Token único para identificar el dispositivo (cookie)
+  deviceToken   String   @unique
+  
+  /// Nombre descriptivo del dispositivo (ej: "Chrome en Windows")
+  deviceName    String?
+  
+  /// Última vez que se usó este dispositivo
+  lastUsedAt    DateTime
+  
+  /// Fecha de creación
+  createdAt     DateTime @default(now())
+  
+  /// Fecha de expiración (30 días desde creación)
+  expiresAt     DateTime
+  
+  /// Índices para búsquedas eficientes
+  @@index([userId])
+  @@index([deviceToken])
+  @@index([expiresAt])
 }
 
 // ============================================================================

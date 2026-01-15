@@ -47,6 +47,7 @@ export default function RegisterPage() {
     register,
     handleSubmit,
     trigger,
+    getValues,
     formState: { errors, isSubmitting },
     setError,
   } = useForm<RegisterFormData>({
@@ -67,17 +68,46 @@ export default function RegisterPage() {
   // ================================================================
 
   /**
-   * Valida paso 1 antes de avanzar
+   * Valida paso 1 antes de avanzar.
+   * Incluye verificación de que el email no esté registrado.
    */
   const handleNextStep = async () => {
+    // Primero validar los campos con Zod
     const isValid = await trigger([
       "firstName",
       "paternalSurname",
       "maternalSurname",
       "email",
     ]);
-    if (isValid) {
+
+    if (!isValid) {
+      return;
+    }
+
+    // Verificar si el correo ya está registrado
+    try {
+      const currentEmail = getValues("email");
+      const response = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: currentEmail }),
+      });
+
+      const data = await response.json();
+
+      if (data.exists) {
+        setError("email", {
+          type: "manual",
+          message: "Este correo ya está registrado.",
+        });
+        return;
+      }
+
+      // Email disponible, avanzar al siguiente paso
       setStep("security");
+    } catch (error) {
+      console.error("Error verificando email:", error);
+      setServerError("Error de conexión. Intenta de nuevo.");
     }
   };
 
@@ -336,22 +366,34 @@ export default function RegisterPage() {
                       )}
                     </div>
 
-                    <div style={{ display: "flex", gap: "10px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "1rem",
+                        marginTop: "1.5rem",
+                      }}
+                    >
                       <Button
                         type="button"
                         className={styles.submitBtn}
                         style={{
-                          background: "#ccc",
+                          background: "linear-gradient(90deg, #888, #aaa)",
                           flex: "0 0 30%",
+                          marginTop: "0",
+                          padding: "0.8rem",
+                          fontSize: "0.9rem",
                         }}
                         onClick={() => setStep("personal-info")}
                       >
-                        Atrás
+                        ← Atrás
                       </Button>
                       <Button
                         type="submit"
                         className={styles.submitBtn}
-                        style={{ flex: 1 }}
+                        style={{
+                          flex: 1,
+                          marginTop: "0",
+                        }}
                         disabled={isSubmitting}
                       >
                         {isSubmitting ? "Registrando..." : "Registrarse"}

@@ -57,6 +57,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
         twoFactorCode: { label: "TOTP Code", type: "text" },
         recoveryCode: { label: "Recovery Code", type: "text" },
+        trustedDeviceToken: { label: "Trusted Device Token", type: "text" },
       },
 
       /**
@@ -64,6 +65,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
        * Implementa:
        * - Validación con Zod
        * - Verificación de contraseña con bcrypt
+       * - Verificación de dispositivo confiable (omite TOTP si válido)
        * - Verificación TOTP (obligatorio para usuarios nuevos, opcional para legacy)
        * - Incremento de tokenVersion (Single Session)
        */
@@ -107,15 +109,46 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
 
           // ================================================================
-          // VERIFICACIÓN TOTP / RECOVERY CODE
+          // VERIFICACIÓN TOTP / RECOVERY CODE / DISPOSITIVO CONFIABLE
           // ================================================================
           const totpCode = credentials?.twoFactorCode as string | undefined;
           const recoveryCode = credentials?.recoveryCode as string | undefined;
+          const trustedDeviceToken = credentials?.trustedDeviceToken as
+            | string
+            | undefined;
 
           // Verificar si el usuario tiene TOTP habilitado
           if (user.totpEnabled && user.totpSecret) {
+            // Caso 0: Verificar si es un dispositivo confiable
+            if (trustedDeviceToken) {
+              const trustedDevice = await prisma.trustedDevice.findFirst({
+                where: {
+                  deviceToken: trustedDeviceToken,
+                  userId: user.id,
+                  expiresAt: { gt: new Date() },
+                },
+              });
+
+              if (trustedDevice) {
+                console.log(
+                  "🔓 Dispositivo confiable verificado, omitiendo TOTP"
+                );
+                // Actualizar última actividad
+                await prisma.trustedDevice.update({
+                  where: { id: trustedDevice.id },
+                  data: { lastUsedAt: new Date() },
+                });
+                // Saltar verificación TOTP - dispositivo confiable
+              } else {
+                // Token inválido o expirado, requerir TOTP
+                console.log(
+                  "📱 Token de dispositivo inválido, se requiere TOTP"
+                );
+                throw new TwoFactorRequiredError();
+              }
+            }
             // Caso 1: Usuario intenta entrar con Recovery Code
-            if (recoveryCode) {
+            else if (recoveryCode) {
               console.log(
                 "🚑 Intentando acceso con Recovery Code para:",
                 email

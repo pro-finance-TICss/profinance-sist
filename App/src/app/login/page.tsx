@@ -27,15 +27,18 @@ function LoginForm2FAStep({
   password,
   callbackUrl,
   onBack,
+  defaultMode = "totp",
 }: {
   email: string;
   password: string;
   callbackUrl: string;
   onBack: () => void;
+  defaultMode?: "totp" | "recovery";
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"totp" | "recovery">("totp");
+  const [mode, setMode] = useState<"totp" | "recovery">(defaultMode);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [trustDevice, setTrustDevice] = useState(true); // Checkbox para confiar en dispositivo
 
   const {
     register,
@@ -61,7 +64,7 @@ function LoginForm2FAStep({
 
       const result = (await signIn("credentials", credentials as any)) as
         | {
-            error: string; // Puede ser string o null/undefined en la práctica, pero al comprobar result?.error TypeScript lo maneja
+            error: string;
             code?: string;
             ok: boolean;
             status: number;
@@ -86,6 +89,21 @@ function LoginForm2FAStep({
           );
         }
         return;
+      }
+
+      // ================================================================
+      // Si login TOTP exitoso y checkbox marcado, crear dispositivo confiable
+      // ================================================================
+      if (mode === "totp" && trustDevice) {
+        try {
+          await fetch("/api/auth/trusted-device", {
+            method: "POST",
+          });
+          console.log("✅ Dispositivo marcado como confiable por 30 días");
+        } catch (e) {
+          console.error("Error creando dispositivo confiable:", e);
+          // No bloquear login si falla
+        }
       }
 
       // Verificación de redirección basada en roles
@@ -169,6 +187,33 @@ function LoginForm2FAStep({
         />
       </div>
 
+      {/* Checkbox para confiar en dispositivo (solo en modo TOTP) */}
+      {mode === "totp" && (
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            fontSize: "0.85rem",
+            color: "#333",
+            cursor: "pointer",
+            marginBottom: "1rem",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={trustDevice}
+            onChange={(e) => setTrustDevice(e.target.checked)}
+            style={{
+              width: "16px",
+              height: "16px",
+              cursor: "pointer",
+            }}
+          />
+          Confiar en este dispositivo por 30 días
+        </label>
+      )}
+
       <Button
         type="submit"
         className={styles.submitBtn}
@@ -202,22 +247,25 @@ function LoginForm2FAStep({
           }}
         >
           {mode === "totp"
-            ? "¿Perdiste acceso a tu autenticador?"
+            ? defaultMode === "totp"
+              ? "¿Perdiste acceso a tu autenticador?"
+              : "Ingresar código TOTP"
             : "Usar código de autenticador"}
         </button>
 
         <button
           type="button"
           onClick={onBack}
-          className={styles.link}
           style={{
             background: "none",
             border: "none",
             cursor: "pointer",
-            color: "rgba(255,255,255,0.5)",
+            color: "#666",
+            fontSize: "0.85rem",
+            marginTop: "0.5rem",
           }}
         >
-          Volver al inicio
+          ← Volver al inicio de sesión
         </button>
       </div>
     </form>
@@ -234,6 +282,9 @@ function LoginContent() {
   const setupComplete = searchParams.get("setupComplete") === "true";
 
   const [step, setStep] = useState<LoginStep>("credentials");
+  const [twoFactorDefaultMode, setTwoFactorDefaultMode] = useState<
+    "totp" | "recovery"
+  >("totp");
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(
     setupComplete
@@ -262,9 +313,35 @@ function LoginContent() {
     setServerError(null);
 
     try {
+      // ================================================================
+      // Paso 1: Verificar si este dispositivo es confiable para el usuario
+      // ================================================================
+      let trustedDeviceToken: string | undefined;
+
+      try {
+        const checkResponse = await fetch("/api/auth/check-trusted-device", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: data.email }),
+        });
+        const checkData = await checkResponse.json();
+
+        if (checkData.trusted && checkData.deviceToken) {
+          trustedDeviceToken = checkData.deviceToken;
+          console.log("🔓 Dispositivo confiable detectado, omitiendo TOTP");
+        }
+      } catch (e) {
+        console.error("Error verificando dispositivo confiable:", e);
+        // Continuar sin token de dispositivo
+      }
+
+      // ================================================================
+      // Paso 2: Intentar login con credenciales (y token de dispositivo si existe)
+      // ================================================================
       const result = await signIn("credentials", {
         email: data.email,
         password: data.password,
+        trustedDeviceToken, // Enviar token si existe
         redirect: false,
       });
 
@@ -287,18 +364,6 @@ function LoginContent() {
 
       // Verificación de redirección basada en roles después de login exitoso
       try {
-        // Obtenemos la sesión actual para tener el rol más reciente del usuario
-        // Nota: Al usar credenciales, consultamos la sesión al servidor para confirmar el rol.        // We can use a server action or just a simple fetch to a custom API,
-        // OR just trust that if we don't have a callbackUrl, we check the role.
-
-        // However, we are client side. getting session might be tricky immediately without reload.
-        // But let's try reading the user from the response if possible? No.
-
-        // Let's rely on a helper function or an API route?
-        // Actually, we can just hard refresh to the root and let middleware handle it?
-        // But middleware in this project seems to point to /dashboard/fondos.
-
-        // Better: client-side fetch to /api/auth/session
         const sessionRes = await fetch("/api/auth/session");
         const session = await sessionRes.json();
 
@@ -332,6 +397,7 @@ function LoginContent() {
   const handleBack = () => {
     setStep("credentials");
     setServerError(null);
+    setTwoFactorDefaultMode("totp");
   };
 
   // ================================================================
@@ -448,6 +514,7 @@ function LoginContent() {
               password={credentialsForm.getValues("password")}
               callbackUrl={callbackUrl}
               onBack={handleBack}
+              defaultMode={twoFactorDefaultMode}
             />
           )}
         </div>

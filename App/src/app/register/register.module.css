@@ -106,18 +106,6 @@
 .formContainer {
   width: 100%;
   max-width: 550px;
-  animation: fadeInSlideUp 0.6s ease-out forwards;
-}
-
-@keyframes fadeInSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .formHeader {
@@ -145,7 +133,6 @@
   color: #1a1a1a;
 }
 
-/* Eliminamos el decorador anterior */
 .titleHighlight::after {
   display: none;
 }
@@ -161,7 +148,6 @@
   font-size: 0.9rem;
 }
 
-/* Form Styling overrides for this layout */
 .customForm {
   display: flex;
   flex-direction: column;
@@ -236,9 +222,15 @@
 
 /* Botón para alternar (ahora encima del título) */
 .topSwitch {
+  position: absolute;
+  top: 1rem;
+  left: 0;
+  width: 100%;
   display: flex;
+  justify-content: center;
   gap: 0.8rem;
   padding-bottom: 0;
+  z-index: 20;
 }
 
 .switchBtn {
