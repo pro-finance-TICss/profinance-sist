@@ -18,6 +18,7 @@ import { authConfig } from "@/lib/auth.config";
 import { verifyTotpToken } from "@/lib/totp";
 
 import { verifyRecoveryCode } from "@/lib/actions/recovery-codes";
+import { createNotification } from "@/lib/actions/notifications";
 import { headers } from "next/headers";
 
 // ============================================================================
@@ -239,11 +240,57 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           // Obtener información del dispositivo
           const headersList = await headers();
           const userAgent = headersList.get("user-agent");
-          const ipAddress =
+          const ipAddressRaw =
             headersList.get("x-forwarded-for") ||
             headersList.get("x-real-ip") ||
             "unknown";
+
+          const ipAddress = Array.isArray(ipAddressRaw)
+            ? ipAddressRaw[0]
+            : ipAddressRaw;
           const deviceName = parseUserAgent(userAgent);
+
+          // ================================================================
+          // NEW DEVICE DETECTION & AUDIT
+          // ================================================================
+          if (userAgent) {
+            try {
+              // Check if we have seen this device before
+              const previousLogin = await prisma.auditLog.findFirst({
+                where: {
+                  userId: user.id,
+                  action: "USER_LOGIN",
+                  userAgent: userAgent, // match exact User-Agent string
+                },
+              });
+
+              // If not seen before, send notification
+              if (!previousLogin) {
+                await createNotification(
+                  user.id,
+                  "Nuevo Inicio de Sesión",
+                  `Se ha detectado un inicio de sesión desde un nuevo dispositivo: ${deviceName}. Si no fuiste tú, por favor cambia tu contraseña.`,
+                  "WARNING"
+                );
+              }
+
+              // Log this login for future reference
+              await prisma.auditLog.create({
+                data: {
+                  userId: user.id,
+                  action: "USER_LOGIN",
+                  entityType: "User",
+                  entityId: user.id,
+                  details: JSON.stringify({ deviceName, ipAddress }),
+                  userAgent: userAgent,
+                  ipAddress: ipAddress,
+                },
+              });
+            } catch (error) {
+              console.error("Error logging login audit:", error);
+              // Don't block login if audit fails
+            }
+          }
 
           // Crear sesión en base de datos
           const session = await prisma.session.create({

@@ -9,6 +9,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { approveWithdrawalSchema } from "@/lib/validations/wallet";
 import { decimalToNumber } from "@/lib/utils/currency";
+import { createNotification } from "@/lib/actions/notifications";
 
 /**
  * POST /api/admin/withdrawals/approve
@@ -120,6 +121,16 @@ export async function POST(req: NextRequest) {
         });
       });
 
+      // Notify User
+      await createNotification(
+        withdrawal.userId,
+        "Retiro Aprobado",
+        `Su solicitud de retiro por $${withdrawalAmount} ha sido aprobada.${
+          notes ? ` Nota: ${notes}` : ""
+        }`,
+        "SUCCESS"
+      );
+
       console.log(
         `✅ Retiro aprobado: $${withdrawalAmount} para ${withdrawal.user.email}`
       );
@@ -139,6 +150,16 @@ export async function POST(req: NextRequest) {
           notes,
         },
       });
+
+      // Notify User
+      await createNotification(
+        withdrawal.userId,
+        "Retiro Rechazado",
+        `Su solicitud de retiro ha sido rechazada.${
+          notes ? ` Nota: ${notes}` : ""
+        }`,
+        "ERROR"
+      );
 
       console.log(`❌ Retiro rechazado para ${withdrawal.user.email}`);
 

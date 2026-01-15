@@ -65,9 +65,117 @@ export function AdminTicketList({ tickets }: AdminTicketListProps) {
     setSendingReply(false);
   };
 
+  // 1. Logic hooks
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [dateFilter, setDateFilter] = useState<string>("");
+
+  const filteredTickets = tickets.filter((ticket) => {
+    // 1. Filter by Status
+    if (statusFilter !== "ALL" && ticket.status !== statusFilter) return false;
+
+    // 2. Filter by Date
+    if (dateFilter) {
+      // Create a date object from the request time
+      const ticketDate = new Date(ticket.createdAt);
+
+      // Get the YYYY-MM-DD part in the local timezone
+      const year = ticketDate.getFullYear();
+      const month = String(ticketDate.getMonth() + 1).padStart(2, "0");
+      const day = String(ticketDate.getDate()).padStart(2, "0");
+      const localDateString = `${year}-${month}-${day}`;
+
+      if (localDateString !== dateFilter) return false;
+    }
+
+    return true;
+  });
+
   return (
     <div style={{ display: "grid", gap: "16px" }}>
-      {tickets.map((ticket) => (
+      {/* Filtros */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "10px",
+          flexWrap: "wrap",
+          gap: "16px",
+        }}
+      >
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{
+              padding: "10px 16px",
+              borderRadius: "8px",
+              backgroundColor: "#111",
+              border: "1px solid rgba(255,255,255,0.2)",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            <option value="ALL">Todos los estados</option>
+            {Object.values(TicketStatus).map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            style={{
+              padding: "10px 16px",
+              borderRadius: "8px",
+              backgroundColor: "#111",
+              border: "1px solid rgba(255,255,255,0.2)",
+              color: "#fff",
+              cursor: "pointer",
+              colorScheme: "dark",
+            }}
+          />
+
+          {(statusFilter !== "ALL" || dateFilter) && (
+            <button
+              onClick={() => {
+                setStatusFilter("ALL");
+                setDateFilter("");
+              }}
+              style={{
+                padding: "10px 16px",
+                borderRadius: "8px",
+                backgroundColor: "rgba(255,255,255,0.1)",
+                border: "none",
+                color: "#fff",
+                cursor: "pointer",
+              }}
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+      </div>
+
+      {filteredTickets.length === 0 ? (
+        <div
+          style={{
+            padding: "40px",
+            textAlign: "center",
+            color: "#666",
+            backgroundColor: "#111",
+            borderRadius: "12px",
+            border: "1px solid rgba(255,255,255,0.05)",
+          }}
+        >
+          <p>No se encontraron tickets con los filtros actuales.</p>
+        </div>
+      ) : null}
+
+      {filteredTickets.map((ticket) => (
         <div
           key={ticket.id}
           style={{

@@ -16,6 +16,7 @@ import {
   validateWithdrawalTransition,
   validateTicketTransition,
 } from "@/lib/security";
+import { createNotification } from "@/lib/actions/notifications";
 
 // ============================================================================
 // GESTIÓN DE USUARIOS (ADMIN)
@@ -322,6 +323,18 @@ export async function processWithdrawal(
         });
       }
     });
+
+    // Notify user
+    await createNotification(
+      withdrawal.userId,
+      `Retiro ${
+        newStatus === WithdrawalStatus.APPROVED ? "Aprobado" : "Rechazado"
+      }`,
+      `Su solicitud de retiro ha sido ${
+        newStatus === WithdrawalStatus.APPROVED ? "aprobada" : "rechazada"
+      }.${notes ? ` Nota: ${notes}` : ""}`,
+      newStatus === WithdrawalStatus.APPROVED ? "SUCCESS" : "ERROR"
+    );
 
     await logAudit("WITHDRAWAL_PROCESSED", "Withdrawal", id, { newStatus });
     revalidatePath("/superadmin/withdrawals");

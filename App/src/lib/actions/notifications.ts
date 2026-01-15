@@ -35,26 +35,36 @@ export async function createNotification(
 }
 
 /**
- * Obtiene todas las notificaciones no leídas del usuario actual.
+ * Obtiene las notificaciones recientes (leídas y no leídas).
  */
-export async function getUnreadNotifications() {
+export async function getRecentNotifications(limit = 20) {
   const session = await auth();
-  if (!session?.user?.id) return { notifications: [], count: 0 };
+  if (!session?.user?.id) return { notifications: [], unreadCount: 0 };
 
   try {
-    const notifications = await prisma.notification.findMany({
-      where: {
-        userId: session.user.id,
-        read: false,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [notifications, unreadCount] = await Promise.all([
+      prisma.notification.findMany({
+        where: { userId: session.user.id },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+      }),
+      prisma.notification.count({
+        where: { userId: session.user.id, read: false },
+      }),
+    ]);
 
-    return { notifications, count: notifications.length };
+    return { notifications, unreadCount };
   } catch (error) {
     console.error("Error fetching notifications:", error);
-    return { notifications: [], count: 0 };
+    return { notifications: [], unreadCount: 0 };
   }
+}
+
+/**
+ * @deprecated Use getRecentNotifications instead
+ */
+export async function getUnreadNotifications() {
+  return getRecentNotifications();
 }
 
 export async function markAsRead(notificationId: string) {

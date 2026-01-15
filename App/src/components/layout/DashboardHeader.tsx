@@ -150,7 +150,7 @@ export const DashboardHeader = ({ title }: { title: string }) => {
 // ============================================================================
 import { useState, useEffect, useRef } from "react";
 import {
-  getUnreadNotifications,
+  getRecentNotifications,
   markAsRead,
   markAllAsRead,
 } from "@/lib/actions/notifications";
@@ -166,14 +166,15 @@ import Link from "next/link"; // Agregado para el link del perfil
 
 function NotificationBell() {
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [count, setCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const loadNotifications = async () => {
-    const { notifications: list, count: c } = await getUnreadNotifications();
+    const { notifications: list, unreadCount: c } =
+      await getRecentNotifications();
     setNotifications(list);
-    setCount(c);
+    setUnreadCount(c);
   };
 
   useEffect(() => {
@@ -200,14 +201,16 @@ function NotificationBell() {
   const handleMarkAsRead = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     await markAsRead(id);
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-    setCount((prev) => Math.max(0, prev - 1));
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+    setUnreadCount((prev) => Math.max(0, prev - 1));
   };
 
   const handleMarkAll = async () => {
     await markAllAsRead();
-    setNotifications([]);
-    setCount(0);
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
   };
 
   const getIcon = (type: string) => {
@@ -243,7 +246,7 @@ function NotificationBell() {
         }
       >
         <Bell size={20} color="#bd8e48" />
-        {count > 0 && (
+        {unreadCount > 0 && (
           <span
             style={{
               position: "absolute",
@@ -289,7 +292,7 @@ function NotificationBell() {
             >
               Notificaciones
             </span>
-            {count > 0 && (
+            {unreadCount > 0 && (
               <button
                 onClick={handleMarkAll}
                 style={{
@@ -315,7 +318,7 @@ function NotificationBell() {
                   fontSize: "0.85rem",
                 }}
               >
-                No tienes notificaciones nuevas
+                No tienes notificaciones
               </div>
             ) : (
               notifications.map((n) => (
@@ -327,6 +330,11 @@ function NotificationBell() {
                     display: "flex",
                     gap: "12px",
                     alignItems: "start",
+                    backgroundColor: n.read
+                      ? "transparent"
+                      : "rgba(189, 142, 72, 0.05)",
+                    transition: "background 0.3s",
+                    opacity: n.read ? 0.6 : 1,
                   }}
                 >
                   <div style={{ marginTop: "3px" }}>{getIcon(n.type)}</div>
@@ -360,19 +368,21 @@ function NotificationBell() {
                       {new Date(n.createdAt).toLocaleTimeString()}
                     </div>
                   </div>
-                  <button
-                    onClick={(e) => handleMarkAsRead(n.id, e)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      color: "rgba(255,255,255,0.3)",
-                      padding: "2px",
-                    }}
-                    title="Marcar como leída"
-                  >
-                    <Check size={14} />
-                  </button>
+                  {!n.read && (
+                    <button
+                      onClick={(e) => handleMarkAsRead(n.id, e)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "rgba(255,255,255,0.3)",
+                        padding: "2px",
+                      }}
+                      title="Marcar como leída"
+                    >
+                      <Check size={14} />
+                    </button>
+                  )}
                 </div>
               ))
             )}

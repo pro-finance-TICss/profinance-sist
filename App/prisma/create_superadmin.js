@@ -3,7 +3,6 @@
  *
  * DESCRIPCIÓN:
  * Este script crea o actualiza el usuario Super Admin inicial en la base de datos.
- * Es útil para configurar el acceso administrativo en un entorno nuevo.
  *
  * USO:
  * node prisma/create_superadmin.js
