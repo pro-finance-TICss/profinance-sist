@@ -12,6 +12,7 @@ async function main() {
       role: "SUPER_ADMIN", // Ensure role is updated if user exists
       password: hashedPassword, // Ensure password is correct
       totpEnabled: false,
+      mustChangePassword: true, // Forzar cambio de contraseña al primer login
     },
     create: {
       email: "pfinancedev@gmail.com",
@@ -21,6 +22,7 @@ async function main() {
       maternalSurname: "Dev",
       role: "SUPER_ADMIN",
       totpEnabled: false,
+      mustChangePassword: true, // Forzar cambio de contraseña al primer login
     },
   });
 

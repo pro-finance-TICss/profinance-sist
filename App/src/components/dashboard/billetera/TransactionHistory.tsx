@@ -74,7 +74,7 @@ export function TransactionHistory({
   };
 
   const getTypeIcon = (type: string) => {
-    return type === "DEPOSIT" ? (
+    return type === "DEPOSIT" || type === "REFUND" ? (
       <ArrowDownLeft size={20} color="#4caf50" />
     ) : (
       <ArrowUpRight size={20} color="#f44336" />
@@ -82,7 +82,14 @@ export function TransactionHistory({
   };
 
   const getTypeText = (type: string) => {
-    return type === "DEPOSIT" ? "Depósito" : "Retiro";
+    switch (type) {
+      case "DEPOSIT":
+        return "Depósito";
+      case "REFUND":
+        return "Reembolso";
+      default:
+        return "Retiro";
+    }
   };
 
   return (
@@ -162,11 +169,11 @@ export function TransactionHistory({
                     height: "44px",
                     borderRadius: "12px",
                     background:
-                      tx.type === "DEPOSIT"
+                      tx.type === "DEPOSIT" || tx.type === "REFUND"
                         ? "rgba(76, 175, 80, 0.1)"
                         : "rgba(244, 67, 54, 0.1)",
                     border:
-                      tx.type === "DEPOSIT"
+                      tx.type === "DEPOSIT" || tx.type === "REFUND"
                         ? "1px solid rgba(76, 175, 80, 0.3)"
                         : "1px solid rgba(244, 67, 54, 0.3)",
                     display: "flex",
@@ -210,13 +217,16 @@ export function TransactionHistory({
               <div style={{ textAlign: "right", marginRight: "16px" }}>
                 <p
                   style={{
-                    color: tx.type === "DEPOSIT" ? "#4caf50" : "#f44336",
+                    color:
+                      tx.type === "DEPOSIT" || tx.type === "REFUND"
+                        ? "#4caf50"
+                        : "#f44336",
                     fontSize: "1.1rem",
                     fontWeight: "700",
                     margin: 0,
                   }}
                 >
-                  {tx.type === "DEPOSIT" ? "+" : "-"}
+                  {tx.type === "DEPOSIT" || tx.type === "REFUND" ? "+" : "-"}
                   {formatCurrency(tx.amount)}
                 </p>
               </div>

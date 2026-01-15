@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { amount } = validation.data;
+    const { bankAccountId } = body;
 
     // 3. Crear solicitud y descontar balance en una transacción atómica
     const withdrawalResult = await prisma.$transaction(async (tx) => {
@@ -51,18 +52,45 @@ export async function POST(req: NextRequest) {
         throw new Error("INSUFFICIENT_FUNDS");
       }
 
-      // b. Descontar balance
+      // b. Validar cuenta bancaria si se proporcionó
+      if (bankAccountId) {
+        const bankAccount = await tx.bankAccount.findUnique({
+          where: { id: bankAccountId },
+          select: { userId: true, isActive: true },
+        });
+
+        if (
+          !bankAccount ||
+          bankAccount.userId !== session.user.id ||
+          !bankAccount.isActive
+        ) {
+          throw new Error("INVALID_BANK_ACCOUNT");
+        }
+      }
+
+      // c. Descontar balance
       await tx.user.update({
         where: { id: session.user.id },
         data: { availableBalance: { decrement: amount } },
       });
 
-      // c. Crear solicitud
+      // d. Crear solicitud con cuenta bancaria
       const request = await tx.withdrawalRequest.create({
         data: {
           userId: session.user.id,
           amount,
           status: "PENDING",
+          bankAccountId: bankAccountId || null,
+        },
+      });
+
+      // e. Crear registro de transacción (Ledger)
+      await tx.transaction.create({
+        data: {
+          userId: session.user.id,
+          type: "WITHDRAWAL",
+          amount,
+          status: "COMPLETED", // El descuento de balance ha sido completado
         },
       });
 

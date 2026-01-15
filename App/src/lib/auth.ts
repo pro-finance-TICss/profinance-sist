@@ -3,9 +3,9 @@
 // ============================================================================
 // Configuración central de autenticación con:
 // - Cookies seguras (HttpOnly, Secure, SameSite)
-// - Single Session Enforcement (tokenVersion)
+// - Cumplimiento de Sesión Única (Single Session Enforcement) usando tokenVersion
 // - Flujo TOTP (Time-based One-Time Password)
-// - JWT con datos extendidos (role, tokenVersion, lastLogin)
+// - JWT con datos extendidos (rol, tokenVersion, lastLogin)
 // ============================================================================
 
 import { CredentialsSignin } from "next-auth";
@@ -18,6 +18,44 @@ import { authConfig } from "@/lib/auth.config";
 import { verifyTotpToken } from "@/lib/totp";
 
 import { verifyRecoveryCode } from "@/lib/actions/recovery-codes";
+import { headers } from "next/headers";
+
+// ============================================================================
+// UTILIDADES
+// ============================================================================
+
+/**
+ * Parsea el User-Agent para obtener un nombre descriptivo del dispositivo.
+ */
+function parseUserAgent(userAgent: string | null): string {
+  if (!userAgent) return "Dispositivo desconocido";
+
+  let browser = "Navegador";
+  let os = "";
+
+  // Detectar navegador
+  if (userAgent.includes("Chrome") && !userAgent.includes("Edg"))
+    browser = "Chrome";
+  else if (userAgent.includes("Firefox")) browser = "Firefox";
+  else if (userAgent.includes("Safari") && !userAgent.includes("Chrome"))
+    browser = "Safari";
+  else if (userAgent.includes("Edg")) browser = "Edge";
+  else if (userAgent.includes("Opera") || userAgent.includes("OPR"))
+    browser = "Opera";
+
+  // Detectar SO
+  if (userAgent.includes("Windows")) os = "Windows";
+  else if (userAgent.includes("Mac")) os = "macOS";
+  else if (userAgent.includes("Linux")) os = "Linux";
+  else if (userAgent.includes("Android")) os = "Android";
+  else if (userAgent.includes("iPhone") || userAgent.includes("iPad"))
+    os = "iOS";
+
+  return os ? `${browser} en ${os}` : browser;
+}
+
+// Duración de sesión: 24 horas
+const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
 // ============================================================================
 // ERRORES PERSONALIZADOS DE 2FA
@@ -57,6 +95,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
         twoFactorCode: { label: "TOTP Code", type: "text" },
         recoveryCode: { label: "Recovery Code", type: "text" },
+        trustedDeviceToken: { label: "Trusted Device Token", type: "text" },
       },
 
       /**
@@ -64,8 +103,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
        * Implementa:
        * - Validación con Zod
        * - Verificación de contraseña con bcrypt
+       * - Verificación de dispositivo confiable (omite TOTP si válido)
        * - Verificación TOTP (obligatorio para usuarios nuevos, opcional para legacy)
-       * - Incremento de tokenVersion (Single Session)
+       * - Incremento de tokenVersion (Sesión Única)
        */
       async authorize(credentials) {
         try {
@@ -107,15 +147,46 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
 
           // ================================================================
-          // VERIFICACIÓN TOTP / RECOVERY CODE
+          // VERIFICACIÓN TOTP / RECOVERY CODE / DISPOSITIVO CONFIABLE
           // ================================================================
           const totpCode = credentials?.twoFactorCode as string | undefined;
           const recoveryCode = credentials?.recoveryCode as string | undefined;
+          const trustedDeviceToken = credentials?.trustedDeviceToken as
+            | string
+            | undefined;
 
           // Verificar si el usuario tiene TOTP habilitado
           if (user.totpEnabled && user.totpSecret) {
+            // Caso 0: Verificar si es un dispositivo confiable
+            if (trustedDeviceToken) {
+              const trustedDevice = await prisma.trustedDevice.findFirst({
+                where: {
+                  deviceToken: trustedDeviceToken,
+                  userId: user.id,
+                  expiresAt: { gt: new Date() },
+                },
+              });
+
+              if (trustedDevice) {
+                console.log(
+                  "🔓 Dispositivo confiable verificado, omitiendo TOTP"
+                );
+                // Actualizar última actividad
+                await prisma.trustedDevice.update({
+                  where: { id: trustedDevice.id },
+                  data: { lastUsedAt: new Date() },
+                });
+                // Saltar verificación TOTP - dispositivo confiable
+              } else {
+                // Token inválido o expirado, requerir TOTP
+                console.log(
+                  "📱 Token de dispositivo inválido, se requiere TOTP"
+                );
+                throw new TwoFactorRequiredError();
+              }
+            }
             // Caso 1: Usuario intenta entrar con Recovery Code
-            if (recoveryCode) {
+            else if (recoveryCode) {
               console.log(
                 "🚑 Intentando acceso con Recovery Code para:",
                 email
@@ -162,21 +233,53 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
 
           // ================================================================
-          // LOGIN EXITOSO - ACTUALIZAR SEGURIDAD
+          // LOGIN EXITOSO - CREAR SESIÓN Y ACTUALIZAR SEGURIDAD
           // ================================================================
 
-          // Incrementar tokenVersion para invalidar sesiones anteriores
-          // Esto implementa Single Session Enforcement
+          // Obtener información del dispositivo
+          const headersList = await headers();
+          const userAgent = headersList.get("user-agent");
+          const ipAddress =
+            headersList.get("x-forwarded-for") ||
+            headersList.get("x-real-ip") ||
+            "unknown";
+          const deviceName = parseUserAgent(userAgent);
+
+          // Crear sesión en base de datos
+          const session = await prisma.session.create({
+            data: {
+              userId: user.id,
+              deviceName,
+              userAgent: userAgent?.substring(0, 500), // Limitar longitud
+              ipAddress:
+                typeof ipAddress === "string"
+                  ? ipAddress
+                  : ipAddress || "unknown",
+              expiresAt: new Date(Date.now() + SESSION_DURATION_MS),
+            },
+          });
+
+          console.log("🎟️ Sesión creada:", session.id);
+
+          // Actualizar lastLogin (sin incrementar tokenVersion para permitir múltiples sesiones)
           const updatedUser = await prisma.user.update({
             where: { id: user.id },
             data: {
               lastLogin: new Date(),
-              tokenVersion: { increment: 1 }, // ¡CLAVE para Single Session!
+              // Ya no incrementamos tokenVersion aquí para permitir múltiples sesiones
+              // La invalidación se hace eliminando el registro de Session
             },
           });
 
           console.log("✅ Login exitoso para:", email);
-          console.log("📊 Nueva tokenVersion:", updatedUser.tokenVersion);
+          console.log("📋 SessionId:", session.id);
+
+          // Determinar si el usuario necesita completar configuración de seguridad
+          // Solo aplica a ADMIN y SUPER_ADMIN
+          const isPrivileged =
+            user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+          const requiresSecuritySetup =
+            isPrivileged && (!user.totpEnabled || user.mustChangePassword);
 
           // Retornar usuario con datos extendidos para el JWT
           return {
@@ -186,6 +289,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             role: updatedUser.role,
             tokenVersion: updatedUser.tokenVersion,
             lastLogin: updatedUser.lastLogin,
+            // Nuevo: ID de sesión para revocación individual
+            sessionId: session.id,
+            // Campos para setup de seguridad
+            requiresSecuritySetup,
+            totpEnabled: user.totpEnabled,
+            mustChangePassword: user.mustChangePassword,
           };
         } catch (error) {
           // Re-lanzar errores de 2FA para manejo en el cliente
@@ -221,10 +330,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.name = user.name as string;
         token.role = user.role;
         token.tokenVersion = user.tokenVersion;
+        token.sessionId = user.sessionId; // 🔑 Nuevo: ID de sesión para revocación
         token.lastLogin =
           user.lastLogin instanceof Date
             ? user.lastLogin.toISOString()
             : user.lastLogin || null;
+        // Campos para setup de seguridad obligatoria
+        token.requiresSecuritySetup = user.requiresSecuritySetup;
+        token.totpEnabled = user.totpEnabled;
+        token.mustChangePassword = user.mustChangePassword;
       }
       return token;
     },
@@ -240,8 +354,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.name = token.name;
         session.user.role = token.role;
         session.user.lastLogin = token.lastLogin;
+        // Exponer si necesita setup de seguridad (para redirección en cliente)
+        session.user.requiresSecuritySetup = token.requiresSecuritySetup;
         // tokenVersion NO se expone al cliente por seguridad
         // pero se mantiene en el token para validación en middleware
+        // @ts-ignore
+        session.user.sessionId = token.sessionId;
       }
       return session;
     },

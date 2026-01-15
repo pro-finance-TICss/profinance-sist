@@ -341,3 +341,75 @@ export async function regenerateTotpSetup(
     };
   }
 }
+
+// ============================================================================
+// ACCIÓN: OBTENER SETUP TOTP PARA USUARIO ACTUAL
+// ============================================================================
+
+import { auth } from "@/lib/auth";
+
+/**
+ * Genera o recupera la configuración TOTP para el usuario autenticado.
+ * Usado en el flujo de onboarding para ADMIN/SUPERADMIN.
+ *
+ * @returns QR code y secreto para configurar autenticador
+ */
+export async function getTotpSetupForCurrentUser(): Promise<RegisterResponse> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, message: "No autorizado." };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        email: true,
+        totpSecret: true,
+        totpEnabled: true,
+      },
+    });
+
+    if (!user) {
+      return { success: false, message: "Usuario no encontrado." };
+    }
+
+    // Si ya tiene TOTP habilitado, no necesita configurar
+    if (user.totpEnabled) {
+      return { success: false, message: "TOTP ya está configurado." };
+    }
+
+    // Generar nuevo secreto si no tiene uno
+    let totpSecret = user.totpSecret;
+    if (!totpSecret) {
+      totpSecret = generateTotpSecret();
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { totpSecret },
+      });
+    }
+
+    // Generar QR
+    const uri = generateTotpUri(user.email, totpSecret);
+    const qrCode = await generateQrDataUrl(uri);
+
+    console.log("📱 QR de TOTP generado para usuario existente:", user.email);
+
+    return {
+      success: true,
+      message: "Escanea el código QR con tu aplicación autenticadora.",
+      totpSetup: {
+        qrCode,
+        secret: totpSecret,
+        userId: user.id,
+      },
+    };
+  } catch (error) {
+    console.error("❌ Error al obtener setup TOTP:", error);
+    return {
+      success: false,
+      message: "Error al generar código QR. Intenta de nuevo.",
+    };
+  }
+}

@@ -37,6 +37,7 @@ export const VALID_WITHDRAWAL_TRANSITIONS: Record<
 > = {
   [WithdrawalStatus.PENDING]: [
     WithdrawalStatus.REVIEWED,
+    WithdrawalStatus.APPROVED, // Permitir aprobación directa
     WithdrawalStatus.REJECTED,
   ],
   [WithdrawalStatus.REVIEWED]: [

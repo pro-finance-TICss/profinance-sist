@@ -18,7 +18,7 @@ import {
 } from "@/lib/security";
 
 // ============================================================================
-// USER MANAGEMENT (ADMIN)
+// GESTIÓN DE USUARIOS (ADMIN)
 // ============================================================================
 
 export async function getUsers() {
@@ -63,7 +63,7 @@ export async function updateUserRole(userId: string, newRole: string) {
 }
 
 // ============================================================================
-// TICKET MANAGEMENT (ADMIN)
+// GESTIÓN DE TICKETS (ADMIN)
 // ============================================================================
 
 export async function getAllTickets() {
@@ -109,7 +109,7 @@ export async function updateTicketStatus(
   const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
   if (!ticket) return { success: false, message: "Ticket not found" };
 
-  // Validate Transition
+  // Validar Transición de Estado
   if (!validateTicketTransition(ticket.status as TicketStatus, newStatus)) {
     return {
       success: false,
@@ -165,21 +165,101 @@ export async function replyTicket(ticketId: string, message: string) {
 }
 
 // ============================================================================
-// WITHDRAWAL MANAGEMENT (SUPER_ADMIN ONLY)
+// GESTIÓN DE RETIROS (SOLO SUPER_ADMIN)
 // ============================================================================
+
+import { decryptAccountNumber } from "@/lib/utils/encryption";
+import { getSystemSettingBoolean, setSystemSetting } from "@/lib/config";
+import { WITHDRAWAL_GLOBAL_SETTING_KEY } from "@/lib/logic/withdrawal-window";
 
 export async function getWithdrawals() {
   await requireRole(UserRole.SUPER_ADMIN);
   try {
-    const withdrawals = await prisma.withdrawalRequest.findMany({
+    const withdrawalsRaw = await prisma.withdrawalRequest.findMany({
       orderBy: { requestedAt: "desc" },
       include: {
         user: { select: { email: true, availableBalance: true } },
+        bankAccount: {
+          select: {
+            id: true,
+            holderName: true,
+            documentType: true,
+            documentNumber: true,
+            bankName: true,
+            accountNumberLast4: true,
+            accountNumberEncrypted: true,
+            accountType: true,
+            country: true,
+          },
+        },
       },
     });
+
+    const withdrawals = withdrawalsRaw.map((w) => ({
+      id: w.id,
+      amount: w.amount.toString(),
+      status: w.status,
+      requestedAt: w.requestedAt.toISOString(),
+      user: {
+        email: w.user.email,
+        availableBalance: w.user.availableBalance.toString(),
+      },
+      bankAccount: w.bankAccount
+        ? {
+            id: w.bankAccount.id,
+            holderName: w.bankAccount.holderName,
+            documentType: w.bankAccount.documentType,
+            documentNumber: w.bankAccount.documentNumber,
+            bankName: w.bankAccount.bankName,
+            accountNumberLast4: w.bankAccount.accountNumberLast4,
+            fullAccountNumber: decryptAccountNumber(
+              w.bankAccount.accountNumberEncrypted
+            ),
+            accountType: w.bankAccount.accountType,
+            country: w.bankAccount.country,
+          }
+        : null,
+    }));
+
     return { success: true, withdrawals };
   } catch (error) {
+    console.error("Error fetching withdrawals:", error);
     return { success: false, message: "Failed to fetch withdrawals" };
+  }
+}
+
+export async function getGlobalWithdrawalSettings() {
+  await requireRole(UserRole.SUPER_ADMIN);
+  const isEnabled = await getSystemSettingBoolean(
+    WITHDRAWAL_GLOBAL_SETTING_KEY,
+    true
+  );
+  return { success: true, isEnabled };
+}
+
+export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
+  await requireRole(UserRole.SUPER_ADMIN);
+  try {
+    await setSystemSetting(
+      WITHDRAWAL_GLOBAL_SETTING_KEY,
+      isEnabled.toString(),
+      "Global withdrawal toggle controlled by Super Admin"
+    );
+    await logAudit(
+      "SYSTEM_SETTING_UPDATED",
+      "SystemSetting",
+      WITHDRAWAL_GLOBAL_SETTING_KEY,
+      { isEnabled }
+    );
+
+    // Rehabilitar rutas relevantes
+    revalidatePath("/dashboard/wallet");
+    revalidatePath("/superadmin/withdrawals");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating settings:", error);
+    return { success: false, message: "Failed to update settings" };
   }
 }
 
@@ -222,7 +302,7 @@ export async function processWithdrawal(
         },
       });
 
-      // Refund Logic if Rejected
+      // Lógica de reembolso si la solicitud es rechazada
       if (
         newStatus === WithdrawalStatus.REJECTED &&
         withdrawal.status !== WithdrawalStatus.REJECTED

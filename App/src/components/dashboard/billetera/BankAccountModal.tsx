@@ -1,0 +1,526 @@
+"use client";
+// ============================================================================
+// COMPONENTE: MODAL DE CUENTA BANCARIA - PRO-FINANCE
+// ============================================================================
+// Formulario para agregar una nueva cuenta bancaria.
+// ============================================================================
+
+import React, { useState, useEffect } from "react";
+import { X, CheckCircle, Loader2 } from "lucide-react";
+import {
+  getAvailableCountries,
+  getCountryData,
+  type Bank,
+  type DocumentType,
+  type AccountType,
+} from "@/lib/data/banks";
+
+// ============================================================================
+// TIPOS
+// ============================================================================
+
+interface BankAccountModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
+
+export function BankAccountModal({
+  isOpen,
+  onClose,
+  onSuccess,
+}: BankAccountModalProps) {
+  // Estados del formulario
+  const [country, setCountry] = useState("CO");
+  const [holderName, setHolderName] = useState("");
+  const [documentType, setDocumentType] = useState("");
+  const [documentNumber, setDocumentNumber] = useState("");
+  const [bankCode, setBankCode] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [accountType, setAccountType] = useState("");
+  const [isDefault, setIsDefault] = useState(false);
+
+  // Estados de UI
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  // Datos del país seleccionado
+  const [banks, setBanks] = useState<Bank[]>([]);
+  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const [accountTypes, setAccountTypes] = useState<AccountType[]>([]);
+  const [accountNumberHint, setAccountNumberHint] = useState("");
+
+  // Países disponibles
+  const countries = getAvailableCountries();
+
+  // Actualizar datos cuando cambia el país
+  useEffect(() => {
+    const countryData = getCountryData(country);
+    if (countryData) {
+      setBanks(countryData.banks);
+      setDocumentTypes(countryData.documentTypes);
+      setAccountTypes(countryData.accountTypes);
+      setAccountNumberHint(countryData.accountNumberHint);
+      // Resetear selecciones dependientes
+      setDocumentType(countryData.documentTypes[0]?.code || "");
+      setBankCode("");
+      setAccountType(countryData.accountTypes[0]?.code || "");
+    }
+  }, [country]);
+
+  // Resetear formulario cuando se abre
+  useEffect(() => {
+    if (isOpen) {
+      setCountry("CO");
+      setHolderName("");
+      setDocumentNumber("");
+      setBankCode("");
+      setAccountNumber("");
+      setIsDefault(false);
+      setError("");
+      setSuccess(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  // Manejar envío
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/wallet/bank-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          holderName,
+          documentType,
+          documentNumber,
+          country,
+          bankCode,
+          accountNumber: accountNumber.replace(/\D/g, ""),
+          accountType,
+          isDefault,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al guardar la cuenta");
+      }
+
+      setSuccess(true);
+      setTimeout(() => {
+        onSuccess();
+      }, 1500);
+    } catch (err: unknown) {
+      console.error("Error guardando cuenta bancaria:", err);
+      setError(
+        err instanceof Error ? err.message : "Error al guardar la cuenta"
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Estilos del input
+  const inputStyle = {
+    width: "100%",
+    padding: "12px 14px",
+    background: "rgba(255, 255, 255, 0.03)",
+    border: "1px solid rgba(189, 142, 72, 0.2)",
+    borderRadius: "10px",
+    color: "#fff",
+    fontSize: "0.95rem",
+    outline: "none",
+  };
+
+  const labelStyle = {
+    display: "block",
+    color: "rgba(189, 142, 72, 0.8)",
+    fontSize: "0.8rem",
+    fontWeight: "600" as const,
+    marginBottom: "6px",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.5px",
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
+        backdropFilter: "blur(3px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+        padding: "20px",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: "#0a0a0a",
+          border: "1px solid rgba(189, 142, 72, 0.3)",
+          borderRadius: "24px",
+          padding: "32px",
+          maxWidth: "550px",
+          width: "100%",
+          maxHeight: "90vh",
+          overflowY: "auto",
+          position: "relative",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Botón cerrar */}
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: "16px",
+            right: "16px",
+            background: "transparent",
+            border: "none",
+            color: "rgba(255, 255, 255, 0.5)",
+            cursor: "pointer",
+            padding: "8px",
+          }}
+        >
+          <X size={24} />
+        </button>
+
+        {success ? (
+          // Vista de éxito
+          <div style={{ textAlign: "center", padding: "40px 0" }}>
+            <div
+              style={{
+                width: "80px",
+                height: "80px",
+                borderRadius: "50%",
+                background: "rgba(76, 175, 80, 0.1)",
+                border: "2px solid rgba(76, 175, 80, 0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 24px",
+              }}
+            >
+              <CheckCircle size={40} color="#4caf50" />
+            </div>
+            <h2
+              style={{
+                color: "#fff",
+                fontSize: "1.5rem",
+                fontWeight: "700",
+                margin: "0 0 12px 0",
+              }}
+            >
+              ¡Cuenta Agregada!
+            </h2>
+            <p
+              style={{
+                color: "rgba(255, 255, 255, 0.6)",
+                fontSize: "0.95rem",
+              }}
+            >
+              Tu cuenta bancaria ha sido registrada exitosamente.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Header */}
+            <div style={{ marginBottom: "24px" }}>
+              <h2
+                style={{
+                  color: "#fff",
+                  fontSize: "1.5rem",
+                  fontWeight: "700",
+                  margin: 0,
+                }}
+              >
+                Agregar Cuenta Bancaria
+              </h2>
+              <p
+                style={{
+                  color: "rgba(255, 255, 255, 0.5)",
+                  fontSize: "0.9rem",
+                  margin: "8px 0 0 0",
+                }}
+              >
+                Ingresa los datos de tu cuenta para recibir retiros
+              </p>
+            </div>
+
+            {/* Formulario */}
+            <form onSubmit={handleSubmit}>
+              {/* País */}
+              <div style={{ marginBottom: "16px" }}>
+                <label style={labelStyle}>País</label>
+                <select
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  style={inputStyle}
+                  disabled={isLoading}
+                >
+                  {countries.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Nombre del titular */}
+              <div style={{ marginBottom: "16px" }}>
+                <label style={labelStyle}>Nombre del titular</label>
+                <input
+                  type="text"
+                  value={holderName}
+                  onChange={(e) => setHolderName(e.target.value)}
+                  placeholder="Como aparece en la cuenta"
+                  style={inputStyle}
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+
+              {/* Tipo y número de documento */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 2fr",
+                  gap: "12px",
+                  marginBottom: "16px",
+                }}
+              >
+                <div>
+                  <label style={labelStyle}>Documento</label>
+                  <select
+                    value={documentType}
+                    onChange={(e) => setDocumentType(e.target.value)}
+                    style={inputStyle}
+                    disabled={isLoading}
+                    required
+                  >
+                    {documentTypes.map((dt) => (
+                      <option key={dt.code} value={dt.code}>
+                        {dt.code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Número de documento</label>
+                  <input
+                    type="text"
+                    value={documentNumber}
+                    onChange={(e) => setDocumentNumber(e.target.value)}
+                    placeholder="Ej: 1234567890"
+                    style={inputStyle}
+                    disabled={isLoading}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Banco */}
+              <div style={{ marginBottom: "16px" }}>
+                <label style={labelStyle}>Entidad bancaria</label>
+                <select
+                  value={bankCode}
+                  onChange={(e) => setBankCode(e.target.value)}
+                  style={inputStyle}
+                  disabled={isLoading}
+                  required
+                >
+                  <option value="">Selecciona un banco</option>
+                  {banks.map((bank) => (
+                    <option key={bank.code} value={bank.code}>
+                      {bank.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Número de cuenta */}
+              <div style={{ marginBottom: "16px" }}>
+                <label style={labelStyle}>Número de cuenta</label>
+                <input
+                  type="text"
+                  value={accountNumber}
+                  onChange={(e) =>
+                    setAccountNumber(e.target.value.replace(/\D/g, ""))
+                  }
+                  placeholder={accountNumberHint}
+                  style={inputStyle}
+                  disabled={isLoading}
+                  required
+                />
+                <p
+                  style={{
+                    color: "rgba(255, 255, 255, 0.4)",
+                    fontSize: "0.75rem",
+                    margin: "6px 0 0 0",
+                  }}
+                >
+                  {accountNumberHint}
+                </p>
+              </div>
+
+              {/* Tipo de cuenta */}
+              <div style={{ marginBottom: "16px" }}>
+                <label style={labelStyle}>Tipo de cuenta</label>
+                <select
+                  value={accountType}
+                  onChange={(e) => setAccountType(e.target.value)}
+                  style={inputStyle}
+                  disabled={isLoading}
+                  required
+                >
+                  {accountTypes.map((at) => (
+                    <option key={at.code} value={at.code}>
+                      {at.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Cuenta predeterminada */}
+              <div style={{ marginBottom: "24px" }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isDefault}
+                    onChange={(e) => setIsDefault(e.target.checked)}
+                    disabled={isLoading}
+                    style={{
+                      width: "18px",
+                      height: "18px",
+                      accentColor: "#bd8e48",
+                    }}
+                  />
+                  <span
+                    style={{
+                      color: "rgba(255, 255, 255, 0.8)",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    Establecer como cuenta predeterminada
+                  </span>
+                </label>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div
+                  style={{
+                    padding: "12px 16px",
+                    background: "rgba(255, 77, 77, 0.1)",
+                    border: "1px solid rgba(255, 77, 77, 0.3)",
+                    borderRadius: "12px",
+                    color: "#ff4d4d",
+                    fontSize: "0.85rem",
+                    marginBottom: "20px",
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+
+              {/* Botones */}
+              <div style={{ display: "flex", gap: "12px" }}>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={isLoading}
+                  style={{
+                    flex: 1,
+                    padding: "14px",
+                    background: "transparent",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                    borderRadius: "12px",
+                    color: "rgba(255, 255, 255, 0.7)",
+                    fontSize: "0.95rem",
+                    fontWeight: "600",
+                    cursor: isLoading ? "not-allowed" : "pointer",
+                    transition: "all 0.3s",
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  style={{
+                    flex: 1,
+                    padding: "14px",
+                    background: isLoading
+                      ? "rgba(189, 142, 72, 0.3)"
+                      : "#bd8e48",
+                    border: "none",
+                    borderRadius: "12px",
+                    color: "#000",
+                    fontSize: "0.95rem",
+                    fontWeight: "700",
+                    cursor: isLoading ? "not-allowed" : "pointer",
+                    transition: "all 0.3s",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                  }}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2
+                        size={18}
+                        style={{ animation: "spin 1s linear infinite" }}
+                      />
+                      Guardando...
+                    </>
+                  ) : (
+                    "Guardar Cuenta"
+                  )}
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+      </div>
+
+      <style jsx>{`
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        /* Fix for dropdown options visibility in dark mode */
+        select option {
+          background-color: #1a1a1a;
+          color: #fff;
+          padding: 10px;
+        }
+      `}</style>
+    </div>
+  );
+}

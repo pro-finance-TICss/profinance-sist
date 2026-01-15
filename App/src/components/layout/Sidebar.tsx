@@ -12,25 +12,58 @@ import {
   LifeBuoy,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 
 interface SidebarProps {
-  activeItem: string;
-  setActiveItem: (item: string) => void;
+  onNavigate?: () => void;
 }
 
-export function Sidebar({ activeItem, setActiveItem }: SidebarProps) {
+export function Sidebar({ onNavigate }: SidebarProps) {
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const pathname = usePathname();
 
-  // ✅ Agregado 'Productos' a la lista con su icono correspondiente
   const menuItems = [
-    { icon: <LayoutDashboard size={22} />, label: "Inicio" },
-    { icon: <Package size={22} />, label: "Productos" }, // Nueva sección
-    { icon: <BarChart3 size={22} />, label: "Inversiones" },
-    { icon: <Wallet size={22} />, label: "Mi Billetera" },
-    { icon: <History size={22} />, label: "Transacciones" },
-    { icon: <Settings2 size={22} />, label: "Ajustes" },
-    { icon: <LifeBuoy size={22} />, label: "Soporte" },
+    {
+      icon: <LayoutDashboard size={22} />,
+      label: "Inicio",
+      href: "/dashboard",
+    },
+    {
+      icon: <Package size={22} />,
+      label: "Productos",
+      href: "/dashboard/productos",
+    },
+    {
+      icon: <BarChart3 size={22} />,
+      label: "Inversiones",
+      href: "/dashboard/inversiones",
+    },
+    {
+      icon: <Wallet size={22} />,
+      label: "Mi Billetera",
+      href: "/dashboard/billetera",
+    },
+    {
+      icon: <History size={22} />,
+      label: "Transacciones",
+      href: "/dashboard/transacciones",
+    },
+    {
+      icon: <Settings2 size={22} />,
+      label: "Ajustes",
+      href: "/dashboard/ajustes",
+    },
+    {
+      icon: <LifeBuoy size={22} />,
+      label: "Soporte",
+      href: "/dashboard/soporte",
+    },
   ];
+
+  const handleNavigation = () => {
+    if (onNavigate) onNavigate();
+  };
 
   return (
     <aside
@@ -104,7 +137,12 @@ export function Sidebar({ activeItem, setActiveItem }: SidebarProps) {
       <nav style={{ flex: 1 }}>
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {menuItems.map((item, index) => {
-            const isActive = activeItem === item.label;
+            // Determinar si está activo
+            const isActive =
+              item.href === "/dashboard"
+                ? pathname === "/dashboard"
+                : pathname.startsWith(item.href);
+
             const isHovered = hoveredItem === item.label;
 
             return (
@@ -112,8 +150,9 @@ export function Sidebar({ activeItem, setActiveItem }: SidebarProps) {
                 key={index}
                 style={{ marginBottom: "8px", padding: "0 15px" }}
               >
-                <button
-                  onClick={() => setActiveItem(item.label)}
+                <Link
+                  href={item.href}
+                  onClick={handleNavigation}
                   onMouseEnter={() => setHoveredItem(item.label)}
                   onMouseLeave={() => setHoveredItem(null)}
                   style={{
@@ -128,6 +167,7 @@ export function Sidebar({ activeItem, setActiveItem }: SidebarProps) {
                     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                     position: "relative",
                     outline: "none",
+                    textDecoration: "none",
 
                     border:
                       isActive || isHovered
@@ -180,7 +220,7 @@ export function Sidebar({ activeItem, setActiveItem }: SidebarProps) {
                   >
                     {item.label}
                   </span>
-                </button>
+                </Link>
               </li>
             );
           })}
