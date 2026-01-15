@@ -1,11 +1,23 @@
+/**
+ * SCRIPT DE SEMILLA (SEED) PARA PRISMA
+ *
+ * DESCRIPCIÓN:
+ * Crea usuarios de prueba iniciales para el desarrollo.
+ *
+ * USO:
+ * npx prisma db seed
+ */
+
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  // Contraseña de prueba común
   const hashedPassword = await bcrypt.hash("Password123!", 12);
 
+  // 1. Crear Usuario Estándar para pruebas operativas
   const testUser = await prisma.user.upsert({
     where: { email: "test@profinance.com" },
     update: {},
@@ -20,6 +32,7 @@ async function main() {
     },
   });
 
+  // 2. Crear Usuario Admin para pruebas de administración
   const adminUser = await prisma.user.upsert({
     where: { email: "admin@profinance.com" },
     update: {},

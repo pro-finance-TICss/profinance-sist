@@ -12,7 +12,11 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { changePassword, getUserProfile } from "@/lib/actions/user-settings";
 
-export function SecuritySettings() {
+export function SecuritySettings({
+  onSetupComplete,
+}: {
+  onSetupComplete?: () => void;
+} = {}) {
   const [expanded, setExpanded] = useState(false);
   const [totpEnabled, setTotpEnabled] = useState<boolean | null>(null);
 

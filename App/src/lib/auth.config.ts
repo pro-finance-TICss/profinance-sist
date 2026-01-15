@@ -65,6 +65,9 @@ export const authConfig: NextAuthConfig = {
       const isLoggedIn = !!auth?.user;
       const pathname = nextUrl.pathname;
 
+      // Ruta de configuración de seguridad obligatoria
+      const isSetupSecurityRoute = pathname === "/setup-security";
+
       // Rutas protegidas que requieren autenticación
       const protectedRoutes = [
         "/dashboard",
@@ -91,8 +94,30 @@ export const authConfig: NextAuthConfig = {
 
       // Si está autenticado e intenta acceder a ruta de invitado
       if (isGuestRoute && isLoggedIn) {
+        // Verificar si el usuario necesita completar configuración de seguridad
+        // @ts-ignore - El campo existe en el token pero TypeScript no lo reconoce aquí
+        if (auth?.user?.requiresSecuritySetup) {
+          return Response.redirect(new URL("/setup-security", nextUrl));
+        }
         return Response.redirect(new URL("/dashboard/fondos", nextUrl));
       }
+
+      // Si el usuario necesita configuración de seguridad y NO está en esa página
+      if (isLoggedIn && !isSetupSecurityRoute) {
+        // @ts-ignore - El campo existe en el token pero TypeScript no lo reconoce aquí
+        if (auth?.user?.requiresSecuritySetup) {
+          // Permitir acceso a rutas API (para que funcione el flujo de configuración)
+          if (pathname.startsWith("/api/")) {
+            return true;
+          }
+          // Redirigir a configuración de seguridad
+          return Response.redirect(new URL("/setup-security", nextUrl));
+        }
+      }
+
+      // NOTA: No redirigimos desde /setup-security al dashboard aquí.
+      // La página /setup-security maneja su propia lógica de verificación
+      // y hace signOut para forzar re-login con un token actualizado.
 
       return true;
     },

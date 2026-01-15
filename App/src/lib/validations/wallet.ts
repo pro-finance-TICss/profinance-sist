@@ -92,9 +92,95 @@ export const approveWithdrawalSchema = z.object({
 });
 
 // ============================================================================
+// SCHEMAS DE CUENTAS BANCARIAS
+// ============================================================================
+
+/** Países disponibles */
+export const AVAILABLE_COUNTRIES = ["CO", "MX"] as const;
+
+/** Tipos de cuenta */
+export const ACCOUNT_TYPES = ["SAVINGS", "CHECKING", "CLABE", "DEBIT"] as const;
+
+/**
+ * Schema para validar creación/edición de cuentas bancarias.
+ */
+export const bankAccountSchema = z.object({
+  /** Nombre del titular (como aparece en la cuenta) */
+  holderName: z
+    .string({
+      required_error: "El nombre del titular es requerido.",
+    })
+    .min(3, { message: "El nombre debe tener al menos 3 caracteres." })
+    .max(100, { message: "El nombre no puede exceder 100 caracteres." }),
+
+  /** Tipo de documento */
+  documentType: z
+    .string({
+      required_error: "El tipo de documento es requerido.",
+    })
+    .min(1, { message: "Selecciona un tipo de documento." }),
+
+  /** Número de documento */
+  documentNumber: z
+    .string({
+      required_error: "El número de documento es requerido.",
+    })
+    .min(5, {
+      message: "El número de documento debe tener al menos 5 caracteres.",
+    })
+    .max(20, {
+      message: "El número de documento no puede exceder 20 caracteres.",
+    }),
+
+  /** País de la cuenta */
+  country: z.enum(AVAILABLE_COUNTRIES, {
+    required_error: "El país es requerido.",
+    invalid_type_error: "País no válido.",
+  }),
+
+  /** Código del banco */
+  bankCode: z
+    .string({
+      required_error: "El banco es requerido.",
+    })
+    .min(1, { message: "Selecciona un banco." }),
+
+  /** Número de cuenta (se encriptará en el servidor) */
+  accountNumber: z
+    .string({
+      required_error: "El número de cuenta es requerido.",
+    })
+    .min(10, { message: "El número de cuenta debe tener al menos 10 dígitos." })
+    .max(20, { message: "El número de cuenta no puede exceder 20 dígitos." })
+    .regex(/^\d+$/, {
+      message: "El número de cuenta solo debe contener dígitos.",
+    }),
+
+  /** Tipo de cuenta */
+  accountType: z.enum(ACCOUNT_TYPES, {
+    required_error: "El tipo de cuenta es requerido.",
+    invalid_type_error: "Tipo de cuenta no válido.",
+  }),
+
+  /** Marcar como cuenta predeterminada */
+  isDefault: z.boolean().optional().default(false),
+});
+
+/**
+ * Schema para actualizar una cuenta bancaria (todos los campos opcionales excepto el ID).
+ */
+export const updateBankAccountSchema = bankAccountSchema.partial().extend({
+  id: z.string({
+    required_error: "El ID de la cuenta es requerido.",
+  }),
+});
+
+// ============================================================================
 // TIPOS INFERIDOS
 // ============================================================================
 
 export type DepositInput = z.infer<typeof depositSchema>;
 export type WithdrawalInput = z.infer<typeof withdrawalSchema>;
 export type ApproveWithdrawalInput = z.infer<typeof approveWithdrawalSchema>;
+export type BankAccountInput = z.infer<typeof bankAccountSchema>;
+export type UpdateBankAccountInput = z.infer<typeof updateBankAccountSchema>;

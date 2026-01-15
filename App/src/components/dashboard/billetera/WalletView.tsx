@@ -1,11 +1,16 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
 import { BalanceCard } from "./BalanceCard";
-import { QuickActions } from "../QuickActions";
 import { TransactionHistory } from "./TransactionHistory";
 import { WithdrawalStatus } from "./WithdrawalStatus";
 import { DepositModal } from "./DepositModal";
 import { WithdrawModal } from "./WithdrawModal";
+import { BankAccountList } from "./BankAccountList";
+import { Wallet, Banknote, ArrowRight, Lock } from "lucide-react";
+import {
+  checkWithdrawalWindowStatus,
+  checkAndSendWithdrawalNotification,
+} from "@/lib/actions/wallet-checks";
 
 // Tipos
 interface BalanceData {
@@ -43,6 +48,10 @@ export function WalletView() {
   // Estados de modales
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [withdrawalWindow, setWithdrawalWindow] = useState<{
+    isOpen: boolean;
+    reason?: string;
+  }>({ isOpen: true });
 
   // Cargar datos
   const fetchData = useCallback(async () => {
@@ -76,95 +85,234 @@ export function WalletView() {
     }
   }, []);
 
+  // Verificar estado de ventana de retiros y notificaciones
+  useEffect(() => {
+    const checkStatus = async () => {
+      // 1. Verificar si la ventana está abierta
+      const status = await checkWithdrawalWindowStatus();
+      setWithdrawalWindow(status);
+
+      // 2. Verificar si se debe enviar notificación (lazy check)
+      await checkAndSendWithdrawalNotification();
+    };
+    checkStatus();
+  }, []);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Manejador de acciones
-  const handleActionClick = (title: string, id: string) => {
-    switch (id) {
-      case "deposit":
-        setIsDepositModalOpen(true);
-        break;
-      case "withdraw":
-        setIsWithdrawModalOpen(true);
-        break;
-      case "transfer":
-        // Implementar transferencia en el futuro
-        console.log("Transferencia no implementada aún");
-        break;
-      case "invest":
-        // Redirigir a inversiones o mostrar modal
-        break;
-    }
-  };
+  // Calcular retiros pendientes
+  const pendingWithdrawal = withdrawals
+    .filter((w) => w.status === "PENDING")
+    .reduce((acc, curr) => acc + Number(curr.amount), 0);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* 1. Sección Superior: Balance y Acciones */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(12, 1fr)",
-          gap: "24px",
-        }}
-      >
-        {/* Tarjeta de Balance (8 columnas en desktop, 12 en móvil) */}
-        <div
-          style={{ gridColumn: "span 12" }}
-          className="col-span-12 lg:col-span-8"
-        >
+      <div className="wallet-top-section">
+        {/* Tarjeta de Balance */}
+        <div style={{ minHeight: "200px" }}>
           <BalanceCard
             investedCapital={balance.investedCapital}
             availableBalance={balance.availableBalance}
+            pendingWithdrawal={pendingWithdrawal}
           />
         </div>
 
-        {/* Acciones Rápidas (4 columnas en desktop, 12 en móvil) */}
-        {/* Nota: QuickActions ya tiene su propio Card container, pero aquí
-            queremos que se integre en el grid. 
-            Vamos a usarlo tal cual, adaptando el contenedor si es necesario. */}
-        <div
-          style={{ gridColumn: "span 12" }}
-          className="col-span-12 lg:col-span-4"
-        >
-          <QuickActions onActionClick={handleActionClick} />
-        </div>
-      </div>
-
-      {/* 2. Sección Inferior: Estados y Transacciones */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(12, 1fr)",
-          gap: "24px",
-        }}
-      >
-        {/* Estado de Retiros (si hay) */}
-        {withdrawals.length > 0 && (
-          <div
-            style={{ gridColumn: "span 12" }}
-            className="col-span-12 lg:col-span-4"
-          >
-            <WithdrawalStatus withdrawals={withdrawals} isLoading={isLoading} />
-          </div>
-        )}
-
-        {/* Historial de Transacciones */}
+        {/* Acciones (Depositar / Retirar) */}
         <div
           style={{
-            gridColumn: "span 12",
+            display: "grid",
+            gridTemplateRows: "1fr 1fr",
+            gap: "16px",
+            height: "100%",
           }}
-          className={
-            withdrawals.length > 0 ? "col-span-12 lg:col-span-8" : "col-span-12"
-          }
         >
-          <TransactionHistory
-            transactions={transactions}
-            isLoading={isLoading}
-          />
+          {/* Botón Depositar */}
+          <button
+            onClick={() => setIsDepositModalOpen(true)}
+            className="action-card"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              width: "100%",
+              padding: "24px",
+              background: "rgba(189, 142, 72, 0.1)",
+              border: "1px solid rgba(189, 142, 72, 0.2)",
+              borderRadius: "20px",
+              cursor: "pointer",
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              textAlign: "left",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <div
+                style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "12px",
+                  background: "#bd8e48",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#000",
+                }}
+              >
+                <Wallet size={24} strokeWidth={1.5} />
+              </div>
+              <div>
+                <h4
+                  style={{
+                    color: "#fff",
+                    fontSize: "1.1rem",
+                    fontWeight: "700",
+                    margin: 0,
+                  }}
+                >
+                  Depositar Fondos
+                </h4>
+                <p
+                  style={{
+                    color: "rgba(255, 255, 255, 0.6)",
+                    fontSize: "0.85rem",
+                    margin: "4px 0 0 0",
+                  }}
+                >
+                  Carga capital a tu cuenta
+                </p>
+              </div>
+            </div>
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                background: "rgba(255, 255, 255, 0.1)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+              }}
+            >
+              <ArrowRight size={16} />
+            </div>
+          </button>
+
+          {/* Botón Retirar */}
+          <button
+            onClick={() => {
+              if (withdrawalWindow.isOpen) {
+                setIsWithdrawModalOpen(true);
+              }
+            }}
+            className={`action-card ${
+              !withdrawalWindow.isOpen ? "disabled" : ""
+            }`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              width: "100%",
+              padding: "24px",
+              background: withdrawalWindow.isOpen
+                ? "rgba(255, 255, 255, 0.03)"
+                : "rgba(255, 255, 255, 0.01)", // Más oscuro si disabled
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              borderRadius: "20px",
+              cursor: withdrawalWindow.isOpen ? "pointer" : "not-allowed",
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              textAlign: "left",
+              opacity: withdrawalWindow.isOpen ? 1 : 0.6,
+            }}
+            title={
+              !withdrawalWindow.isOpen
+                ? withdrawalWindow.reason
+                : "Solicitar retiro"
+            }
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <div
+                style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "12px",
+                  background: withdrawalWindow.isOpen
+                    ? "rgba(255, 255, 255, 0.1)"
+                    : "rgba(255, 255, 255, 0.05)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: withdrawalWindow.isOpen
+                    ? "#fff"
+                    : "rgba(255,255,255,0.4)",
+                }}
+              >
+                {withdrawalWindow.isOpen ? (
+                  <Banknote size={24} strokeWidth={1.5} />
+                ) : (
+                  <Lock size={24} strokeWidth={1.5} />
+                )}
+              </div>
+              <div>
+                <h4
+                  style={{
+                    color: withdrawalWindow.isOpen
+                      ? "#fff"
+                      : "rgba(255,255,255,0.5)",
+                    fontSize: "1.1rem",
+                    fontWeight: "700",
+                    margin: 0,
+                  }}
+                >
+                  Retirar Ganancias
+                </h4>
+                <p
+                  style={{
+                    color: "rgba(255, 255, 255, 0.6)",
+                    fontSize: "0.85rem",
+                    margin: "4px 0 0 0",
+                  }}
+                >
+                  {!withdrawalWindow.isOpen
+                    ? "Periodo cerrado"
+                    : "Liquida a tu cuenta bancaria"}
+                </p>
+              </div>
+            </div>
+            {withdrawalWindow.isOpen && (
+              <div
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "rgba(255, 255, 255, 0.5)",
+                }}
+              >
+                <ArrowRight size={16} />
+              </div>
+            )}
+          </button>
         </div>
       </div>
+
+      {/* 2. Estado de Retiros (si hay) */}
+      {withdrawals.length > 0 && (
+        <div style={{ width: "100%" }}>
+          <WithdrawalStatus withdrawals={withdrawals} isLoading={isLoading} />
+        </div>
+      )}
+
+      {/* 3. Sección de Cuentas Bancarias */}
+      <BankAccountList />
+
+      {/* 4. Historial de Transacciones */}
+      <TransactionHistory transactions={transactions} isLoading={isLoading} />
 
       {/* Modales */}
       <DepositModal
@@ -172,11 +320,6 @@ export function WalletView() {
         onClose={() => setIsDepositModalOpen(false)}
         onSuccess={() => {
           setIsDepositModalOpen(false);
-          // Recargar datos tras depósito exitoso
-          // Pequeño delay para dar tiempo a que Mercado Pago procese el webhook
-          // aunque el modal ya redirige.
-          // En caso de éxito desde webhook, el usuario vuelve a dashboard?deposit=success
-          // Aquí solo manejamos el cierre.
         }}
       />
 
@@ -184,21 +327,30 @@ export function WalletView() {
         isOpen={isWithdrawModalOpen}
         onClose={() => setIsWithdrawModalOpen(false)}
         availableBalance={balance.availableBalance}
-        onSuccess={fetchData} // Recargar datos tras solicitar retiro
+        onSuccess={fetchData}
       />
 
-      {/* Estilos responsivos inline para el grid */}
       <style jsx>{`
-        @media (min-width: 1024px) {
-          .lg\\:col-span-8 {
-            grid-column: span 8 !important;
-          }
-          .lg\\:col-span-4 {
-            grid-column: span 4 !important;
+        .wallet-top-section {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 24px;
+        }
+        @media (min-width: 900px) {
+          .wallet-top-section {
+            grid-template-columns: 1.2fr 1fr;
           }
         }
-        .col-span-12 {
-          grid-column: span 12 !important;
+        .action-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.3);
+        }
+        .action-card:not(.disabled):hover h4 {
+          color: #bd8e48 !important;
+        }
+        .action-card.disabled {
+          box-shadow: none !important;
+          transform: none !important;
         }
       `}</style>
     </div>

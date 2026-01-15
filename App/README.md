@@ -97,7 +97,7 @@ El sistema implementa un modelo de seguridad por capas:
     - Middleware compatible con Edge para verificar tokens JWT.
     - Redirección inteligente basada en roles (Admin/User).
 
-### Comandos Útiles de Prisma
+### Comandos Útiles de Prisma y Scripts de Utilidad
 
 ```bash
 # Ver la base de datos (GUI)
@@ -105,4 +105,20 @@ npx prisma studio
 
 # Resetear base de datos (¡Precaución!)
 npx prisma migrate reset
+
+# Crear o Actualizar Super Admin inicial
+node prisma/create_superadmin.js
+
+# Asignar saldo de prueba al usuario "Prueba Prueba Prueba"
+node prisma/add_balance.js
 ```
+
+## 🛡️ Configuración de Seguridad Obligatoria (Onboarding)
+
+Para garantizar la seguridad del sistema, todas las cuentas con privilegios (**ADMIN** y **SUPER_ADMIN**) deben completar un flujo de configuración obligatoria en su primer inicio de sesión:
+
+1.  **Activación de 2FA**: Es obligatorio vincular una aplicación autenticadora.
+2.  **Códigos de Recuperación**: Se generan 8 códigos de respaldo que deben guardarse de forma segura.
+3.  **Cambio de Contraseña**: Se debe actualizar la contraseña temporal por una nueva contraseña personal y segura.
+
+El sistema detectará automáticamente si un administrador requiere este proceso y bloqueará el acceso al dashboard hasta que se complete satisfactoriamente.

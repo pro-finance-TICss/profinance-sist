@@ -178,6 +178,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           console.log("✅ Login exitoso para:", email);
           console.log("📊 Nueva tokenVersion:", updatedUser.tokenVersion);
 
+          // Determinar si el usuario necesita completar configuración de seguridad
+          // Solo aplica a ADMIN y SUPER_ADMIN
+          const isPrivileged =
+            user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+          const requiresSecuritySetup =
+            isPrivileged && (!user.totpEnabled || user.mustChangePassword);
+
           // Retornar usuario con datos extendidos para el JWT
           return {
             id: user.id,
@@ -186,6 +193,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             role: updatedUser.role,
             tokenVersion: updatedUser.tokenVersion,
             lastLogin: updatedUser.lastLogin,
+            // Campos para setup de seguridad
+            requiresSecuritySetup,
+            totpEnabled: user.totpEnabled,
+            mustChangePassword: user.mustChangePassword,
           };
         } catch (error) {
           // Re-lanzar errores de 2FA para manejo en el cliente
@@ -225,6 +236,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           user.lastLogin instanceof Date
             ? user.lastLogin.toISOString()
             : user.lastLogin || null;
+        // Campos para setup de seguridad obligatoria
+        token.requiresSecuritySetup = user.requiresSecuritySetup;
+        token.totpEnabled = user.totpEnabled;
+        token.mustChangePassword = user.mustChangePassword;
       }
       return token;
     },
@@ -240,6 +255,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.name = token.name;
         session.user.role = token.role;
         session.user.lastLogin = token.lastLogin;
+        // Exponer si necesita setup de seguridad (para redirección en cliente)
+        session.user.requiresSecuritySetup = token.requiresSecuritySetup;
         // tokenVersion NO se expone al cliente por seguridad
         // pero se mantiene en el token para validación en middleware
       }

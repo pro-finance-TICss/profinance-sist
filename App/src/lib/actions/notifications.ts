@@ -1,8 +1,19 @@
+/**
+ * SISTEMA: GESTIÓN DE NOTIFICACIONES
+ *
+ * DESCRIPCIÓN:
+ * Acciones de servidor para crear, listar y marcar notificaciones como leídas.
+ */
+
 "use server";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+/**
+ * Crea una nueva notificación para un usuario específico.
+ * @param type - INFO (default), WARNING, SUCCESS, ERROR
+ */
 export async function createNotification(
   userId: string,
   title: string,
@@ -23,6 +34,9 @@ export async function createNotification(
   }
 }
 
+/**
+ * Obtiene todas las notificaciones no leídas del usuario actual.
+ */
 export async function getUnreadNotifications() {
   const session = await auth();
   if (!session?.user?.id) return { notifications: [], count: 0 };

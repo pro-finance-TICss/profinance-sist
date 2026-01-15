@@ -88,7 +88,7 @@ function LoginForm2FAStep({
         return;
       }
 
-      // Check for role-based redirect
+      // Verificación de redirección basada en roles
       try {
         const sessionRes = await fetch("/api/auth/session");
         const session = await sessionRes.json();
@@ -231,9 +231,15 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const setupComplete = searchParams.get("setupComplete") === "true";
 
   const [step, setStep] = useState<LoginStep>("credentials");
   const [serverError, setServerError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(
+    setupComplete
+      ? "¡Configuración de seguridad completada! Inicia sesión para continuar."
+      : null
+  );
   const [email, setEmail] = useState<string>("");
 
   // ================================================================
@@ -279,11 +285,10 @@ function LoginContent() {
         return;
       }
 
-      // Check for role-based redirect
+      // Verificación de redirección basada en roles después de login exitoso
       try {
-        // Fetch the session to get the latest user role
-        // Note: Since we manipulate cookies, we might need a hard refresh or specific fetch
-        // We can use a server action or just a simple fetch to a custom API,
+        // Obtenemos la sesión actual para tener el rol más reciente del usuario
+        // Nota: Al usar credenciales, consultamos la sesión al servidor para confirmar el rol.        // We can use a server action or just a simple fetch to a custom API,
         // OR just trust that if we don't have a callbackUrl, we check the role.
 
         // However, we are client side. getting session might be tricky immediately without reload.
@@ -367,6 +372,23 @@ function LoginContent() {
             </div>
             <h2 className={styles.title}>Iniciar Sesión</h2>
           </div>
+
+          {successMessage && (
+            <div
+              style={{
+                padding: "12px 16px",
+                background: "rgba(76, 175, 80, 0.1)",
+                border: "1px solid rgba(76, 175, 80, 0.3)",
+                borderRadius: "12px",
+                color: "#4caf50",
+                fontSize: "0.9rem",
+                marginBottom: "16px",
+                textAlign: "center",
+              }}
+            >
+              {successMessage}
+            </div>
+          )}
 
           {serverError && (
             <div className={styles.errorAlert}>{serverError}</div>

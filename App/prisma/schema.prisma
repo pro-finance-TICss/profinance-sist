@@ -59,6 +59,10 @@ model User {
   /// Indica si el usuario ha completado la configuración de TOTP
   /// true = puede usar 2FA, false = debe configurarlo (usuarios legacy pueden omitirlo)
   totpEnabled       Boolean @default(false)
+  
+  /// Indica si el usuario debe cambiar su contraseña en el próximo inicio de sesión
+  /// Se usa para usuarios ADMIN/SUPERADMIN que reciben credenciales iniciales
+  mustChangePassword Boolean @default(false)
 
   /// Rol del usuario para control de acceso (USER, ADMIN, etc.)
   /// Values: USER, ADMIN, SUPER_ADMIN
@@ -119,6 +123,9 @@ model User {
 
   /// Logs de auditoría generados por este usuario
   auditLogs              AuditLog[]
+
+  /// Cuentas bancarias para retiros
+  bankAccounts           BankAccount[]
 }
 
 // ============================================================================
@@ -233,10 +240,17 @@ model WithdrawalRequest {
   /// Notas del administrador sobre la solicitud
   notes         String?
   
+  /// Cuenta bancaria destino para el retiro
+  bankAccountId String?
+  
+  /// Relación con la cuenta bancaria
+  bankAccount   BankAccount? @relation(fields: [bankAccountId], references: [id])
+  
   /// Índices para búsquedas eficientes
   @@index([userId])
   @@index([status])
   @@index([requestedAt])
+  @@index([bankAccountId])
 }
 
 // ============================================================================
@@ -298,4 +312,77 @@ model AuditLog {
   @@index([action])
   @@index([userId])
   @@index([entityType])
+}
+
+// ============================================================================
+// MODELO DE CUENTAS BANCARIAS
+// ============================================================================
+/// Cuentas bancarias registradas para recibir retiros.
+/// El número de cuenta se almacena encriptado (AES-256-GCM).
+model BankAccount {
+  /// Identificador único de la cuenta
+  id                  String   @id @default(cuid())
+  
+  /// ID del usuario propietario
+  userId              String
+  
+  /// Relación con el usuario
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  /// Nombre del titular de la cuenta (como aparece en la tarjeta/cuenta)
+  holderName          String
+  
+  /// Tipo de documento (CC, CE, NIT, PASSPORT, CURP, RFC, etc.)
+  documentType        String
+  
+  /// Número de documento/cédula
+  documentNumber      String
+  
+  /// País de la cuenta (CO = Colombia, MX = México)
+  country             String   @default("CO")
+  
+  /// Código único del banco (para identificación interna)
+  bankCode            String
+  
+  /// Nombre del banco (denormalizado para visualización)
+  bankName            String
+  
+  /// Número de cuenta/CLABE encriptado (AES-256-GCM)
+  accountNumberEncrypted String
+  
+  /// Últimos 4 dígitos de la cuenta (para mostrar al usuario)
+  accountNumberLast4  String
+  
+  /// Tipo de cuenta (SAVINGS = Ahorros, CHECKING = Corriente)
+  accountType         String
+  
+  /// Indica si es la cuenta predeterminada del usuario
+  isDefault           Boolean  @default(false)
+  
+  /// Indica si la cuenta está activa (soft delete)
+  isActive            Boolean  @default(true)
+  
+  /// Fecha de creación
+  createdAt           DateTime @default(now())
+  
+  /// Fecha de última actualización
+  updatedAt           DateTime @updatedAt
+  
+  /// Solicitudes de retiro que usan esta cuenta
+  withdrawalRequests  WithdrawalRequest[]
+  
+  /// Índices para búsquedas eficientes
+  @@index([userId])
+  @@index([country])
+  @@index([isActive])
+}
+
+// ============================================================================
+// CONFIGURACIÓN DEL SISTEMA
+// ============================================================================
+model SystemSetting {
+  key         String   @id
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
 }

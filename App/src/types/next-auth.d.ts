@@ -2,7 +2,7 @@
 // TIPOS EXTENDIDOS DE NEXTAUTH - PRO-FINANCE
 // ============================================================================
 // Extiende los tipos de NextAuth para incluir campos personalizados en la
-// sesión y el token JWT (id, role, tokenVersion, lastLogin).
+// sesión y el token JWT (id, role, tokenVersion, lastLogin, security setup).
 // ============================================================================
 
 import "next-auth";
@@ -22,6 +22,12 @@ declare module "next-auth" {
     tokenVersion: number;
     /** Fecha del último inicio de sesión */
     lastLogin?: Date | string | null;
+    /** Indica si el usuario necesita completar configuración de seguridad */
+    requiresSecuritySetup?: boolean;
+    /** Indica si el usuario tiene TOTP habilitado */
+    totpEnabled?: boolean;
+    /** Indica si el usuario debe cambiar su contraseña */
+    mustChangePassword?: boolean;
   }
 
   /**
@@ -34,6 +40,8 @@ declare module "next-auth" {
       name: string;
       role: string;
       lastLogin?: string | null;
+      /** Indica si el usuario necesita completar configuración de seguridad */
+      requiresSecuritySetup?: boolean;
     } & import("next-auth").DefaultSession["user"];
   }
 }
@@ -55,5 +63,11 @@ declare module "next-auth/jwt" {
     tokenVersion: number;
     /** Timestamp del último login */
     lastLogin?: string | null;
+    /** Indica si el usuario necesita completar configuración de seguridad */
+    requiresSecuritySetup?: boolean;
+    /** Indica si el usuario tiene TOTP habilitado */
+    totpEnabled?: boolean;
+    /** Indica si el usuario debe cambiar su contraseña */
+    mustChangePassword?: boolean;
   }
 }
