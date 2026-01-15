@@ -51,7 +51,6 @@
   z-index: 10;
   text-align: center;
   max-width: 80%;
-  animation: fadeIn 0.8s ease-out;
 }
 
 @keyframes fadeIn {
