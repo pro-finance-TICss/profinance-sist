@@ -129,6 +129,47 @@ model User {
 
   /// Dispositivos de confianza (sesiones donde no se requiere TOTP)
   trustedDevices         TrustedDevice[]
+
+  /// Sesiones activas del usuario (para revocación individual)
+  sessions               Session[]
+}
+
+// ============================================================================
+// MODELO DE SESIONES ACTIVAS
+// ============================================================================
+/// Rastrea sesiones de login activas para permitir revocación individual.
+/// El sessionId se incluye en el JWT y se verifica en cada request.
+model Session {
+  /// Identificador único de la sesión (incluido en JWT)
+  id            String   @id @default(cuid())
+  
+  /// ID del usuario propietario
+  userId        String
+  
+  /// Relación con el usuario
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  /// Nombre descriptivo del dispositivo (ej: "Chrome en Windows")
+  deviceName    String?
+  
+  /// User-Agent del navegador
+  userAgent     String?
+  
+  /// Dirección IP desde donde se creó la sesión
+  ipAddress     String?
+  
+  /// Fecha de creación de la sesión
+  createdAt     DateTime @default(now())
+  
+  /// Fecha de expiración de la sesión
+  expiresAt     DateTime
+  
+  /// Última actividad de la sesión
+  lastActiveAt  DateTime @default(now())
+  
+  /// Índices para búsquedas eficientes
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 // ============================================================================

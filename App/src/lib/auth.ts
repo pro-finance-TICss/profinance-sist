@@ -3,9 +3,9 @@
 // ============================================================================
 // Configuración central de autenticación con:
 // - Cookies seguras (HttpOnly, Secure, SameSite)
-// - Single Session Enforcement (tokenVersion)
+// - Cumplimiento de Sesión Única (Single Session Enforcement) usando tokenVersion
 // - Flujo TOTP (Time-based One-Time Password)
-// - JWT con datos extendidos (role, tokenVersion, lastLogin)
+// - JWT con datos extendidos (rol, tokenVersion, lastLogin)
 // ============================================================================
 
 import { CredentialsSignin } from "next-auth";
@@ -18,6 +18,44 @@ import { authConfig } from "@/lib/auth.config";
 import { verifyTotpToken } from "@/lib/totp";
 
 import { verifyRecoveryCode } from "@/lib/actions/recovery-codes";
+import { headers } from "next/headers";
+
+// ============================================================================
+// UTILIDADES
+// ============================================================================
+
+/**
+ * Parsea el User-Agent para obtener un nombre descriptivo del dispositivo.
+ */
+function parseUserAgent(userAgent: string | null): string {
+  if (!userAgent) return "Dispositivo desconocido";
+
+  let browser = "Navegador";
+  let os = "";
+
+  // Detectar navegador
+  if (userAgent.includes("Chrome") && !userAgent.includes("Edg"))
+    browser = "Chrome";
+  else if (userAgent.includes("Firefox")) browser = "Firefox";
+  else if (userAgent.includes("Safari") && !userAgent.includes("Chrome"))
+    browser = "Safari";
+  else if (userAgent.includes("Edg")) browser = "Edge";
+  else if (userAgent.includes("Opera") || userAgent.includes("OPR"))
+    browser = "Opera";
+
+  // Detectar SO
+  if (userAgent.includes("Windows")) os = "Windows";
+  else if (userAgent.includes("Mac")) os = "macOS";
+  else if (userAgent.includes("Linux")) os = "Linux";
+  else if (userAgent.includes("Android")) os = "Android";
+  else if (userAgent.includes("iPhone") || userAgent.includes("iPad"))
+    os = "iOS";
+
+  return os ? `${browser} en ${os}` : browser;
+}
+
+// Duración de sesión: 24 horas
+const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
 // ============================================================================
 // ERRORES PERSONALIZADOS DE 2FA
@@ -67,7 +105,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
        * - Verificación de contraseña con bcrypt
        * - Verificación de dispositivo confiable (omite TOTP si válido)
        * - Verificación TOTP (obligatorio para usuarios nuevos, opcional para legacy)
-       * - Incremento de tokenVersion (Single Session)
+       * - Incremento de tokenVersion (Sesión Única)
        */
       async authorize(credentials) {
         try {
@@ -195,21 +233,46 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
 
           // ================================================================
-          // LOGIN EXITOSO - ACTUALIZAR SEGURIDAD
+          // LOGIN EXITOSO - CREAR SESIÓN Y ACTUALIZAR SEGURIDAD
           // ================================================================
 
-          // Incrementar tokenVersion para invalidar sesiones anteriores
-          // Esto implementa Single Session Enforcement
+          // Obtener información del dispositivo
+          const headersList = await headers();
+          const userAgent = headersList.get("user-agent");
+          const ipAddress =
+            headersList.get("x-forwarded-for") ||
+            headersList.get("x-real-ip") ||
+            "unknown";
+          const deviceName = parseUserAgent(userAgent);
+
+          // Crear sesión en base de datos
+          const session = await prisma.session.create({
+            data: {
+              userId: user.id,
+              deviceName,
+              userAgent: userAgent?.substring(0, 500), // Limitar longitud
+              ipAddress:
+                typeof ipAddress === "string"
+                  ? ipAddress
+                  : ipAddress || "unknown",
+              expiresAt: new Date(Date.now() + SESSION_DURATION_MS),
+            },
+          });
+
+          console.log("🎟️ Sesión creada:", session.id);
+
+          // Actualizar lastLogin (sin incrementar tokenVersion para permitir múltiples sesiones)
           const updatedUser = await prisma.user.update({
             where: { id: user.id },
             data: {
               lastLogin: new Date(),
-              tokenVersion: { increment: 1 }, // ¡CLAVE para Single Session!
+              // Ya no incrementamos tokenVersion aquí para permitir múltiples sesiones
+              // La invalidación se hace eliminando el registro de Session
             },
           });
 
           console.log("✅ Login exitoso para:", email);
-          console.log("📊 Nueva tokenVersion:", updatedUser.tokenVersion);
+          console.log("📋 SessionId:", session.id);
 
           // Determinar si el usuario necesita completar configuración de seguridad
           // Solo aplica a ADMIN y SUPER_ADMIN
@@ -226,6 +289,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             role: updatedUser.role,
             tokenVersion: updatedUser.tokenVersion,
             lastLogin: updatedUser.lastLogin,
+            // Nuevo: ID de sesión para revocación individual
+            sessionId: session.id,
             // Campos para setup de seguridad
             requiresSecuritySetup,
             totpEnabled: user.totpEnabled,
@@ -265,6 +330,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.name = user.name as string;
         token.role = user.role;
         token.tokenVersion = user.tokenVersion;
+        token.sessionId = user.sessionId; // 🔑 Nuevo: ID de sesión para revocación
         token.lastLogin =
           user.lastLogin instanceof Date
             ? user.lastLogin.toISOString()
@@ -292,6 +358,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.requiresSecuritySetup = token.requiresSecuritySetup;
         // tokenVersion NO se expone al cliente por seguridad
         // pero se mantiene en el token para validación en middleware
+        // @ts-ignore
+        session.user.sessionId = token.sessionId;
       }
       return session;
     },

@@ -295,7 +295,12 @@ export function TotpSetup({
           <button
             type="button"
             onClick={handleCopySecret}
-            style={styles.copyButton}
+            style={{
+              ...styles.copyButton,
+              backgroundColor: copied ? "#28a745" : "#bd8e48",
+              transform: copied ? "scale(1.05)" : "scale(1)",
+              transition: "all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)", // Efecto rebote sutil
+            }}
           >
             {copied ? "✓ Copiado" : "Copiar código"}
           </button>

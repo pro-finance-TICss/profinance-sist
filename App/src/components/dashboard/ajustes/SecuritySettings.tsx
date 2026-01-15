@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Lock,
   Smartphone,
@@ -7,6 +8,7 @@ import {
   ChevronDown,
   CheckCircle,
   AlertCircle,
+  Laptop,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -17,6 +19,7 @@ export function SecuritySettings({
 }: {
   onSetupComplete?: () => void;
 } = {}) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [totpEnabled, setTotpEnabled] = useState<boolean | null>(null);
 
@@ -154,6 +157,44 @@ export function SecuritySettings({
       </h3>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        {/* Sección de Dispositivos Conectados */}
+        <div
+          style={{
+            backgroundColor: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: "12px",
+            overflow: "hidden",
+          }}
+        >
+          <button
+            onClick={() => router.push("/dashboard/ajustes/dispositivos")}
+            style={{
+              padding: "16px",
+              width: "100%",
+              background: "transparent",
+              border: "none",
+              color: "#fff",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              cursor: "pointer",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "0.9rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+              }}
+            >
+              <Laptop size={18} color="#bd8e48" />
+              Dispositivos conectados
+            </span>
+            <ChevronRight size={16} color="rgba(255,255,255,0.3)" />
+          </button>
+        </div>
+
         {/* Sección de Cambio de Contraseña */}
         <div
           style={{

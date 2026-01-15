@@ -20,6 +20,8 @@ declare module "next-auth" {
     role: string;
     /** Versión del token para validación de single-session */
     tokenVersion: number;
+    /** ID de la sesión activa (para revocación individual) */
+    sessionId?: string;
     /** Fecha del último inicio de sesión */
     lastLogin?: Date | string | null;
     /** Indica si el usuario necesita completar configuración de seguridad */
@@ -61,6 +63,8 @@ declare module "next-auth/jwt" {
     role: string;
     /** Versión del token para validación */
     tokenVersion: number;
+    /** ID de la sesión activa (para revocación individual) */
+    sessionId?: string;
     /** Timestamp del último login */
     lastLogin?: string | null;
     /** Indica si el usuario necesita completar configuración de seguridad */

@@ -36,6 +36,7 @@ export function TotpSetupComponent({ onComplete }: TotpSetupComponentProps) {
   // Estado de recovery codes
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [copied, setCopied] = useState(false);
+  const [secretCopied, setSecretCopied] = useState(false);
 
   // Cargar datos de setup al montar
   useEffect(() => {
@@ -95,6 +96,15 @@ export function TotpSetupComponent({ onComplete }: TotpSetupComponentProps) {
     }
   };
 
+  // Copiar secreto manual
+  const handleCopySecret = () => {
+    if (setupData?.secret) {
+      navigator.clipboard.writeText(setupData.secret);
+      setSecretCopied(true);
+      setTimeout(() => setSecretCopied(false), 2000);
+    }
+  };
+
   // Continuar después de ver códigos de recuperación
   const handleContinue = () => {
     onComplete?.();
@@ -146,8 +156,23 @@ export function TotpSetupComponent({ onComplete }: TotpSetupComponentProps) {
           ))}
         </div>
 
-        <button onClick={handleCopyCodes} style={styles.copyButton}>
-          <Copy size={16} />
+        <button
+          onClick={handleCopyCodes}
+          style={{
+            ...styles.copyButton,
+            backgroundColor: copied
+              ? "rgba(40, 167, 69, 0.2)"
+              : "rgba(255, 255, 255, 0.1)",
+            borderColor: copied ? "#28a745" : "rgba(255, 255, 255, 0.2)",
+            transform: copied ? "scale(1.02)" : "scale(1)",
+            transition: "all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+          }}
+        >
+          {copied ? (
+            <CheckCircle size={16} color="#4caf50" />
+          ) : (
+            <Copy size={16} />
+          )}
           {copied ? "¡Copiados!" : "Copiar Códigos"}
         </button>
 
@@ -195,13 +220,16 @@ export function TotpSetupComponent({ onComplete }: TotpSetupComponentProps) {
           <div style={styles.secretBox}>
             <code style={styles.secretCode}>{setupData.secret}</code>
             <button
-              onClick={() => {
-                navigator.clipboard.writeText(setupData.secret);
+              onClick={handleCopySecret}
+              style={{
+                ...styles.copyIcon,
+                color: secretCopied ? "#4caf50" : "rgba(255, 255, 255, 0.5)",
+                transform: secretCopied ? "scale(1.2)" : "scale(1)",
+                transition: "all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
               }}
-              style={styles.copyIcon}
-              title="Copiar código"
+              title={secretCopied ? "Copiado" : "Copiar código"}
             >
-              <Copy size={16} />
+              {secretCopied ? <CheckCircle size={16} /> : <Copy size={16} />}
             </button>
           </div>
         </div>

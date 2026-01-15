@@ -1,53 +1,58 @@
 // ============================================================================
-// API: Gestión de Sesiones/Dispositivos del Usuario
+// API: Gestión de Sesiones del Usuario
 // GET /api/user/sessions - Listar sesiones activas
 // DELETE /api/user/sessions - Cerrar sesión(es)
 // ============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import {
-  listTrustedDevices,
-  revokeTrustedDevice,
-  revokeAllTrustedDevices,
-  TRUSTED_DEVICE_COOKIE_NAME,
-} from "@/lib/trusted-device";
+import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 
+const TRUSTED_DEVICE_COOKIE_NAME = "pf_trusted_device";
+
 /**
- * GET: Lista todas las sesiones/dispositivos activos del usuario.
+ * GET: Lista todas las sesiones activas del usuario.
  */
 export async function GET() {
   try {
-    const session = await auth();
+    const authSession = await auth();
 
-    if (!session?.user?.id) {
+    if (!authSession?.user?.id) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
-    const devices = await listTrustedDevices(session.user.id);
+    // Obtener sessionId del token actual
+    // @ts-ignore
+    const currentSessionId = authSession.user.sessionId;
 
-    // Identificar el dispositivo actual
-    const cookieStore = await cookies();
-    const currentToken = cookieStore.get(TRUSTED_DEVICE_COOKIE_NAME)?.value;
+    // Listar todas las sesiones activas del usuario
+    const sessions = await prisma.session.findMany({
+      where: {
+        userId: authSession.user.id,
+        expiresAt: { gt: new Date() }, // Solo sesiones no expiradas
+      },
+      orderBy: { lastActiveAt: "desc" },
+      select: {
+        id: true,
+        deviceName: true,
+        ipAddress: true,
+        createdAt: true,
+        expiresAt: true,
+        lastActiveAt: true,
+      },
+    });
 
-    const devicesWithCurrent = devices.map(
-      (device: {
-        id: string;
-        deviceName: string | null;
-        lastUsedAt: Date;
-        createdAt: Date;
-        expiresAt: Date;
-      }) => ({
-        ...device,
-        isCurrent: false, // No podemos comparar directamente, solo por token
-      })
-    );
+    // Marcar cuál es la sesión actual
+    const sessionsWithCurrent = sessions.map((session) => ({
+      ...session,
+      isCurrent: session.id === currentSessionId,
+    }));
 
     return NextResponse.json({
       success: true,
-      devices: devicesWithCurrent,
-      currentDeviceToken: currentToken ? true : false, // Solo indicar si existe
+      sessions: sessionsWithCurrent,
+      count: sessions.length,
     });
   } catch (error) {
     console.error("Error en GET /api/user/sessions:", error);
@@ -57,53 +62,82 @@ export async function GET() {
 
 /**
  * DELETE: Cerrar sesión específica o todas las sesiones.
- * Body: { deviceId?: string, revokeAll?: boolean }
+ * Body: { sessionId?: string, revokeAll?: boolean }
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth();
+    const authSession = await auth();
 
-    if (!session?.user?.id) {
+    if (!authSession?.user?.id) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
     const body = await request.json().catch(() => ({}));
-    const { deviceId, revokeAll } = body;
+    const { sessionId, revokeAll } = body;
 
-    // Opción 1: Revocar todos los dispositivos
+    // @ts-ignore
+    const currentSessionId = authSession.user.sessionId;
+
+    // Opción 1: Revocar todas las sesiones
     if (revokeAll) {
-      const count = await revokeAllTrustedDevices(session.user.id);
+      // Eliminar todas las sesiones del usuario
+      const result = await prisma.session.deleteMany({
+        where: { userId: authSession.user.id },
+      });
 
-      // Eliminar cookie del dispositivo actual también
+      // También eliminar dispositivos de confianza
+      await prisma.trustedDevice.deleteMany({
+        where: { userId: authSession.user.id },
+      });
+
+      // Eliminar cookie del dispositivo actual
       const cookieStore = await cookies();
       cookieStore.delete(TRUSTED_DEVICE_COOKIE_NAME);
 
       return NextResponse.json({
         success: true,
-        message: `${count} sesiones cerradas`,
-        count,
+        message: `${result.count} sesiones cerradas`,
+        count: result.count,
       });
     }
 
-    // Opción 2: Revocar dispositivo específico
-    if (deviceId) {
-      const success = await revokeTrustedDevice(deviceId, session.user.id);
+    // Opción 2: Revocar sesión específica
+    if (sessionId) {
+      // Verificar que la sesión pertenece al usuario
+      const session = await prisma.session.findFirst({
+        where: {
+          id: sessionId,
+          userId: authSession.user.id,
+        },
+      });
 
-      if (!success) {
+      if (!session) {
         return NextResponse.json(
-          { error: "Dispositivo no encontrado" },
+          { error: "Sesión no encontrada" },
           { status: 404 }
         );
+      }
+
+      // Eliminar la sesión
+      await prisma.session.delete({
+        where: { id: sessionId },
+      });
+
+      // Si es la sesión actual, también eliminamos la cookie de dispositivo confiable
+      if (sessionId === currentSessionId) {
+        const cookieStore = await cookies();
+        cookieStore.delete(TRUSTED_DEVICE_COOKIE_NAME);
       }
 
       return NextResponse.json({
         success: true,
         message: "Sesión cerrada",
+        isCurrent: sessionId === currentSessionId,
       });
     }
 
     return NextResponse.json(
-      { error: "Debe especificar deviceId o revokeAll" },
+      { error: "Debe especificar sessionId o revokeAll" },
       { status: 400 }
     );
   } catch (error) {

@@ -15,8 +15,8 @@ const bcrypt = require("bcryptjs");
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = "pfinancedev2@gmail.com";
-  const passwordRaw = "Prueba1234!";
+  const email = "superadmin@empresa.com";
+  const passwordRaw = "TempPass123!";
 
   console.log(`Creando/Actualizando Super Admin: ${email}`);
 
@@ -30,6 +30,7 @@ async function main() {
       password: hashedPassword,
       role: "SUPER_ADMIN",
       totpEnabled: false,
+      mustChangePassword: true, // Forzar cambio de contraseña
       tokenVersion: { increment: 1 },
     },
     create: {
@@ -40,6 +41,7 @@ async function main() {
       maternalSurname: "System",
       role: "SUPER_ADMIN",
       totpEnabled: false,
+      mustChangePassword: true, // Forzar cambio de contraseña
       investedCapital: 0,
       availableBalance: 0,
     },

@@ -10,11 +10,12 @@ import {
   LayoutDashboard,
   Wallet,
 } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 export function AdminSidebar() {
   const pathname = usePathname();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const { data: session } = useSession();
 
   // Helper para verificar ruta activa
   const isActive = (path: string) => pathname.startsWith(path);
@@ -194,107 +195,111 @@ export function AdminSidebar() {
           })}
         </ul>
 
-        {/* SECCIÓN SUPER ADMIN */}
-        <div
-          style={{
-            height: "1px",
-            background:
-              "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)",
-            margin: "20px 0",
-          }}
-        />
+        {/* SECCIÓN SUPER ADMIN - SOLO VISIBLE PARA SUPER_ADMIN */}
+        {session?.user?.role === "SUPER_ADMIN" && (
+          <>
+            <div
+              style={{
+                height: "1px",
+                background:
+                  "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)",
+                margin: "20px 0",
+              }}
+            />
 
-        <div
-          style={{
-            fontSize: "0.75rem",
-            textTransform: "uppercase",
-            color: "#bd8e48",
-            marginBottom: "15px",
-            paddingLeft: "10px",
-            fontWeight: 700,
-            letterSpacing: "1px",
-          }}
-        >
-          Super Admin
-        </div>
-        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-          {superAdminItems.map((item, index) => {
-            const active = isActive(item.path);
-            const isHovered = hoveredItem === item.path;
+            <div
+              style={{
+                fontSize: "0.75rem",
+                textTransform: "uppercase",
+                color: "#bd8e48",
+                marginBottom: "15px",
+                paddingLeft: "10px",
+                fontWeight: 700,
+                letterSpacing: "1px",
+              }}
+            >
+              Super Admin
+            </div>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {superAdminItems.map((item, index) => {
+                const active = isActive(item.path);
+                const isHovered = hoveredItem === item.path;
 
-            return (
-              <li key={index} style={{ marginBottom: "8px" }}>
-                <Link
-                  href={item.path}
-                  onMouseEnter={() => setHoveredItem(item.path)}
-                  onMouseLeave={() => setHoveredItem(null)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "15px",
-                    width: "100%",
-                    padding: "12px 20px",
-                    cursor: "pointer",
-                    borderRadius: "12px",
-                    textAlign: "left",
-                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                    position: "relative",
-                    textDecoration: "none",
-                    outline: "none",
+                return (
+                  <li key={index} style={{ marginBottom: "8px" }}>
+                    <Link
+                      href={item.path}
+                      onMouseEnter={() => setHoveredItem(item.path)}
+                      onMouseLeave={() => setHoveredItem(null)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "15px",
+                        width: "100%",
+                        padding: "12px 20px",
+                        cursor: "pointer",
+                        borderRadius: "12px",
+                        textAlign: "left",
+                        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                        position: "relative",
+                        textDecoration: "none",
+                        outline: "none",
 
-                    border:
-                      active || isHovered
-                        ? "1px solid #d63031" // Diferenciador sutil para superadmin? O mantener gold? -> Mantener gold por consistencia solicitada.
-                        : "1px solid transparent",
+                        border:
+                          active || isHovered
+                            ? "1px solid #bd8e48"
+                            : "1px solid transparent",
 
-                    borderColor:
-                      active || isHovered
-                        ? active
+                        borderColor:
+                          active || isHovered
+                            ? active
+                              ? "#bd8e48"
+                              : "#bd8e48"
+                            : "transparent",
+
+                        backgroundColor: active
                           ? "#bd8e48"
-                          : "#bd8e48"
-                        : "transparent",
+                          : isHovered
+                          ? "rgba(189, 142, 72, 0.05)"
+                          : "transparent",
 
-                    backgroundColor: active
-                      ? "#bd8e48"
-                      : isHovered
-                      ? "rgba(189, 142, 72, 0.05)"
-                      : "transparent",
+                        color: active
+                          ? "#000"
+                          : isHovered
+                          ? "#fff"
+                          : "rgba(255,255,255,0.4)",
 
-                    color: active
-                      ? "#000"
-                      : isHovered
-                      ? "#fff"
-                      : "rgba(255,255,255,0.4)",
-
-                    boxShadow:
-                      isHovered && !active
-                        ? "0 0 15px rgba(189, 142, 72, 0.3)"
-                        : active
-                        ? "0 4px 20px rgba(189, 142, 72, 0.4)"
-                        : "none",
-                  }}
-                >
-                  <span
-                    style={{
-                      display: "flex",
-                      color: active ? "#000" : "#bd8e48",
-                    }}
-                  >
-                    {item.icon}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "0.95rem",
-                      fontWeight: active ? "700" : "500",
-                    }}
-                  >
-                    {item.label}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                        boxShadow:
+                          isHovered && !active
+                            ? "0 0 15px rgba(189, 142, 72, 0.3)"
+                            : active
+                            ? "0 4px 20px rgba(189, 142, 72, 0.4)"
+                            : "none",
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "flex",
+                          color: active ? "#000" : "#bd8e48",
+                        }}
+                      >
+                        {item.icon}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "0.95rem",
+                          fontWeight: active ? "700" : "500",
+                        }}
+                      >
+                        {item.label}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
       </nav>
 
       <div style={{ padding: "0 15px" }}>
