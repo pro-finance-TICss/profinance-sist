@@ -88,10 +88,16 @@ export const DashboardHeader = ({ title }: { title: string }) => {
       )}
 
       {/* 3. PERFIL Y NOTIFICACIONES */}
-      <div style={{ display: "flex", alignItems: "center", gap: "25px" }}>
-        {/* Notificaciones */}
-        <NotificationBell />
-
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: isMobile ? "12px" : "25px", // Menos espacio entre campana y perfil en móvil
+          marginLeft: "auto", // Empuja todo a la derecha
+          paddingRight: isMobile ? "50px" : "0", // ESTE ES EL TRUCO: Deja espacio para el botón de hamburguesa
+          transition: "all 0.3s ease"
+        }}
+      >
         {/* Perfil de Socio */}
         <div
           style={{
