@@ -1,125 +1,102 @@
-# Pro-Finance App (Sistema)
+# ProFinance - Sistema de Gestión de Activos
 
-Aplicación Web Progresiva (PWA) para la gestión de inversiones y dashboard de usuarios. Desarrollada con **Next.js**.
+## Descripción
 
-## Funcionalidades Core
+ProFinance es una plataforma web avanzada para la gestión de activos financieros privados. Ofrece una interfaz moderna y segura para que los socios monitoreen sus inversiones, realicen transacciones y gestionen su seguridad. El sistema cuenta con autenticación robusta, roles de usuario, y funcionalidades en tiempo real.
 
-- 🔐 **Autenticación**: Login y Registro seguros con validación Zod.
-- 🧪 **Diseño Experimental**: Nuevas rutas `/login2` y `/register2` con layout Split-Screen.
-- 📊 **Dashboard**: Visualización de métricas financieras (Próximamente).
-- 🛡️ **Seguridad**: Sanitización de inputs, Bcrypt para hashing y manejo de sesiones seguro.
+## Características Principales
 
-## Estructura del Proyecto
+- **Seguridad Bancaria**: Autenticación 2FA (TOTP), códigos de recuperación, alertas de inicio de sesión y gestión de dispositivos de confianza.
+- **Roles y Permisos**: Sistema de roles (Usuario, Admin, SuperAdmin) con control de acceso granular.
+- **Gestión de Cartera**: Visualización de balance, historial de transacciones, depósitos y retiros.
+- **Interfaz Moderna**: Diseño responsivo, modo oscuro y animaciones fluidas (framer-motion).
+- **Backend Robusto**: Construido con Next.js 14, Prisma ORM y NextAuth v5.
 
-```text
+## Tecnologías Utilizadas
+
+- **Frontend**: React, Next.js 14 (App Router), TailwindCSS (opcional), CSS Modules.
+- **Backend**: Next.js API Routes, Server Actions.
+- **Base de Datos**: SQLite (Desarrollo) / PostgreSQL (Producción), gestionado con Prisma.
+- **Autenticación**: NextAuth.js v5, JWT, Bcrypt.
+- **Validación**: Zod.
+- **Iconos**: Lucide React.
+
+## Estructura del Proyecto (`src/`)
+
+```
 src/
-├── app/                  # Rutas (App Router)
-│   ├── login/            # Login v1 (Glassmorphism centrado)
-│   ├── login2/           # [NUEVO] Login v2 (Split-Screen layout)
-│   ├── register/         # Registro v1
-│   ├── register2/        # [NUEVO] Registro v2
-│   ├── dashboard/        # Dashboard Unificado (SPA-like interface)
-│   └── verification/     # Página 2FA
+├── app/                  # Rutas y páginas (Next.js App Router)
+│   ├── api/              # Endpoints de API
+│   ├── dashboard/        # Área privada del usuario
+│   ├── login/            # Página de inicio de sesión
+│   └── register/         # Página de registro
 ├── components/           # Componentes de React
-│   ├── dashboard/        # Componentes del Dashboard (Balance, Actividad, etc.)
-│   └── ui/               # Componentes atómicos (Card, Input, Button)
-├── lib/
-│   ├── actions/          # Server Actions (Lógica de negocio y DB)
-│   ├── validations/      # Esquemas Zod (Auth, Users) - Single Source of Truth
-│   ├── prisma.ts         # Instancia Singleton de Prisma
-│   └── utils.ts          # Helpers generales
-├── prisma/
-│   └── schema.prisma     # Modelado de base de datos (SQLite/Postgres)
-└── public/               # Assets estáticos (imágenes, fuentes)
+│   ├── layout/           # Componentes estructurales (Header, Sidebar, Footer)
+│   ├── ui/               # Componentes UI reutilizables (Botones, Inputs)
+│   ├── dashboard/        # Componentes específicos del dashboard
+│   └── security/         # Componentes de seguridad (2FA, Modales)
+├── lib/                  # Lógica de negocio y utilidades
+│   ├── actions/          # Server Actions
+│   ├── validations/      # Esquemas de validación Zod
+│   ├── auth.ts           # Configuración de NextAuth
+│   └── prisma.ts         # Cliente de Prisma
+└── types/                # Definiciones de tipos TypeScript
 ```
 
-## Guía de Instalación y Uso
+## Configuración e Instalación
 
-1.  **Instalar dependencias**:
+1. **Clonar el repositorio**:
 
-    ```bash
-    npm install
-    ```
+   ```bash
+   git clone <url-del-repositorio>
+   cd profinance-sist/App
+   ```
 
-2.  **Configurar entorno**:
-    Copiar el archivo de ejemplo y configurar las variables.
+2. **Instalar dependencias**:
 
-    ```bash
-    cp .env.example .env
-    ```
+   ```bash
+   npm install
+   ```
 
-3.  **Iniciar servidor de desarrollo**:
+3. **Configurar variables de entorno**:
+   Crea un archivo `.env` basado en `.env.example`:
 
-    ```bash
-    npm run dev
-    ```
+   ```env
+   DATABASE_URL="file:./dev.db"
+   AUTH_SECRET="tu-secreto-super-seguro"
+   ```
 
-    La aplicación correrá en `http://localhost:3000`.
+4. **Inicializar base de datos**:
 
-## Scripts Disponibles
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   ```
 
-- `npm run app:dev`: Servidor de desarrollo.
-- `npm run app:build`: Compilar para producción.
-- `npm run app:lint`: Verificar errores de estilo y código.
+5. **Crear usuario administrador (Script)**:
 
-## 🏗️ Stack Tecnológico y Arquitectura
+   ```bash
+   node prisma/create_superadmin.js
+   ```
 
-- **Framework**: Next.js 15+ (App Router).
-- **Lenguaje**: TypeScript (Strict Mode).
-- **ORM**: Prisma (Gestión de esquema y migraciones).
-- **Base de Datos**: SQLite (Desarrollo) / Postgres (Producción).
-- **Autenticación**: NextAuth.js v5 (Beta).
-- **Validación**: Zod (Cliente y Servidor).
-- **Formularios**: React Hook Form.
-- **Estilos**: CSS Modules + Variables CSS Globales.
+6. **Ejecutar servidor de desarrollo**:
+   ```bash
+   npm run dev
+   ```
+   Accede a [http://localhost:3000](http://localhost:3000).
 
-## 📐 Principios de Desarrollo
+## Comandos Útiles
 
-Este proyecto sigue buenas prácticas de ingeniería de software:
+- `npm run dev`: Inicia el servidor de desarrollo.
+- `npx prisma studio`: Abre una interfaz web para ver y editar la base de datos.
+- `npx prisma db push`: Sincroniza el esquema de Prisma con la base de datos.
 
-1.  **DRY (Don't Repeat Yourself)**: Reutilización de componentes UI (`Input`, `Button`) y lógica de validación (`auth.ts`).
-2.  **KISS (Keep It Simple, Stupid)**: Estructura de carpetas intuitiva y Server Actions directas en lugar de APIs complejas innecesarias.
-3.  **SOLID**: Responsabilidad única en componentes y separación de capas (UI vs Lógica de Negocio).
-4.  **Clean Code**: Nombres de variables descriptivos y código autodocumentado.
+## Guía de Desarrollo
 
-## 🔐 Módulo de Autenticación
+### Reorganización de Componentes
 
-El sistema cuenta con un módulo de autenticación completo y seguro que incluye:
+Los componentes se han reorganizado para mejorar la escalabilidad. Si creas un nuevo componente:
 
-- **Login y Registro** con validación de datos (Zod)
-- **Hashing de contraseñas** con bcrypt
-- **Protección de rutas** mediante Middleware
-- **Autenticación de Dos Factores (2FA)** mockeada para desarrollo
-
-### Credenciales de Prueba (Desarrollo)
-
-El sistema utiliza una base de datos local SQLite (`dev.db`). Puedes registrar un nuevo usuario en `/register`.
-
-### Flujo de 2FA (Mockeado)
-
-1. Al iniciar sesión, se genera un código de 6 dígitos.
-2. Este código se imprime en la **consola del servidor** (terminal donde ejecutas `npm run dev`).
-3. Copia el código e ingrésalo en la pantalla de verificación.
-
-### Comandos Útiles
-
-```bash
-# Ver la base de datos (GUI)
-npx prisma studio
-
-# Resetear base de datos
-npx prisma migrate reset
-```
-
-## 🛠️ Tecnologías
-
-- **Next.js 14** (App Router)
-- **Prisma ORM** (Base de datos)
-- **NextAuth.js v5** (Autenticación)
-- **Zod** (Validaciones)
-- **React Hook Form** (Manejo de formularios)
-
-## Seguridad
-
-- Todos los formularios deben usar **Zod** para validar datos tanto en cliente como en servidor.
-- No commitear nunca el archivo `.env`.
+- Si es estructural (ej. menú), va en `components/layout`.
+- Si es un widget genérico (ej. botón), va en `components/ui`.
+- Si es específico de una vista, va en la carpeta correspondiente (ej. `components/dashboard`).

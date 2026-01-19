@@ -14,6 +14,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================================================
+// ENUMS (MANAGED IN APP LAYER FOR SQLITE COMPATIBILITY)
+// ============================================================================
+// Role: USER, ADMIN, SUPER_ADMIN
+// WithdrawalStatus: PENDING, REVIEWED, APPROVED, PAID, REJECTED
+// TicketStatus: OPEN, IN_PROGRESS, RESOLVED, CLOSED
+// TicketPriority: LOW, MEDIUM, HIGH, URGENT
+
 /// Modelo de Usuario para autenticación y gestión de cuentas.
 /// Incluye campos de seguridad y auditoría.
 model User {
@@ -44,20 +52,417 @@ model User {
   /// Fecha y hora del último inicio de sesión (auditoría)
   lastLogin       DateTime?
   
-  /// Secreto para autenticación de dos factores (2FA)
-  /// En producción contendrá el código temporal generado
-  twoFactorSecret String?
+  /// Secreto TOTP encriptado para autenticación de dos factores (base32)
+  /// Generado durante el registro, usado para validar códigos TOTP
+  totpSecret        String?
   
-  /// Indica si el usuario ha verificado su 2FA en la sesión actual
-  twoFactorVerified Boolean @default(false)
+  /// Indica si el usuario ha completado la configuración de TOTP
+  /// true = puede usar 2FA, false = debe configurarlo (usuarios legacy pueden omitirlo)
+  totpEnabled       Boolean @default(false)
+  
+  /// Indica si el usuario debe cambiar su contraseña en el próximo inicio de sesión
+  /// Se usa para usuarios ADMIN/SUPERADMIN que reciben credenciales iniciales
+  mustChangePassword Boolean @default(false)
 
   /// Rol del usuario para control de acceso (USER, ADMIN, etc.)
+  /// Values: USER, ADMIN, SUPER_ADMIN
   role              String    @default("USER")
+
   
   /// Versión del token para invalidar sesiones concurrentes (Single Session)
   /// Se incrementa en cada login exitoso, invalidando tokens anteriores
   tokenVersion      Int       @default(0)
 
+  // ================================================================
+  // CAMPOS FINANCIEROS (WALLET)
+  // ================================================================
+  
+  /// Capital total invertido por el usuario (suma de todos los depósitos confirmados)
+  investedCapital   Decimal   @default(0)
+  
+  /// Balance disponible para retiro (puede diferir del capital invertido)
+  availableBalance  Decimal   @default(0)
+
+  // ================================================================
+  // RELACIONES
+  // ================================================================
+  
+  /// Transacciones del usuario (depósitos y retiros)
+  transactions      Transaction[]
+  
+  /// Solicitudes de retiro del usuario
+  withdrawalRequests WithdrawalRequest[]
+
   // Índice para búsquedas rápidas por email
   @@index([email])
+
+  // ================================================================
+  // SEGURIDAD EXTENDIDA (Recovery Codes)
+  // ================================================================
+  
+  /// Códigos de recuperación para acceso de emergencia
+  recoveryCodes         RecoveryCode[]
+  
+  /// Auditoría de códigos de recuperación
+  recoveryCodesViewedAt DateTime?
+  
+  /// Intentos fallidos de uso de recovery codes (Rate Limiting)
+  failedRecoveryAttempts Int @default(0)
+  
+  /// Fecha del último intento fallido
+  lastFailedRecoveryAt   DateTime?
+
+  /// Notificaciones del usuario
+  notifications          Notification[]
+
+  /// Tickets de soporte del usuario
+  tickets                Ticket[]
+  
+  /// Mensajes en tickets
+  ticketMessages         TicketMessage[]
+
+  /// Logs de auditoría generados por este usuario
+  auditLogs              AuditLog[]
+
+  /// Cuentas bancarias para retiros
+  bankAccounts           BankAccount[]
+
+  /// Dispositivos de confianza (sesiones donde no se requiere TOTP)
+  trustedDevices         TrustedDevice[]
+
+  /// Sesiones activas del usuario (para revocación individual)
+  sessions               Session[]
+}
+
+// ============================================================================
+// MODELO DE SESIONES ACTIVAS
+// ============================================================================
+/// Rastrea sesiones de login activas para permitir revocación individual.
+/// El sessionId se incluye en el JWT y se verifica en cada request.
+model Session {
+  /// Identificador único de la sesión (incluido en JWT)
+  id            String   @id @default(cuid())
+  
+  /// ID del usuario propietario
+  userId        String
+  
+  /// Relación con el usuario
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  /// Nombre descriptivo del dispositivo (ej: "Chrome en Windows")
+  deviceName    String?
+  
+  /// User-Agent del navegador
+  userAgent     String?
+  
+  /// Dirección IP desde donde se creó la sesión
+  ipAddress     String?
+  
+  /// Fecha de creación de la sesión
+  createdAt     DateTime @default(now())
+  
+  /// Fecha de expiración de la sesión
+  expiresAt     DateTime
+  
+  /// Última actividad de la sesión
+  lastActiveAt  DateTime @default(now())
+  
+  /// Índices para búsquedas eficientes
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ============================================================================
+// MODELO DE DISPOSITIVOS DE CONFIANZA
+// ============================================================================
+/// Dispositivos/navegadores donde el usuario ha verificado TOTP.
+/// Permite omitir TOTP por 30 días en ese dispositivo.
+model TrustedDevice {
+  /// Identificador único del dispositivo
+  id            String   @id @default(cuid())
+  
+  /// ID del usuario propietario
+  userId        String
+  
+  /// Relación con el usuario
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  /// Token único para identificar el dispositivo (cookie)
+  deviceToken   String   @unique
+  
+  /// Nombre descriptivo del dispositivo (ej: "Chrome en Windows")
+  deviceName    String?
+  
+  /// Última vez que se usó este dispositivo
+  lastUsedAt    DateTime
+  
+  /// Fecha de creación
+  createdAt     DateTime @default(now())
+  
+  /// Fecha de expiración (30 días desde creación)
+  expiresAt     DateTime
+  
+  /// Índices para búsquedas eficientes
+  @@index([userId])
+  @@index([deviceToken])
+  @@index([expiresAt])
+}
+
+// ============================================================================
+// MODELO DE NOTIFICACIONES
+// ============================================================================
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO | WARNING | SUCCESS | ERROR
+  read      Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([read])
+}
+
+// ============================================================================
+// MODELO DE CÓDIGOS DE RECUPERACIÓN
+// ============================================================================
+/// Códigos de un solo uso para bypass de 2FA
+model RecoveryCode {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  /// Hash bcrypt del código (nunca texto plano)
+  codeHash   String
+  
+  /// Fecha de uso (null = disponible, fecha = usado)
+  usedAt     DateTime?
+  
+  /// Fecha de generación
+  createdAt  DateTime  @default(now())
+  
+  @@index([userId])
+}
+
+// ============================================================================
+// MODELO DE TRANSACCIONES
+// ============================================================================
+/// Registra todos los movimientos financieros (depósitos y retiros confirmados)
+model Transaction {
+  /// Identificador único de la transacción
+  id              String   @id @default(cuid())
+  
+  /// ID del usuario asociado
+  userId          String
+  
+  /// Relación con el usuario
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  /// Tipo de transacción (DEPOSIT o WITHDRAWAL)
+  type            String   // DEPOSIT | WITHDRAWAL
+  
+  /// Monto de la transacción
+  amount          Decimal
+  
+  /// Estado de la transacción (PENDING, COMPLETED, FAILED)
+  status          String   @default("PENDING") // PENDING | COMPLETED | FAILED
+  
+  /// ID de pago del proveedor (Mercado Pago payment_id o preference_id)
+  paymentId       String?  @unique
+  
+  /// Fecha de creación de la transacción
+  createdAt       DateTime @default(now())
+  
+  /// Fecha de última actualización
+  updatedAt       DateTime @updatedAt
+  
+  /// Índices para búsquedas eficientes
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// MODELO DE SOLICITUDES DE RETIRO
+// ============================================================================
+/// Gestiona las solicitudes de retiro que requieren aprobación administrativa
+model WithdrawalRequest {
+  /// Identificador único de la solicitud
+  id            String    @id @default(cuid())
+  
+  /// ID del usuario que solicita el retiro
+  userId        String
+  
+  /// Relación con el usuario
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  /// Monto solicitado para retiro
+  amount        Decimal
+  
+  /// Estado de la solicitud (PENDING, APPROVED, REJECTED)
+  /// Estado de la solicitud (PENDING, APPROVED, REJECTED)
+  status        String    @default("PENDING")
+  
+  /// Fecha en que se realizó la solicitud
+  requestedAt   DateTime  @default(now())
+  
+  /// Fecha en que se procesó la solicitud (aprobación o rechazo)
+  processedAt   DateTime?
+  
+  /// ID del administrador que procesó la solicitud
+  processedBy   String?
+  
+  /// Notas del administrador sobre la solicitud
+  notes         String?
+  
+  /// Cuenta bancaria destino para el retiro
+  bankAccountId String?
+  
+  /// Relación con la cuenta bancaria
+  bankAccount   BankAccount? @relation(fields: [bankAccountId], references: [id])
+  
+  /// Índices para búsquedas eficientes
+  @@index([userId])
+  @@index([status])
+  @@index([requestedAt])
+  @@index([bankAccountId])
+}
+
+// ============================================================================
+// SISTEMA DE TICKETS (SOPORTE)
+// ============================================================================
+model Ticket {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  subject   String
+  status    String       @default("OPEN")
+  priority  String       @default("MEDIUM")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  messages  TicketMessage[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  message   String
+  isAdmin   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+  @@index([userId])
+}
+
+// ============================================================================
+// AUDITORÍA Y SEGURIDAD
+// ============================================================================
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String   // e.g. "WITHDRAWAL_APPROVED", "USER_UPDATED"
+  
+  entityId   String   // ID del objeto afectado
+  entityType String   // "Withdrawal", "User", "Ticket"
+  
+  userId     String   // Quién realizó la acción
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  details    String?  // JSON string con detalles (diffs, snapshots)
+  ipAddress  String?
+  userAgent  String?
+  
+  createdAt  DateTime @default(now())
+  
+  @@index([action])
+  @@index([userId])
+  @@index([entityType])
+}
+
+// ============================================================================
+// MODELO DE CUENTAS BANCARIAS
+// ============================================================================
+/// Cuentas bancarias registradas para recibir retiros.
+/// El número de cuenta se almacena encriptado (AES-256-GCM).
+model BankAccount {
+  /// Identificador único de la cuenta
+  id                  String   @id @default(cuid())
+  
+  /// ID del usuario propietario
+  userId              String
+  
+  /// Relación con el usuario
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  /// Nombre del titular de la cuenta (como aparece en la tarjeta/cuenta)
+  holderName          String
+  
+  /// Tipo de documento (CC, CE, NIT, PASSPORT, CURP, RFC, etc.)
+  documentType        String
+  
+  /// Número de documento/cédula
+  documentNumber      String
+  
+  /// País de la cuenta (CO = Colombia, MX = México)
+  country             String   @default("CO")
+  
+  /// Código único del banco (para identificación interna)
+  bankCode            String
+  
+  /// Nombre del banco (denormalizado para visualización)
+  bankName            String
+  
+  /// Número de cuenta/CLABE encriptado (AES-256-GCM)
+  accountNumberEncrypted String
+  
+  /// Últimos 4 dígitos de la cuenta (para mostrar al usuario)
+  accountNumberLast4  String
+  
+  /// Tipo de cuenta (SAVINGS = Ahorros, CHECKING = Corriente)
+  accountType         String
+  
+  /// Indica si es la cuenta predeterminada del usuario
+  isDefault           Boolean  @default(false)
+  
+  /// Indica si la cuenta está activa (soft delete)
+  isActive            Boolean  @default(true)
+  
+  /// Fecha de creación
+  createdAt           DateTime @default(now())
+  
+  /// Fecha de última actualización
+  updatedAt           DateTime @updatedAt
+  
+  /// Solicitudes de retiro que usan esta cuenta
+  withdrawalRequests  WithdrawalRequest[]
+  
+  /// Índices para búsquedas eficientes
+  @@index([userId])
+  @@index([country])
+  @@index([isActive])
+}
+
+// ============================================================================
+// CONFIGURACIÓN DEL SISTEMA
+// ============================================================================
+model SystemSetting {
+  key         String   @id
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
 }

@@ -1,0 +1,114 @@
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import {
+  UserRole,
+  WithdrawalStatus,
+  TicketStatus,
+  VALID_WITHDRAWAL_TRANSITIONS,
+  VALID_TICKET_TRANSITIONS,
+} from "./enums";
+
+// ============================================================================
+// RBAC UTILITIES
+// ============================================================================
+
+/**
+ * Obtiene el rol del usuario actual. Returns null si no hay sesión.
+ */
+export async function getCurrentRole(): Promise<UserRole | null> {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+
+  // Buscar en DB para asegurar rol actualizado (no confiar solo en cookie)
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true },
+  });
+
+  return (user?.role as UserRole) || null;
+}
+
+/**
+ * Verifica si el usuario tiene el rol requerido o superior.
+ * Jerarquía: SUPER_ADMIN > ADMIN > USER
+ */
+export async function hasPermission(requiredRole: UserRole): Promise<boolean> {
+  const currentRole = await getCurrentRole();
+  if (!currentRole) return false;
+
+  if (currentRole === UserRole.SUPER_ADMIN) return true;
+  if (currentRole === UserRole.ADMIN && requiredRole !== UserRole.SUPER_ADMIN)
+    return true;
+  if (currentRole === UserRole.USER && requiredRole === UserRole.USER)
+    return true;
+
+  return false;
+}
+
+/**
+ * Lanza error si no tiene permisos. Útil para Server Actions.
+ */
+export async function requireRole(requiredRole: UserRole) {
+  const allowed = await hasPermission(requiredRole);
+  if (!allowed) {
+    throw new Error("Acceso Denegado: Permisos insuficientes.");
+  }
+}
+
+// ============================================================================
+// STATE MACHINE LOGIC
+// ============================================================================
+
+/**
+ * Valida si una transición de estado es válida según reglas estrictas.
+ */
+export function validateWithdrawalTransition(
+  current: WithdrawalStatus,
+  next: WithdrawalStatus
+): boolean {
+  const allowed = VALID_WITHDRAWAL_TRANSITIONS[current];
+  return allowed?.includes(next) || false;
+}
+
+export function validateTicketTransition(
+  current: TicketStatus,
+  next: TicketStatus
+): boolean {
+  const allowed = VALID_TICKET_TRANSITIONS[current];
+  return allowed?.includes(next) || false;
+}
+
+// ============================================================================
+// AUDIT LOGGING
+// ============================================================================
+
+export async function logAudit(
+  action: string,
+  entityType: string,
+  entityId: string,
+  details?: object
+) {
+  const session = await auth();
+  const userId = session?.user?.id;
+
+  if (!userId) {
+    console.warn("Audit Log attempted without User ID");
+    return;
+  }
+
+  try {
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        action,
+        entityType,
+        entityId,
+        details: details ? JSON.stringify(details) : null,
+        // ipAddress: headers().get("x-forwarded-for") // Opcional si estamos en server component
+      },
+    });
+  } catch (error) {
+    console.error("Failed to write audit log:", error);
+    // No fallar la transacción principal si el log falla, pero reportar
+  }
+}
