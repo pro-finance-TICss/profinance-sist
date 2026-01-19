@@ -33,16 +33,32 @@ src/
 
 2.  **Iniciar servidor local**:
 
+    Desde la raíz del proyecto (recomendado):
+
     ```bash
     npm run landing:dev
+    ```
+
+    O desde la carpeta `Landing`:
+
+    ```bash
+    npm run dev
     ```
 
     El sitio estará disponible en `http://localhost:4321`.
 
 3.  **Construir para producción**:
 
+    Desde la raíz:
+
     ```bash
     npm run landing:build
+    ```
+
+    O localmente:
+
+    ```bash
+    npm run build
     ```
 
 ## Stack Tecnológico

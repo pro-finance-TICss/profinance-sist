@@ -80,9 +80,19 @@ src/
    ```
 
 6. **Ejecutar servidor de desarrollo**:
+
+   Desde la carpeta `App`:
+
    ```bash
    npm run dev
    ```
+
+   O desde la raíz del proyecto (recomendado):
+
+   ```bash
+   npm run app:dev
+   ```
+
    Accede a [http://localhost:3000](http://localhost:3000).
 
 ## Comandos Útiles
