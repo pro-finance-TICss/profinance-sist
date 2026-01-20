@@ -80,39 +80,44 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         }}
       />
 
-      {/* SIDEBAR con control móvil y colapsado */}
+      {/* SIDEBAR REESTRUCTURADO */}
       <aside
         style={{
           width: sidebarWidth,
           flexShrink: 0,
           backgroundColor: "#000",
           borderRight: "1px solid rgba(189, 142, 72, 0.1)",
-          zIndex: Z_INDEX.SIDEBAR,
-          // CAMBIO: Usamos 'fixed' para que no se mueva, pero 'left: 0' siempre
-          position: isMobile ? "absolute" : "fixed",
-          left: isMobile ? (isSidebarOpen ? "0" : "-260px") : "0",
-          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           height: "100vh",
+          // --- CAMBIO CLAVE PARA TABLET/DESKTOP ---
+          // En móvil sigue siendo absolute/fixed para flotar.
+          // En tablet, usamos 'relative' para que sea un bloque físico que NO tapa nada.
+          position: isMobile ? "absolute" : "relative",
+          left: isMobile ? (isSidebarOpen ? "0" : "-260px") : "0",
+          zIndex: isMobile ? Z_INDEX.SIDEBAR : 1, // Z-index mínimo en tablet
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
         <Sidebar onNavigate={closeSidebar} />
       </aside>
 
-      {/* OVERLAY MENÚ MÓVIL */}
-      {/* COMENTA TODO ESTE BLOQUE
-      {isMobile && isSidebarOpen && (
+      {/* 🛡️ OVERLAY ESTILIZADO (Respetando arquitectura) */}
+      {isSidebarOpen && (isMobile || (isTablet && !isCollapsed)) && (
         <div
           onClick={closeSidebar}
           style={{
             position: "fixed",
             inset: 0,
-            backgroundColor: "rgba(0,0,0,0.6)",
-            zIndex: Z_INDEX.OVERLAY,
+            // Bajamos la intensidad del negro (0.3) para que no sea un bloque sólido
+            backgroundColor: "rgba(0, 0, 0, 0.3)",
+            // El Z_INDEX.OVERLAY debe ser menor al del Sidebar pero mayor al contenido
+            zIndex: Z_INDEX.OVERLAY || 40,
+            // Aumentamos el blur para que se vea más moderno/platinum
             backdropFilter: "blur(4px)",
+            cursor: "pointer",
+            transition: "all 0.3s ease",
           }}
         />
-      )} 
-*/}
+      )}
 
       {/* CONTENEDOR DERECHO (Main Content) */}
       <div
@@ -121,47 +126,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           display: "flex",
           flexDirection: "column",
           minWidth: 0,
-          zIndex: Z_INDEX.CONTENT,
           position: "relative",
           backgroundColor: "transparent",
-          // --- INTEGRACIÓN DE SEGURIDAD (RESPETANDO AL AGENTE) ---
-          // Usamos su variable 'sidebarWidth' para empujar el contenido
-          marginLeft: !isMobile ? sidebarWidth : "0",
-          // Usamos su misma transición para que todo se mueva en conjunto
-          transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), all 0.3s ease",
-          // Calculamos el ancho restante para que nada se desborde a la derecha
-          width: !isMobile ? `calc(100vw - ${sidebarWidth})` : "100%",
+          // --- ELIMINAMOS EL MARGIN LEFT EN TABLET ---
+          marginLeft: 0,
+          // El ancho ahora es automático gracias a flex: 1
+          width: "100%",
+          zIndex: 5, // Un poco más que el sidebar pero menos que los modales
+          transition: "all 0.3s ease",
         }}
       >
-        {/* BOTÓN MENÚ MÓVIL/TABLET (drawer) */}
-        {isDrawerMode && (
-          <button
-            onClick={toggleSidebar}
-            style={{
-              position: "absolute",
-              top: "20px",
-              left: "20px",
-              zIndex: Z_INDEX.MOBILE_MENU_BUTTON,
-              background: "rgba(189, 142, 72, 0.1)",
-              border: "1px solid rgba(189, 142, 72, 0.3)",
-              borderRadius: "8px",
-              padding: "12px",
-              color: "#bd8e48",
-              cursor: "pointer",
-              transition: "all 0.3s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(189, 142, 72, 0.2)";
-              e.currentTarget.style.transform = "scale(1.05)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(189, 142, 72, 0.1)";
-              e.currentTarget.style.transform = "scale(1)";
-            }}
-          >
-            <Menu size={24} />
-          </button>
-        )}
+
 
         <DashboardHeader title={title} />
 

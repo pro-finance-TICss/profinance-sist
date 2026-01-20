@@ -220,80 +220,155 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                 style={{ marginBottom: "8px", padding: "0 15px", position: "relative" }}
               >
                 <Link
+
                   href={item.href}
+
                   onClick={handleNavigation}
+
                   onMouseEnter={() => setHoveredItem(item.label)}
+
                   onMouseLeave={() => setHoveredItem(null)}
+
                   style={{
+
                     display: "flex",
+
                     alignItems: "center",
+
                     justifyContent: isCollapsed && !isMobile ? "center" : "flex-start",
+
                     gap: "15px",
+
                     width: "100%",
+
                     padding: isCollapsed && !isMobile ? "12px" : "12px 20px",
+
                     cursor: "pointer",
+
                     borderRadius: "12px",
+
                     textAlign: "left",
+
                     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+
                     position: "relative",
+
                     outline: "none",
+                    WebkitTapHighlightColor: "transparent",
                     textDecoration: "none",
 
+
+
                     border:
+
                       isActive || isHovered
+
                         ? "1px solid #bd8e48"
+
                         : "1px solid transparent",
 
+
+
                     backgroundColor: isActive
+
                       ? "#bd8e48"
+
                       : isHovered
+
                         ? "rgba(189, 142, 72, 0.05)"
+
                         : "transparent",
 
+
+
                     boxShadow:
+
                       isHovered && !isActive
+
                         ? "0 0 15px rgba(189, 142, 72, 0.3), inset 0 0 10px rgba(189, 142, 72, 0.1)"
+
                         : isActive
+
                           ? "0 4px 20px rgba(189, 142, 72, 0.4)"
+
                           : "none",
+
+
 
                     color: isActive
+
                       ? "#000"
+
                       : isHovered
+
                         ? "#fff"
+
                         : "rgba(255,255,255,0.4)",
+
                     transform:
+
                       !isActive && isHovered && !isCollapsed
+
                         ? "translateX(8px)"
+
                         : "translateX(0)",
+
                   }}
+
                 >
+
                   <span
+
                     style={{
+
                       display: "flex",
+
                       color: isActive ? "#000" : "#bd8e48",
+
                       filter:
+
                         isHovered && !isActive
+
                           ? "drop-shadow(0 0 5px #bd8e48)"
+
                           : "none",
+
                       transition: "all 0.3s",
+
                     }}
+
                   >
+
                     {item.icon}
+
                   </span>
 
+
+
                   {/* Texto del menú (oculto en modo colapsado) */}
+
                   {(!isCollapsed || isMobile) && (
+
                     <span
+
                       style={{
+
                         fontSize: "0.95rem",
+
                         fontWeight: isActive ? "700" : "500",
+
                         transition: "all 0.3s",
+
                       }}
+
                     >
+
                       {item.label}
+
                     </span>
+
                   )}
+
                 </Link>
 
                 {/* Tooltip para modo colapsado */}

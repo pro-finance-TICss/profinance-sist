@@ -99,22 +99,22 @@ export const DashboardHeader = ({ title }: { title: string }) => {
           transition: "all 0.3s ease"
         }}
       >
-        {/* CAMBIO CLAVE: Si es Tablet o Desktop, la hamburguesa desaparece 100% */}
+        {/* BOTÓN HAMBURGUESA: Solo visible en móvil (< 768px) */}
         {isMobile && (
           <button
             onClick={toggleSidebar}
             style={{
-              position: "absolute",
-              right: "15px",
+              // Eliminamos el position absolute para que fluya con el flex del header
               background: "none",
               border: "none",
               color: "#bd8e48",
               cursor: "pointer",
-              // ESTA ES LA CLAVE TÉCNICA:
-              // Si el ancho es mayor o igual a 768px (Tablet), lo ocultamos a la fuerza.
-              display: typeof window !== "undefined" && window.innerWidth >= 768 ? "none" : "flex",
+              display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              padding: "8px",
+              borderRadius: "8px",
+              backgroundColor: "rgba(189, 142, 72, 0.05)",
               zIndex: 60
             }}
           >
