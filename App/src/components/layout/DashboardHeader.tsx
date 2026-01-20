@@ -24,9 +24,14 @@ export const DashboardHeader = ({ title }: { title: string }) => {
         width: "100%",
       }}
     >
-      {/* 1. TÍTULO DINÁMICO (Oculto en móvil para ahorrar espacio) */}
+
+      {/* 1. TÍTULO DINÁMICO - COMENTADO PARA GANAR ESPACIO Y EVITAR REDUNDANCIA
       {!isMobile && (
-        <div style={{ minWidth: "200px" }}>
+        <div style={{
+          minWidth: "200px",
+          flexShrink: 0, 
+          zIndex: 2 
+        }}>
           <h2
             style={{
               margin: 0,
@@ -50,11 +55,16 @@ export const DashboardHeader = ({ title }: { title: string }) => {
             SISTEMA DE GESTIÓN PRO
           </span>
         </div>
-      )}
+      )} 
+      */}
 
       {/* 2. BUSCADOR CENTRAL MEJORADO (Oculto en móvil) */}
       {!isMobile && (
-        <div style={{ flex: isTablet ? 0.3 : 0.4, position: "relative" }}>
+        <div style={{
+          flex: isTablet ? "0 1 250px" : "0 1 400px",
+          position: "relative",
+          marginRight: "auto",
+        }}>
           <Search
             size={16}
             color="#bd8e48"
@@ -88,23 +98,25 @@ export const DashboardHeader = ({ title }: { title: string }) => {
         </div>
       )}
 
-      {/* 3. PERFIL Y NOTIFICACIONES */}
+      {/* 3. PERFIL Y NOTIFICACIONES - AJUSTE PARA MÓVIL (CORREGIDO) */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: isMobile ? "12px" : "25px",
-          marginLeft: "auto",
-          paddingRight: isMobile ? "50px" : "0",
-          transition: "all 0.3s ease"
+          justifyContent: isMobile ? "space-between" : "flex-end",
+          width: isMobile ? "100%" : "auto",
+          gap: isMobile ? "0" : "25px",
+          position: "relative",
+          zIndex: 10,
+          backgroundColor: isTablet ? "rgba(0,0,0,0.5)" : "transparent",
+          borderRadius: "12px",
         }}
       >
-        {/* BOTÓN HAMBURGUESA: Solo visible en móvil (< 768px) */}
+        {/* BOTÓN HAMBURGUESA: Extremo izquierdo en móvil */}
         {isMobile && (
           <button
             onClick={toggleSidebar}
             style={{
-              // Eliminamos el position absolute para que fluya con el flex del header
               background: "none",
               border: "none",
               color: "#bd8e48",
@@ -121,62 +133,64 @@ export const DashboardHeader = ({ title }: { title: string }) => {
             <Menu size={24} />
           </button>
         )}
-        <NotificationBell />
 
-        {/* Perfil de Socio */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "15px",
-            paddingLeft: "20px",
-            borderLeft: "1px solid rgba(189, 142, 72, 0.2)",
-          }}
-        >
-          <div style={{ textAlign: "right" }}>
-            <p
-              style={{
-                margin: 0,
-                fontSize: "0.85rem",
-                fontWeight: "700",
-                color: "#fff",
-                letterSpacing: "0.3px",
-              }}
-            >
-              Socio Pro-Finance
-            </p>
-            <p
-              style={{
-                margin: 0,
-                fontSize: "0.65rem",
-                color: "#bd8e48",
-                fontWeight: "bold",
-                textTransform: "uppercase",
-              }}
-            >
-              Platinum Member
-            </p>
-          </div>
+        {/* CONTENEDOR DERECHO: Campana + Perfil */}
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? "10px" : "25px" }}>
+          <NotificationBell />
 
-          {/* Avatar con el estilo de la marca */}
-          <Link href="/dashboard/ajustes?tab=profile">
-            <div
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "12px",
-                background: "linear-gradient(135deg, #bd8e48, #8a662d)",
-                border: "2px solid rgba(189, 142, 72, 0.4)",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
-                cursor: "pointer",
-              }}
-            >
-              <User size={22} color="#000" />
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "15px",
+              paddingLeft: isMobile ? "0" : "20px",
+              borderLeft: isMobile ? "none" : "1px solid rgba(189, 142, 72, 0.2)",
+            }}
+          >
+            <div style={{ textAlign: "right" }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "0.85rem",
+                  fontWeight: "700",
+                  color: "#fff",
+                  letterSpacing: "0.3px",
+                }}
+              >
+                Socio Pro-Finance
+              </p>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "0.65rem",
+                  color: "#bd8e48",
+                  fontWeight: "bold",
+                  textTransform: "uppercase",
+                }}
+              >
+                Platinum Member
+              </p>
             </div>
-          </Link>
+
+            <Link href="/dashboard/ajustes?tab=profile">
+              <div
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "12px",
+                  background: "linear-gradient(135deg, #bd8e48, #8a662d)",
+                  border: "2px solid rgba(189, 142, 72, 0.4)",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
+                  cursor: "pointer",
+                }}
+              >
+                <User size={22} color="#000" />
+              </div>
+            </Link>
+          </div>
         </div>
       </div>
     </header>
@@ -184,7 +198,7 @@ export const DashboardHeader = ({ title }: { title: string }) => {
 };
 
 // ============================================================================
-// COMPONENTE DE NOTIFICACIONES (INTERNO)
+// COMPONENTE DE NOTIFICACIONES (RESTAURADO COMPLETAMENTE)
 // ============================================================================
 import { useState, useEffect, useRef } from "react";
 import {
@@ -200,7 +214,7 @@ import {
   CheckCircle,
   AlertCircle,
 } from "lucide-react";
-import Link from "next/link"; // Agregado para el link del perfil
+import Link from "next/link";
 
 function NotificationBell() {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -217,12 +231,10 @@ function NotificationBell() {
 
   useEffect(() => {
     loadNotifications();
-    // Polling simple cada 30s
     const interval = setInterval(loadNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Cerrar dropdown al hacer click fuera
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (

@@ -228,6 +228,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                   onMouseEnter={() => setHoveredItem(item.label)}
 
                   onMouseLeave={() => setHoveredItem(null)}
+                  title={isCollapsed && !isMobile ? item.label : ""}
 
                   style={{
 
