@@ -1,10 +1,11 @@
 "use client";
 import React from "react";
-import { Search, Bell, User } from "lucide-react";
+import { Search, Bell, User, Menu } from "lucide-react"; // Solo añadimos Menu
 import { useDashboard } from "@/contexts/DashboardContext";
 
 export const DashboardHeader = ({ title }: { title: string }) => {
-  const { isMobile, isTablet } = useDashboard();
+  // Añadimos isCollapsed a la extracción del contexto
+  const { isMobile, isTablet, isCollapsed, toggleSidebar } = useDashboard();
 
   return (
     <header
@@ -92,12 +93,36 @@ export const DashboardHeader = ({ title }: { title: string }) => {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: isMobile ? "12px" : "25px", // Menos espacio entre campana y perfil en móvil
-          marginLeft: "auto", // Empuja todo a la derecha
-          paddingRight: isMobile ? "50px" : "0", // ESTE ES EL TRUCO: Deja espacio para el botón de hamburguesa
+          gap: isMobile ? "12px" : "25px",
+          marginLeft: "auto",
+          paddingRight: isMobile ? "50px" : "0",
           transition: "all 0.3s ease"
         }}
       >
+        {/* CAMBIO CLAVE: Si es Tablet o Desktop, la hamburguesa desaparece 100% */}
+        {isMobile && (
+          <button
+            onClick={toggleSidebar}
+            style={{
+              position: "absolute",
+              right: "15px",
+              background: "none",
+              border: "none",
+              color: "#bd8e48",
+              cursor: "pointer",
+              // ESTA ES LA CLAVE TÉCNICA:
+              // Si el ancho es mayor o igual a 768px (Tablet), lo ocultamos a la fuerza.
+              display: typeof window !== "undefined" && window.innerWidth >= 768 ? "none" : "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 60
+            }}
+          >
+            <Menu size={24} />
+          </button>
+        )}
+        <NotificationBell />
+
         {/* Perfil de Socio */}
         <div
           style={{
@@ -321,7 +346,7 @@ function NotificationBell() {
             )}
           </div>
 
-          <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+          <div className="custom-scrollbar" style={{ maxHeight: "300px", overflowY: "auto" }}>
             {notifications.length === 0 ? (
               <div
                 style={{

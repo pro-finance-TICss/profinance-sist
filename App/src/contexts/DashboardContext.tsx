@@ -13,11 +13,17 @@ interface DashboardContextValue {
     isTablet: boolean;
     isDesktop: boolean;
 
-    // Estado del menú móvil
+    // Estado del menú móvil (drawer en móvil/tablet)
     isSidebarOpen: boolean;
     openSidebar: () => void;
     closeSidebar: () => void;
     toggleSidebar: () => void;
+
+    // Estado de colapso del sidebar (solo para tablet/desktop)
+    isCollapsed: boolean;
+    collapseSidebar: () => void;
+    expandSidebar: () => void;
+    toggleCollapse: () => void;
 }
 
 /**
@@ -47,10 +53,21 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
     // Detectar breakpoints usando el hook personalizado
     const { isMobile, isTablet, isDesktop } = useBreakpoints();
 
-    // Estado del sidebar (solo relevante en móvil/tablet)
+    // Estado del sidebar drawer (solo relevante en móvil/tablet cuando actúa como drawer)
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    // Handlers memoizados para evitar re-renders innecesarios
+    // MODIFICACIÓN QUIRÚRGICA: Iniciamos en false para evitar el error de hidratación
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
+    // NUEVO: Efecto para cargar la persistencia sin romper el renderizado del servidor
+    React.useEffect(() => {
+        const saved = localStorage.getItem("sidebar-collapsed");
+        if (saved !== null) {
+            setIsCollapsed(saved === "true");
+        }
+    }, []);
+
+    // Handlers para el drawer (móvil/tablet) - MANTENIDOS IGUAL
     const openSidebar = useCallback(() => {
         setIsSidebarOpen(true);
     }, []);
@@ -63,14 +80,50 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
         setIsSidebarOpen((prev) => !prev);
     }, []);
 
-    // Cerrar automáticamente el sidebar cuando se pasa a desktop
+    // Handlers para el colapso (tablet/desktop) - MANTENIDOS IGUAL
+    const collapseSidebar = useCallback(() => {
+        setIsCollapsed(true);
+    }, []);
+
+    const expandSidebar = useCallback(() => {
+        setIsCollapsed(false);
+    }, []);
+
+    const toggleCollapse = () => {
+        setIsCollapsed((prev) => {
+            const newState = !prev;
+            // Guardamos en el disco del navegador - MANTENIDO IGUAL
+            localStorage.setItem("sidebar-collapsed", String(newState));
+            return newState;
+        });
+    };
+
+    // Cerrar automáticamente el drawer cuando se pasa a desktop - MANTENIDO IGUAL
     React.useEffect(() => {
         if (isDesktop) {
             setIsSidebarOpen(false);
         }
     }, [isDesktop]);
 
-    // Memoizar el valor del contexto para evitar re-renders
+    // Ajustar el estado de colapso según el breakpoint - MANTENIDO IGUAL
+    // Nota: Esta lógica del agente sobreescribe la persistencia si cambias de tamaño
+    // Ajustar el estado de colapso según el breakpoint
+    React.useEffect(() => {
+        if (isTablet) {
+            // En Tablet: El sidebar está visible (fijo) pero colapsado (80px).
+            // Importante: isSidebarOpen DEBE ser false para que NO aparezca el fondo negro.
+            setIsCollapsed(true);
+            setIsSidebarOpen(false); // <--- CAMBIA DE true A false
+        } else if (isDesktop) {
+            const saved = localStorage.getItem("sidebar-collapsed");
+            if (saved === null) {
+                setIsCollapsed(false);
+            }
+            setIsSidebarOpen(false); // También false en desktop para evitar el overlay
+        }
+    }, [isTablet, isDesktop]);
+
+    // Memoizar el valor del contexto para evitar re-renders - MANTENIDO IGUAL
     const value = useMemo(
         () => ({
             isMobile,
@@ -80,8 +133,24 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
             openSidebar,
             closeSidebar,
             toggleSidebar,
+            isCollapsed,
+            collapseSidebar,
+            expandSidebar,
+            toggleCollapse,
         }),
-        [isMobile, isTablet, isDesktop, isSidebarOpen, openSidebar, closeSidebar, toggleSidebar]
+        [
+            isMobile,
+            isTablet,
+            isDesktop,
+            isSidebarOpen,
+            openSidebar,
+            closeSidebar,
+            toggleSidebar,
+            isCollapsed,
+            collapseSidebar,
+            expandSidebar,
+            toggleCollapse,
+        ]
     );
 
     return (

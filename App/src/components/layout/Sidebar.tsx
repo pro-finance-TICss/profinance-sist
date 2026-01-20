@@ -21,10 +21,25 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onNavigate }: SidebarProps) {
-  // AGREGA ESTA LÍNEA AQUÍ:
-  const { isSidebarOpen, isMobile, isTablet } = useDashboard();
+  const {
+    isSidebarOpen,
+    isMobile,
+    isTablet,
+    isCollapsed,
+    toggleCollapse // <- Esta es la pieza clave que nos faltaba
+  } = useDashboard();
   const pathname = usePathname();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+
+  // Determinar el ancho del sidebar según el estado
+  // Móvil/Tablet con drawer: 260px (cuando está abierto)
+  // Tablet/Desktop colapsado: 80px
+  // Desktop expandido: 260px
+  const sidebarWidth = isCollapsed && !isMobile ? "80px" : "260px";
+
+  // En móvil/tablet, el sidebar es un drawer que se muestra/oculta
+  // En desktop, el sidebar siempre está visible pero puede estar colapsado
+  const isDrawerMode = isMobile;
 
   const menuItems = [
     {
@@ -71,30 +86,29 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <aside
       style={{
-        width: "260px",
+        width: sidebarWidth,
         height: "100vh",
         backgroundColor: "#000",
         borderRight: "1px solid rgba(189, 142, 72, 0.2)",
         padding: "40px 0",
         display: "flex",
         flexDirection: "column",
-
-        // --- ESTO ES LO QUE DEBES AGREGAR ---
-        position: (isMobile || isTablet) ? "fixed" : "relative", // En móvil flota, en PC empuja el contenido
-        left: (isMobile || isTablet) ? (isSidebarOpen ? "0" : "-260px") : "0",
-        top: 0,
-        zIndex: 100, // Para que en móvil pase por encima del contenido
-        transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)", // Animación suave al abrir/cerrar
-        // ------------------------------------
+        // CAMBIO: Solo en móvil es fixed. En Tablet (800px) debe ser relative 
+        // para que el contenido de la derecha sepa dónde empezar.
+        position: isMobile ? "fixed" : "relative",
+        left: isMobile ? (isSidebarOpen ? "0" : "-260px") : "0",
+        opacity: 1,
+        zIndex: 200,
+        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       }}
     >
-      {/* HEADER DEL SIDEBAR: LOGO CON CONTENEDOR ESTÉTICO */}
-      <div style={{ marginBottom: "50px", padding: "0 20px" }}>
+      {/* HEADER DEL SIDEBAR: LOGO */}
+      <div style={{ marginTop: "35px", marginBottom: "40px", padding: "0 20px" }}>
         <div
           style={{
             backgroundColor: "rgba(189, 142, 72, 0.03)",
             borderRadius: "16px",
-            padding: "20px",
+            padding: isCollapsed && !isMobile ? "15px" : "20px",
             border: "1px solid rgba(189, 142, 72, 0.15)",
             display: "flex",
             justifyContent: "center",
@@ -102,6 +116,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             position: "relative",
             overflow: "hidden",
             boxShadow: "inset 0 0 20px rgba(189, 142, 72, 0.05)",
+            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           }}
         >
           <div
@@ -119,9 +134,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
           <div
             style={{
               width: "100%",
-              maxWidth: "180px",
+              maxWidth: isCollapsed && !isMobile ? "55px" : "180px",
               position: "relative",
               zIndex: 1,
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
             }}
           >
             <img
@@ -141,21 +157,67 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         </h1>
       </div>
 
+      {/* BOTÓN DE COLAPSO - TAMAÑO GRANDE PROFESIONAL */}
+      {!isMobile && (
+        <button
+          onClick={toggleCollapse}
+          style={{
+            position: "absolute",
+            right: "12px",
+            top: "12px",
+            zIndex: 101,
+            // Escalamos a 42px para una presencia fuerte
+            width: "42px",
+            height: "42px",
+            backgroundColor: "rgba(189, 142, 72, 0.12)",
+            border: "1px solid rgba(189, 142, 72, 0.4)",
+            borderRadius: "12px", // Aumentamos radio para suavizar el tamaño grande
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            color: "#bd8e48",
+            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)", // Añadimos una sombra sutil
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(189, 142, 72, 0.2)";
+            e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.8)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(189, 142, 72, 0.12)";
+            e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.4)";
+          }}
+        >
+          <svg
+            // Icono más grande y definido
+            width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8"
+            style={{
+              transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)",
+              transition: "transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+            }}
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+      )}
+
+      {/* MENÚ DE NAVEGACIÓN */}
       <nav style={{ flex: 1 }}>
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {menuItems.map((item, index) => {
-            // Determinar si está activo
             const isActive =
               item.href === "/dashboard"
                 ? pathname === "/dashboard"
                 : pathname.startsWith(item.href);
 
             const isHovered = hoveredItem === item.label;
+            const showTooltip = isCollapsed && !isMobile && isHovered;
 
             return (
               <li
                 key={index}
-                style={{ marginBottom: "8px", padding: "0 15px" }}
+                style={{ marginBottom: "8px", padding: "0 15px", position: "relative" }}
               >
                 <Link
                   href={item.href}
@@ -165,9 +227,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                   style={{
                     display: "flex",
                     alignItems: "center",
+                    justifyContent: isCollapsed && !isMobile ? "center" : "flex-start",
                     gap: "15px",
                     width: "100%",
-                    padding: "12px 20px",
+                    padding: isCollapsed && !isMobile ? "12px" : "12px 20px",
                     cursor: "pointer",
                     borderRadius: "12px",
                     textAlign: "left",
@@ -200,7 +263,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                         ? "#fff"
                         : "rgba(255,255,255,0.4)",
                     transform:
-                      !isActive && isHovered
+                      !isActive && isHovered && !isCollapsed
                         ? "translateX(8px)"
                         : "translateX(0)",
                   }}
@@ -218,31 +281,75 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                   >
                     {item.icon}
                   </span>
-                  <span
+
+                  {/* Texto del menú (oculto en modo colapsado) */}
+                  {(!isCollapsed || isMobile) && (
+                    <span
+                      style={{
+                        fontSize: "0.95rem",
+                        fontWeight: isActive ? "700" : "500",
+                        transition: "all 0.3s",
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                  )}
+                </Link>
+
+                {/* Tooltip para modo colapsado */}
+                {showTooltip && (
+                  <div
                     style={{
-                      fontSize: "0.95rem",
-                      fontWeight: isActive ? "700" : "500",
-                      transition: "all 0.3s",
+                      position: "absolute",
+                      left: "calc(100% + 10px)",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      backgroundColor: "rgba(189, 142, 72, 0.95)",
+                      color: "#000",
+                      padding: "8px 16px",
+                      borderRadius: "8px",
+                      fontSize: "0.85rem",
+                      fontWeight: "600",
+                      whiteSpace: "nowrap",
+                      zIndex: 1000,
+                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+                      pointerEvents: "none",
+                      animation: "fadeIn 0.2s ease-in-out",
                     }}
                   >
                     {item.label}
-                  </span>
-                </Link>
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: "-6px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: 0,
+                        height: 0,
+                        borderTop: "6px solid transparent",
+                        borderBottom: "6px solid transparent",
+                        borderRight: "6px solid rgba(189, 142, 72, 0.95)",
+                      }}
+                    />
+                  </div>
+                )}
               </li>
             );
           })}
         </ul>
       </nav>
 
+      {/* BOTÓN DE LOGOUT */}
       <div style={{ padding: "0 15px" }}>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           style={{
             display: "flex",
             alignItems: "center",
+            justifyContent: isCollapsed && !isMobile ? "center" : "flex-start",
             gap: "15px",
             width: "100%",
-            padding: "12px 20px",
+            padding: isCollapsed && !isMobile ? "12px" : "12px 20px",
             backgroundColor: "transparent",
             border: "none",
             color: "#ff4d4d",
@@ -258,7 +365,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
           }
         >
           <LogOut size={20} />
-          <span>Cerrar Sesión</span>
+          {(!isCollapsed || isMobile) && <span>Cerrar Sesión</span>}
         </button>
       </div>
     </aside>

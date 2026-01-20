@@ -24,7 +24,7 @@ export default function DashboardLayout({
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isMobile, isTablet, isDesktop, isSidebarOpen, closeSidebar, toggleSidebar } = useDashboard();
+  const { isMobile, isTablet, isDesktop, isSidebarOpen, closeSidebar, toggleSidebar, isCollapsed, toggleCollapse } = useDashboard();
 
   // Validar sesión cada 30 segundos y cuando la ventana recupere el foco
   useSessionValidator(30000);
@@ -45,6 +45,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   };
 
   const title = getTitle(pathname);
+
+  // Determinar el ancho del sidebar dinámicamente
+  const sidebarWidth = isCollapsed && !isMobile ? "80px" : "260px";
+  const isDrawerMode = isMobile;
 
   return (
     <div
@@ -76,36 +80,39 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         }}
       />
 
-      {/* SIDEBAR con control móvil */}
+      {/* SIDEBAR con control móvil y colapsado */}
       <aside
         style={{
-          width: "260px",
+          width: sidebarWidth,
           flexShrink: 0,
           backgroundColor: "#000",
           borderRight: "1px solid rgba(189, 142, 72, 0.1)",
           zIndex: Z_INDEX.SIDEBAR,
-          position: isMobile || isTablet ? "absolute" : "relative",
-          left: isMobile || isTablet ? (isSidebarOpen ? "0" : "-260px") : "0",
-          transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-          height: "100%",
+          // CAMBIO: Usamos 'fixed' para que no se mueva, pero 'left: 0' siempre
+          position: isMobile ? "absolute" : "fixed",
+          left: isMobile ? (isSidebarOpen ? "0" : "-260px") : "0",
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          height: "100vh",
         }}
       >
         <Sidebar onNavigate={closeSidebar} />
       </aside>
 
       {/* OVERLAY MENÚ MÓVIL */}
-      {(isMobile || isTablet) && isSidebarOpen && (
+      {/* COMENTA TODO ESTE BLOQUE
+      {isMobile && isSidebarOpen && (
         <div
           onClick={closeSidebar}
           style={{
-            position: "absolute",
+            position: "fixed",
             inset: 0,
             backgroundColor: "rgba(0,0,0,0.6)",
             zIndex: Z_INDEX.OVERLAY,
             backdropFilter: "blur(4px)",
           }}
         />
-      )}
+      )} 
+*/}
 
       {/* CONTENEDOR DERECHO (Main Content) */}
       <div
@@ -117,9 +124,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           zIndex: Z_INDEX.CONTENT,
           position: "relative",
           backgroundColor: "transparent",
+          // --- INTEGRACIÓN DE SEGURIDAD (RESPETANDO AL AGENTE) ---
+          // Usamos su variable 'sidebarWidth' para empujar el contenido
+          marginLeft: !isMobile ? sidebarWidth : "0",
+          // Usamos su misma transición para que todo se mueva en conjunto
+          transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), all 0.3s ease",
+          // Calculamos el ancho restante para que nada se desborde a la derecha
+          width: !isMobile ? `calc(100vw - ${sidebarWidth})` : "100%",
         }}
       >
-        {(isMobile || isTablet) && (
+        {/* BOTÓN MENÚ MÓVIL/TABLET (drawer) */}
+        {isDrawerMode && (
           <button
             onClick={toggleSidebar}
             style={{
@@ -133,6 +148,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               padding: "12px",
               color: "#bd8e48",
               cursor: "pointer",
+              transition: "all 0.3s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(189, 142, 72, 0.2)";
+              e.currentTarget.style.transform = "scale(1.05)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(189, 142, 72, 0.1)";
+              e.currentTarget.style.transform = "scale(1)";
             }}
           >
             <Menu size={24} />
@@ -155,11 +179,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         >
           <div
             style={{
-              padding: isMobile ? "20px" : isTablet ? "25px" : "30px 40px",
+              padding: isMobile ? "20px" : isTablet ? "20px" : "30px 40px",
               display: "flex",
               flexDirection: "column",
               gap: isMobile ? "1.5rem" : "2.5rem",
-              marginTop: isMobile || isTablet ? "60px" : "0",
+              marginTop: isMobile ? "60px" : "0",
               flex: "1 0 auto",
               minHeight: "min-content",
             }}
