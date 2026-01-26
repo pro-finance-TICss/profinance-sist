@@ -65,7 +65,7 @@ model User {
   mustChangePassword Boolean @default(false)
 
   /// Rol del usuario para control de acceso (USER, ADMIN, etc.)
-  /// Values: USER, ADMIN, SUPER_ADMIN
+  /// Values: USER, SOCIO, ADMIN, SUPER_ADMIN
   role              String    @default("USER")
 
   
@@ -465,4 +465,26 @@ model SystemSetting {
   value       String
   description String?
   updatedAt   DateTime @updatedAt
+}
+
+// ============================================================================
+// MODELO DE RENDIMIENTO (PERFORMANCE)
+// ============================================================================
+model Performance {
+  id        String   @id @default(cuid())
+  
+  currency1 String
+  currency2 String
+  type      String   // COMPRA | VENTA
+  percentage Decimal
+  date      DateTime @default(now())
+
+  // Target audience role (USER or SOCIO)
+  targetRole String // USER | SOCIO
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([targetRole])
+  @@index([date])
 }

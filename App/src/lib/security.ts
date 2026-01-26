@@ -30,15 +30,24 @@ export async function getCurrentRole(): Promise<UserRole | null> {
 
 /**
  * Verifica si el usuario tiene el rol requerido o superior.
- * Jerarquía: SUPER_ADMIN > ADMIN > USER
+ * Jerarquía: SUPER_ADMIN > ADMIN > SOCIO > USER
  */
 export async function hasPermission(requiredRole: UserRole): Promise<boolean> {
   const currentRole = await getCurrentRole();
   if (!currentRole) return false;
 
+  // SUPER_ADMIN tiene acceso a todo
   if (currentRole === UserRole.SUPER_ADMIN) return true;
+  
+  // ADMIN tiene acceso a todo excepto SUPER_ADMIN
   if (currentRole === UserRole.ADMIN && requiredRole !== UserRole.SUPER_ADMIN)
     return true;
+  
+  // SOCIO tiene acceso a SOCIO y USER
+  if (currentRole === UserRole.SOCIO && (requiredRole === UserRole.SOCIO || requiredRole === UserRole.USER))
+    return true;
+  
+  // USER solo tiene acceso a USER
   if (currentRole === UserRole.USER && requiredRole === UserRole.USER)
     return true;
 

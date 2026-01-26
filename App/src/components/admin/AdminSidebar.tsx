@@ -9,6 +9,7 @@ import {
   LogOut,
   LayoutDashboard,
   Wallet,
+  TrendingUp,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 
@@ -39,7 +40,11 @@ export function AdminSidebar() {
       label: "Gestionar Retiros",
       path: "/superadmin/withdrawals",
     },
-    // Se pueden agregar más items de superadmin aquí
+    {
+      icon: <TrendingUp size={22} />,
+      label: "Rendimiento",
+      path: "/superadmin/performance",
+    },
   ];
 
   return (

@@ -8,6 +8,7 @@ import { QuickActions } from "../../components/dashboard/QuickActions";
 import { SummaryCards } from "../../components/dashboard/SummaryCards";
 import { ActionModal } from "../../components/dashboard/ActionModal";
 import { DepositForm } from "../../components/dashboard/DepositForm";
+import { PerformanceTable } from "../../components/dashboard/PerformanceTable";
 
 export default function DashboardPage() {
   const { isMobile } = useDashboard();
@@ -44,6 +45,10 @@ export default function DashboardPage() {
 
         <div style={{ gridColumn: "span 12" }}>
           <QuickActions onActionClick={handleOpenModal} />
+        </div>
+        
+        <div style={{ gridColumn: "span 12" }}>
+          <PerformanceTable />
         </div>
       </div>
 
