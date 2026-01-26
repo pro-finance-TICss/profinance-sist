@@ -37,7 +37,7 @@ export function PerformanceTable() {
 
   useEffect(() => {
     getDashboardPerformances().then((res) => {
-      const parsed = res.map((r) => ({
+      const parsed = res.map((r: any) => ({
         ...r,
         date: new Date(r.date),
       }));
@@ -53,6 +53,36 @@ export function PerformanceTable() {
     return FlagComponent ? (
       <FlagComponent style={{ width: 24, borderRadius: 2 }} />
     ) : null;
+  };
+
+  // Calculate total percentage
+  const totalPercentage = data.reduce((sum, item) => sum + item.percentage, 0);
+
+  // Get current month date range (15th to 15th)
+  const getMonthRange = () => {
+    const now = new Date();
+    const currentDay = now.getDate();
+    
+    let startDate, endDate;
+    
+    if (currentDay >= 15) {
+      // From 15th of current month to 15th of next month
+      startDate = new Date(now.getFullYear(), now.getMonth(), 15);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 15);
+    } else {
+      // From 15th of previous month to 15th of current month
+      startDate = new Date(now.getFullYear(), now.getMonth() - 1, 15);
+      endDate = new Date(now.getFullYear(), now.getMonth(), 15);
+    }
+    
+    const formatDate = (date: Date) => {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+    
+    return `${formatDate(startDate)} - ${formatDate(endDate)}`;
   };
 
   if (loading)
@@ -84,18 +114,47 @@ export function PerformanceTable() {
         overflow: "hidden",
       }}
     >
-      <h3
-        style={{
-          color: "rgba(189, 142, 72, 0.8)",
-          fontSize: "0.9rem",
-          fontWeight: "600",
-          textTransform: "uppercase",
-          letterSpacing: "1px",
-          marginBottom: "20px",
-        }}
-      >
-        Rendimiento
-      </h3>
+      <div style={{ marginBottom: "20px" }}>
+        <h3
+          style={{
+            color: "rgba(189, 142, 72, 0.8)",
+            fontSize: "0.9rem",
+            fontWeight: "600",
+            textTransform: "uppercase",
+            letterSpacing: "1px",
+            marginBottom: "8px",
+          }}
+        >
+          Rendimiento del mes ({getMonthRange()})
+        </h3>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            marginTop: "12px",
+          }}
+        >
+          <span
+            style={{
+              color: "rgba(255, 255, 255, 0.6)",
+              fontSize: "0.85rem",
+            }}
+          >
+            Rendimiento Total:
+          </span>
+          <span
+            style={{
+              fontSize: "1.5rem",
+              fontWeight: "bold",
+              color: totalPercentage >= 0 ? "#10b981" : "#ef4444",
+            }}
+          >
+            {totalPercentage > 0 ? "+" : ""}
+            {totalPercentage.toFixed(2)}%
+          </span>
+        </div>
+      </div>
 
       <div style={{ overflowX: "auto" }}>
         <table
@@ -166,12 +225,8 @@ export function PerformanceTable() {
                       style={{
                         padding: "4px 8px",
                         borderRadius: "4px",
-                        background:
-                          item.type === "COMPRA"
-                            ? "rgba(16, 185, 129, 0.1)"
-                            : "rgba(239, 68, 68, 0.1)",
-                        color:
-                          item.type === "COMPRA" ? "#10b981" : "#ef4444",
+                        background: "rgba(255, 255, 255, 0.1)",
+                        color: "#fff",
                         fontSize: "0.75rem",
                         fontWeight: "bold",
                         textTransform: "uppercase",

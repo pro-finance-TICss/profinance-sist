@@ -36,6 +36,11 @@ export function AdminSidebar() {
 
   const superAdminItems = [
     {
+      icon: <Users size={22} />,
+      label: "Usuarios",
+      path: "/superadmin/users",
+    },
+    {
       icon: <ShieldAlert size={22} />,
       label: "Gestionar Retiros",
       path: "/superadmin/withdrawals",

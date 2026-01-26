@@ -1,11 +1,35 @@
 "use client";
 import React from "react";
-import { Search, Bell, User, Menu } from "lucide-react"; // Solo añadimos Menu
+import { Search, Bell, User, Menu } from "lucide-react";
 import { useDashboard } from "@/contexts/DashboardContext";
+import { useSession } from "next-auth/react";
 
 export const DashboardHeader = ({ title }: { title: string }) => {
-  // Añadimos isCollapsed a la extracción del contexto
   const { isMobile, isTablet, isCollapsed, toggleSidebar } = useDashboard();
+  const { data: session } = useSession();
+
+  // Get user display name and role
+  const userName = session?.user?.name || "Usuario";
+  
+  const userRole = session?.user?.role || "USER";
+  
+  // Map role to display text
+  const getRoleDisplay = (role: string) => {
+    switch (role) {
+      case "SOCIO":
+        return "Socio";
+      case "USER":
+        return "Usuario";
+      case "ADMIN":
+        return "Administrador";
+      case "SUPER_ADMIN":
+        return "Super Admin";
+      default:
+        return "Usuario";
+    }
+  };
+
+  const roleDisplay = getRoleDisplay(userRole);
 
   return (
     <header
@@ -24,39 +48,6 @@ export const DashboardHeader = ({ title }: { title: string }) => {
         width: "100%",
       }}
     >
-
-      {/* 1. TÍTULO DINÁMICO - COMENTADO PARA GANAR ESPACIO Y EVITAR REDUNDANCIA
-      {!isMobile && (
-        <div style={{
-          minWidth: "200px",
-          flexShrink: 0, 
-          zIndex: 2 
-        }}>
-          <h2
-            style={{
-              margin: 0,
-              fontSize: "1.4rem",
-              color: "#fff",
-              fontWeight: "600",
-              letterSpacing: "0.5px",
-              textTransform: "uppercase",
-            }}
-          >
-            {title}
-          </h2>
-          <span
-            style={{
-              fontSize: "0.75rem",
-              color: "#bd8e48",
-              opacity: 0.8,
-              fontWeight: "500",
-            }}
-          >
-            SISTEMA DE GESTIÓN PRO
-          </span>
-        </div>
-      )} 
-      */}
 
       {/* 2. BUSCADOR CENTRAL MEJORADO (Oculto en móvil) */}
       {!isMobile && (
@@ -147,30 +138,32 @@ export const DashboardHeader = ({ title }: { title: string }) => {
               borderLeft: isMobile ? "none" : "1px solid rgba(189, 142, 72, 0.2)",
             }}
           >
-            <div style={{ textAlign: "right" }}>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "0.85rem",
-                  fontWeight: "700",
-                  color: "#fff",
-                  letterSpacing: "0.3px",
-                }}
-              >
-                Socio Pro-Finance
-              </p>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "0.65rem",
-                  color: "#bd8e48",
-                  fontWeight: "bold",
-                  textTransform: "uppercase",
-                }}
-              >
-                Platinum Member
-              </p>
-            </div>
+            {!isMobile && (
+              <div style={{ textAlign: "right" }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "0.85rem",
+                    fontWeight: "700",
+                    color: "#fff",
+                    letterSpacing: "0.3px",
+                  }}
+                >
+                  {userName}
+                </p>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "0.65rem",
+                    color: "#bd8e48",
+                    fontWeight: "bold",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {roleDisplay}
+                </p>
+              </div>
+            )}
 
             <Link href="/dashboard/ajustes?tab=profile">
               <div
