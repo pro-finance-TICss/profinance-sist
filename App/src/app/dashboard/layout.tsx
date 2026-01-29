@@ -163,25 +163,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               minHeight: "min-content",
             }}
           >
-            {/* Header de la sección actual se renderiza aquí para consistencia */}
-            <div>
-              <h1
-                style={{
-                  fontSize: isMobile ? "1.4rem" : isTablet ? "1.6rem" : "1.8rem",
-                  color: "#fff",
-                  margin: 0,
-                }}
-              >
-                {title}
-              </h1>
-              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.8rem" }}>
-                {title === "Resumen Financiero"
-                  ? "Monitorea tus activos en tiempo real."
-                  : title === "Ajustes"
-                    ? "Gestiona tu perfil y preferencias."
-                    : `Gestión de ${title.toLowerCase()}.`}
-              </p>
-            </div>
 
             {children}
           </div>

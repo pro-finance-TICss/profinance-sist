@@ -53,19 +53,13 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
     // Detectar breakpoints usando el hook personalizado
     const { isMobile, isTablet, isDesktop } = useBreakpoints();
 
+
     // Estado del sidebar drawer (solo relevante en móvil/tablet cuando actúa como drawer)
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // MODIFICACIÓN QUIRÚRGICA: Iniciamos en false para evitar el error de hidratación
     const [isCollapsed, setIsCollapsed] = useState(false);
 
-    // NUEVO: Efecto para cargar la persistencia sin romper el renderizado del servidor
-    React.useEffect(() => {
-        const saved = localStorage.getItem("sidebar-collapsed");
-        if (saved !== null) {
-            setIsCollapsed(saved === "true");
-        }
-    }, []);
 
     // Handlers para el drawer (móvil/tablet) - MANTENIDOS IGUAL
     const openSidebar = useCallback(() => {
@@ -110,16 +104,13 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
     // Ajustar el estado de colapso según el breakpoint
     React.useEffect(() => {
         if (isTablet) {
-            // En Tablet: El sidebar está visible (fijo) pero colapsado (80px).
-            // Importante: isSidebarOpen DEBE ser false para que NO aparezca el fondo negro.
+            // En Tablet: Forzamos el colapso (80px) para ganar espacio
             setIsCollapsed(true);
-            setIsSidebarOpen(false); // <--- CAMBIA DE true A false
+            setIsSidebarOpen(false);
         } else if (isDesktop) {
-            const saved = localStorage.getItem("sidebar-collapsed");
-            if (saved === null) {
-                setIsCollapsed(false);
-            }
-            setIsSidebarOpen(false); // También false en desktop para evitar el overlay
+            // En Desktop: Forzamos expansión SIEMPRE
+            setIsCollapsed(false);
+            setIsSidebarOpen(false);
         }
     }, [isTablet, isDesktop]);
 

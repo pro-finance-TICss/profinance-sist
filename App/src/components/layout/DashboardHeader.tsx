@@ -10,9 +10,9 @@ export const DashboardHeader = ({ title }: { title: string }) => {
 
   // Get user display name and role
   const userName = session?.user?.name || "Usuario";
-  
+
   const userRole = session?.user?.role || "USER";
-  
+
   // Map role to display text
   const getRoleDisplay = (role: string) => {
     switch (role) {
@@ -222,11 +222,22 @@ function NotificationBell() {
     setUnreadCount(c);
   };
 
+  // Polling inicial para obtener el contador de no leídas
   useEffect(() => {
     loadNotifications();
-    const interval = setInterval(loadNotifications, 30000);
-    return () => clearInterval(interval);
   }, []);
+
+  // Polling condicional: solo cuando el dropdown está abierto
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Cargar inmediatamente al abrir
+    loadNotifications();
+
+    // Polling cada 10 segundos mientras esté abierto
+    const interval = setInterval(loadNotifications, 10000);
+    return () => clearInterval(interval);
+  }, [isOpen]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

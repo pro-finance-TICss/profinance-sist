@@ -25,6 +25,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     isSidebarOpen,
     isMobile,
     isTablet,
+    isDesktop,
     isCollapsed,
     toggleCollapse // <- Esta es la pieza clave que nos faltaba
   } = useDashboard();
@@ -93,13 +94,11 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         padding: "40px 0",
         display: "flex",
         flexDirection: "column",
-        // CAMBIO: Solo en móvil es fixed. En Tablet (800px) debe ser relative 
-        // para que el contenido de la derecha sepa dónde empezar.
         position: isMobile ? "fixed" : "relative",
         left: isMobile ? (isSidebarOpen ? "0" : "-260px") : "0",
-        opacity: 1,
         zIndex: 200,
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        // 🟢 Sin opacidades raras, sin "hasLoaded". Solo el diseño base.
       }}
     >
       {/* HEADER DEL SIDEBAR: LOGO */}
@@ -157,8 +156,8 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         </h1>
       </div>
 
-      {/* BOTÓN DE COLAPSO - TAMAÑO GRANDE PROFESIONAL */}
-      {!isMobile && (
+      {/* BOTÓN DE COLAPSO - Visible solo en Tablet (bloqueado en Desktop) */}
+      {!isMobile && !isDesktop && (
         <button
           onClick={toggleCollapse}
           style={{

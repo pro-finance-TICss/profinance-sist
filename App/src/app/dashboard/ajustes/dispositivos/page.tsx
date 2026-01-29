@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./dispositivos.module.css";
+import { PageHeader } from "@/components/PageHeader";
 
 interface Session {
   id: string;
@@ -24,7 +25,8 @@ export default function DispositivosPage() {
     text: string;
   } | null>(null);
 
-  // Cargar sesiones al montar
+
+  // Cargar sesiones al montars
   useEffect(() => {
     loadSessions();
   }, []);
@@ -186,9 +188,8 @@ export default function DispositivosPage() {
               {sessions.map((session) => (
                 <div
                   key={session.id}
-                  className={`${styles.deviceCard} ${
-                    session.isCurrent ? styles.currentDevice : ""
-                  }`}
+                  className={`${styles.deviceCard} ${session.isCurrent ? styles.currentDevice : ""
+                    }`}
                 >
                   <div className={styles.deviceInfo}>
                     <span className={styles.deviceIcon}>
@@ -224,8 +225,8 @@ export default function DispositivosPage() {
                     {actionLoading === session.id
                       ? "..."
                       : session.isCurrent
-                      ? "Cerrar"
-                      : "Cerrar sesión"}
+                        ? "Cerrar"
+                        : "Cerrar sesión"}
                   </button>
                 </div>
               ))}

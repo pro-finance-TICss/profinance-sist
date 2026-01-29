@@ -2,14 +2,19 @@
 import React from 'react';
 import { ProfileSettings } from './ProfileSettings';
 import { SecuritySettings } from './SecuritySettings';
+import { PageHeader } from "@/components/PageHeader";
 
 export function SettingsView() {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <div>
-                <h2 style={{ color: '#fff', fontSize: '1.6rem', margin: '0 0 8px 0' }}>Configuración</h2>
-                <p style={{ color: 'rgba(255,255,255,0.4)', margin: 0 }}>Gestiona tu información personal y seguridad de la cuenta.</p>
-            </div>
+
+            <h1>TEST</h1>
+
+            {/* 🟢 REEMPLAZO: Diseño estandarizado para Ajustes */}
+            <PageHeader
+                title="Configuración"
+                subtitle="Gestiona tu información personal y la seguridad de tu cuenta en un solo lugar."
+            />
 
             <div style={{
                 display: 'grid',

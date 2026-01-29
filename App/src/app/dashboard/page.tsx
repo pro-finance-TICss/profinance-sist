@@ -1,5 +1,7 @@
 "use client";
 
+import { PageHeader } from "@/components/PageHeader";
+import { Plus } from "lucide-react"; // Importa un icono para la acción
 import React, { useState } from "react";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { BalanceSection } from "../../components/dashboard/BalanceSection";
@@ -24,7 +26,14 @@ export default function DashboardPage() {
   // ---------------------------------------
 
   return (
+
     <>
+      {/* 🟢 Implementación Semana 3: El nuevo Header reemplaza al del Layout */}
+      <PageHeader
+        title="Resumen Financiero"
+        subtitle="Monitorea tus activos y actividad en tiempo real."
+      />
+
       <div
         style={{
           display: "grid",
@@ -46,7 +55,7 @@ export default function DashboardPage() {
         <div style={{ gridColumn: "span 12" }}>
           <QuickActions onActionClick={handleOpenModal} />
         </div>
-        
+
         <div style={{ gridColumn: "span 12" }}>
           <PerformanceTable />
         </div>
