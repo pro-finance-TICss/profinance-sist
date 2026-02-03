@@ -166,21 +166,21 @@ export function AdminSidebar() {
                     backgroundColor: active
                       ? "#bd8e48"
                       : isHovered
-                      ? "rgba(189, 142, 72, 0.05)"
-                      : "transparent",
+                        ? "rgba(189, 142, 72, 0.05)"
+                        : "transparent",
 
                     color: active
                       ? "#000"
                       : isHovered
-                      ? "#fff"
-                      : "rgba(255,255,255,0.4)",
+                        ? "#fff"
+                        : "rgba(255,255,255,0.4)",
 
                     boxShadow:
                       isHovered && !active
                         ? "0 0 15px rgba(189, 142, 72, 0.3)"
                         : active
-                        ? "0 4px 20px rgba(189, 142, 72, 0.4)"
-                        : "none",
+                          ? "0 4px 20px rgba(189, 142, 72, 0.4)"
+                          : "none",
                   }}
                 >
                   <span
@@ -270,21 +270,21 @@ export function AdminSidebar() {
                         backgroundColor: active
                           ? "#bd8e48"
                           : isHovered
-                          ? "rgba(189, 142, 72, 0.05)"
-                          : "transparent",
+                            ? "rgba(189, 142, 72, 0.05)"
+                            : "transparent",
 
                         color: active
                           ? "#000"
                           : isHovered
-                          ? "#fff"
-                          : "rgba(255,255,255,0.4)",
+                            ? "#fff"
+                            : "rgba(255,255,255,0.4)",
 
                         boxShadow:
                           isHovered && !active
                             ? "0 0 15px rgba(189, 142, 72, 0.3)"
                             : active
-                            ? "0 4px 20px rgba(189, 142, 72, 0.4)"
-                            : "none",
+                              ? "0 4px 20px rgba(189, 142, 72, 0.4)"
+                              : "none",
                       }}
                     >
                       <span
