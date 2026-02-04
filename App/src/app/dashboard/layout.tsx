@@ -178,8 +178,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 {title === "Resumen Financiero"
                   ? "Monitorea tus activos en tiempo real."
                   : title === "Ajustes"
-                    ? "Gestiona tu perfil y preferencias."
-                    : `Gestión de ${title.toLowerCase()}.`}
+                  ? "Gestiona tu perfil y preferencias."
+                  : title === "Transacciones"
+                  ? "Historial de Transacciones y Solicitudes de retiro"
+                  : `Gestión de ${title.toLowerCase()}.`}
               </p>
             </div>
 

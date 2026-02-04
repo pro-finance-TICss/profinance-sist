@@ -2,11 +2,11 @@
  * SCRIPT: AGREGAR SALDO DE PRUEBA
  *
  * DESCRIPCIÓN:
- * Busca un usuario de prueba específico ("Prueba Prueba Prueba") y le asigna
+ * Busca un usuario de prueba específico y le asigna
  * capital invertido y saldo disponible para pruebas de interfaz.
  *
  * USO:
- * node prisma/add_balance.js
+ * node prisma/add_balance.js <correo>
  */
 
 const { PrismaClient } = require("@prisma/client");
@@ -14,16 +14,27 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Searching for user "Prueba Prueba Prueba"...');
-  const user = await prisma.user.findFirst({
+  const email = process.argv[2];
+
+  if (!email) {
+    console.error("❌ Error: Debes proporcionar un correo electrónico.");
+    console.log("Uso: node prisma/add_balance.js <correo>");
+    process.exit(1);
+  }
+
+  console.log(`Buscando usuario con correo "${email}"...`);
+  const user = await prisma.user.findUnique({
     where: {
-      firstName: "Prueba",
-      paternalSurname: "Prueba",
-      maternalSurname: "Prueba",
+      email: email,
     },
   });
 
-  console.log(`Usuario encontrado: ${user.email} (${user.id})`);
+  if (!user) {
+    console.error(`❌ Usuario con correo ${email} no encontrado.`);
+    return;
+  }
+
+  console.log(`Usuario encontrado: ${user.firstName} ${user.paternalSurname} (${user.id})`);
 
   // Actualizar los valores en la base de datos
   const updated = await prisma.user.update({
