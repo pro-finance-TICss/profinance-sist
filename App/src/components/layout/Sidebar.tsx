@@ -32,15 +32,8 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
-  // Determinar el ancho del sidebar según el estado
-  // Móvil/Tablet con drawer: 260px (cuando está abierto)
-  // Tablet/Desktop colapsado: 80px
-  // Desktop expandido: 260px
-  const sidebarWidth = isCollapsed && !isMobile ? "80px" : "260px";
-
-  // En móvil/tablet, el sidebar es un drawer que se muestra/oculta
-  // En desktop, el sidebar siempre está visible pero puede estar colapsado
-  const isDrawerMode = isMobile;
+  // Nota: width, position, left, zIndex ahora controlados por CSS vía clases
+  // JS solo maneja estados de interacción (isCollapsed, isMobile, etc.)
 
   const menuItems = [
     {
@@ -85,22 +78,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   };
 
   return (
-    <aside
-      style={{
-        width: sidebarWidth,
-        height: "100vh",
-        backgroundColor: "#000",
-        borderRight: "1px solid rgba(189, 142, 72, 0.2)",
-        padding: "40px 0",
-        display: "flex",
-        flexDirection: "column",
-        position: isMobile ? "fixed" : "relative",
-        left: isMobile ? (isSidebarOpen ? "0" : "-260px") : "0",
-        zIndex: 200,
-        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-        // 🟢 Sin opacidades raras, sin "hasLoaded". Solo el diseño base.
-      }}
-    >
+    <aside className={`sidebar ${isCollapsed ? "collapsed" : ""} ${isSidebarOpen ? "open" : ""}`}>
       {/* HEADER DEL SIDEBAR: LOGO */}
       <div style={{ marginTop: "35px", marginBottom: "40px", padding: "0 20px" }}>
         <div
@@ -157,49 +135,49 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       </div>
 
       {/* BOTÓN DE COLAPSO - Visible solo en Tablet (bloqueado en Desktop) */}
-      {!isMobile && !isDesktop && (
-        <button
-          onClick={toggleCollapse}
+      <button
+        onClick={toggleCollapse}
+        className="collapse-button"
+        style={{
+          position: "absolute",
+          right: "12px",
+          top: "12px",
+          zIndex: 101,
+          // Escalamos a 42px para una presencia fuerte
+          width: "42px",
+          height: "42px",
+          backgroundColor: "rgba(189, 142, 72, 0.12)",
+          border: "1px solid rgba(189, 142, 72, 0.4)",
+          borderRadius: "12px", // Aumentamos radio para suavizar el tamaño grande
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          color: "#bd8e48",
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)", // Añadimos una sombra sutil
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = "rgba(189, 142, 72, 0.2)";
+          e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.8)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = "rgba(189, 142, 72, 0.12)";
+          e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.4)";
+        }}
+      >
+        <svg
+          // Icono más grande y definido
+          width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8"
           style={{
-            position: "absolute",
-            right: "12px",
-            top: "12px",
-            zIndex: 101,
-            // Escalamos a 42px para una presencia fuerte
-            width: "42px",
-            height: "42px",
-            backgroundColor: "rgba(189, 142, 72, 0.12)",
-            border: "1px solid rgba(189, 142, 72, 0.4)",
-            borderRadius: "12px", // Aumentamos radio para suavizar el tamaño grande
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            color: "#bd8e48",
-            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)", // Añadimos una sombra sutil
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "rgba(189, 142, 72, 0.2)";
-            e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.8)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "rgba(189, 142, 72, 0.12)";
-            e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.4)";
+            transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
           }}
         >
-          <svg
-            // Icono más grande y definido
-            width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8"
-            style={{
-              transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)",
-              transition: "transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
-            }}
-          >
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-      )}
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </button>
+
 
       {/* MENÚ DE NAVEGACIÓN */}
       <nav style={{ flex: 1 }}>

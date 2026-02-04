@@ -33,19 +33,9 @@ export const DashboardHeader = ({ title }: { title: string }) => {
 
   return (
     <header
+      className="header"
       style={{
-        height: isMobile ? "60px" : "80px",
         padding: isMobile ? "0 15px" : "0 30px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        backdropFilter: "blur(10px)",
-        borderBottom: "1px solid rgba(189, 142, 72, 0.2)",
-        position: "sticky",
-        top: 0,
-        zIndex: 50,
-        width: "100%",
       }}
     >
 
@@ -104,26 +94,27 @@ export const DashboardHeader = ({ title }: { title: string }) => {
         }}
       >
         {/* BOTÓN HAMBURGUESA: Extremo izquierdo en móvil */}
-        {isMobile && (
-          <button
-            onClick={toggleSidebar}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#bd8e48",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "8px",
-              borderRadius: "8px",
-              backgroundColor: "rgba(189, 142, 72, 0.05)",
-              zIndex: 60
-            }}
-          >
-            <Menu size={24} />
-          </button>
-        )}
+
+        <button
+          onClick={toggleSidebar}
+          className="mobile-menu-button"
+          style={{
+            background: "none",
+            border: "none",
+            color: "#bd8e48",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "8px",
+            borderRadius: "8px",
+            backgroundColor: "rgba(189, 142, 72, 0.05)",
+            zIndex: 60
+          }}
+        >
+          <Menu size={24} />
+        </button>
+
 
         {/* CONTENEDOR DERECHO: Campana + Perfil */}
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? "10px" : "25px" }}>
