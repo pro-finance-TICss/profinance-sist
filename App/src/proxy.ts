@@ -129,7 +129,7 @@ export default auth(async function middleware(request: NextRequest) {
   // RUTAS DE GUEST - Redirigir si ya está autenticado
   // ================================================================
   if (session && matchesRoute(pathname, GUEST_ROUTES)) {
-    return NextResponse.redirect(new URL("/dashboard/fondos", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   // ================================================================
