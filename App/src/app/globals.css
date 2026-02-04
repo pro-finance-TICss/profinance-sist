@@ -25,6 +25,7 @@
   --font-primary: "Faster Stroker", sans-serif;
   --font-secondary: "Candara", sans-serif;
 
+
   /* Helper para gradiente */
   --bg-gradient-gold: linear-gradient(90deg,
       rgba(189, 142, 72, 1) 0%,
@@ -35,30 +36,25 @@
      FASE 1: VARIABLES DE LAYOUT (CSS-FIRST)
      ======================================== */
 
-  /* Dimensiones Sidebar */
+  /* VARIABLES DE LAYOUT - ÚNICA FUENTE DE VERDAD */
   --sidebar-width-expanded: 260px;
   --sidebar-width-collapsed: 80px;
-
-  /* Dimensiones Header */
   --header-height-desktop: 80px;
   --header-height-mobile: 60px;
 
-  /* Breakpoints (para referencia en media queries) */
-  --breakpoint-mobile: 767px;
-  --breakpoint-tablet: 768px;
-  --breakpoint-desktop: 1024px;
-
-  /* Z-index centralizado (sincronizado con zIndex.ts) */
-  --z-background: 0;
-  --z-content: 5;
-  --z-header: 50;
-  --z-overlay: 90;
-  --z-sidebar: 100;
-  --z-dropdown: 110;
-  --z-modal: 1000;
-  --z-toast: 1100;
-  --z-tooltip: 1200;
+  /* Esta variable será actualizada por React, pero nace con un valor estable */
+  --sidebar-width: var(--sidebar-width-expanded);
 }
+
+/* Añadir esto justo después del :root para evitar saltos bruscos */
+.sidebar,
+.header,
+.main-content-wrapper {
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    margin 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
 
 * {
   margin: 0;
@@ -573,91 +569,153 @@ body {
    MEDIA QUERIES: RECONSTRUCCIÓN FASE 1
    =================================================== */
 
-/* 1. ESTADO GLOBAL (Para evitar parpadeos) */
-.collapse-button,
-.mobile-menu-button {
-  display: none;
+/* ===================================================
+   JERARQUÍA DE CAPAS GLOBAL (Z-INDEX) - FASE 1 FINAL
+   =================================================== */
+
+.dashboard-layout-root {
+  contain: layout;
 }
 
-/* 2. MÓVIL (0px - 767px) */
+.main-content-wrapper {
+  position: relative;
+  z-index: 1;
+  /* Nivel base */
+}
+
+.header {
+  z-index: 30 !important;
+}
+
+.sidebar {
+  z-index: 40 !important;
+}
+
+.sidebar-overlay {
+  z-index: 35 !important;
+}
+
+/* Blindaje para Modales (Prioridad Absoluta) */
+[role="dialog"],
+.modal-container,
+.fixed.inset-0.z-50 {
+  z-index: 1000 !important;
+}
+
+/* ===================================================
+   MEDIA QUERIES: RECONSTRUCCIÓN DETERMINISTA (FASE 1)
+   =================================================== */
+
+/* 1. MÓVIL (0px - 767px) - REGLAS ESTRICTAS */
 @media (max-width: 767px) {
+  :root {
+    --sidebar-width: 0px !important;
+  }
+
   .mobile-menu-button {
     display: flex !important;
   }
 
+  .collapse-button {
+    display: none !important;
+  }
+
   .sidebar {
     position: fixed !important;
-    left: -260px;
-    /* Escondido */
-    z-index: 1000;
-    transition: transform 0.3s ease;
+    top: 0;
+    left: 0;
+    height: 100vh !important;
+    width: 260px !important;
+    transform: translateX(-100%);
+    z-index: 1000 !important;
+    transition: transform 0.3s ease-in-out !important;
   }
 
   .sidebar.open {
-    transform: translateX(260px);
-    /* Aparece */
+    transform: translateX(0) !important;
   }
 
-  .main-content-wrapper {
-    margin-top: var(--header-height-mobile) !important;
+  .header {
     width: 100% !important;
-    padding: 20px !important;
+    left: 0 !important;
   }
 }
 
-/* 3. TABLET Y DESKTOP (768px en adelante) */
-@media (min-width: 768px) {
-  .sidebar {
-    position: sticky !important;
-    top: 0;
-    height: 100vh;
-  }
-
-  .main-content-wrapper {
-    flex: 1 !important;
-    min-width: 0;
-    padding: 30px 40px !important;
-  }
-}
-
-/* 4. AJUSTES ESPECÍFICOS POR DISPOSITIVO */
+/* 2. TABLET (768px - 1023px) - REGLAS ESTRICTAS */
 @media (min-width: 768px) and (max-width: 1023px) {
+  :root {
+    --sidebar-width: 80px;
+    /* Estado base colapsado */
+  }
+
+  .mobile-menu-button {
+    display: none !important;
+  }
+
   .collapse-button {
     display: flex !important;
   }
+
+  /* Expansión solicitada por el usuario via JS */
+  html.user-wants-tablet-expanded :root {
+    --sidebar-width: 260px !important;
+  }
+
+  .sidebar {
+    width: var(--sidebar-width) !important;
+    min-width: var(--sidebar-width) !important;
+    display: block !important;
+    position: sticky !important;
+    z-index: 10 !important;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ESTILOS INTERNOS: Forzamos el aspecto visual solo cuando NO está expandida */
+  html:not(.user-wants-tablet-expanded) .sidebar a {
+    justify-content: center !important;
+    padding: 12px 0 !important;
+    gap: 0 !important;
+  }
+
+  html:not(.user-wants-tablet-expanded) .sidebar .sidebar-text-label {
+    display: none !important;
+  }
+
+  /* Centrado del icono en modo colapsado */
+  html:not(.user-wants-tablet-expanded) .sidebar .sidebar-icon-container {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
 }
 
+/* 3. DESKTOP (1024px+) - BLINDAJE INFRANQUEABLE (FUNCIONANDO) */
 @media (min-width: 1024px) {
+  :root {
+    --sidebar-width: var(--sidebar-width-expanded) !important;
+  }
 
-  /* 1. Ocultar botones (Check ✅) */
+  /* Eliminamos botones de control innecesarios en Desktop */
   .collapse-button,
   .mobile-menu-button {
     display: none !important;
   }
 
-  /* 2. El Header: Lo anclamos a la derecha sin empujar el resto */
-  .header {
-    position: fixed !important;
-    top: 0;
-    right: 0;
-    /* El ancho es el total menos el sidebar */
-    width: calc(100% - var(--sidebar-width-expanded)) !important;
-    margin-left: 0 !important;
-    border-bottom: 1px solid rgba(189, 142, 72, 0.15);
-    z-index: 100;
+  .sidebar {
+    width: var(--sidebar-width-expanded) !important;
+    min-width: var(--sidebar-width-expanded) !important;
+    position: sticky !important;
+    display: block !important;
   }
 
-  /* 3. El Contenido: QUITAMOS EL MARGIN-LEFT */
-  .main-content-wrapper {
-    /* Mantenemos la variable de altura para el children */
-    margin-top: var(--header-height-desktop) !important;
+  /* Blindaje visual: Los items SIEMPRE expandidos en Desktop */
+  .sidebar a {
+    justify-content: flex-start !important;
+    padding: 12px 20px !important;
+    gap: 15px !important;
+  }
 
-    /* ELIMINAMOS el margin-left porque el Flexbox del layout ya lo posiciona */
-    margin-left: 0 !important;
-
-    width: 100% !important;
-    padding: 30px 40px !important;
-    display: flex !important;
-    flex-direction: column !important;
+  .sidebar .sidebar-text-label {
+    display: block !important;
   }
 }

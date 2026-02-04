@@ -78,7 +78,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   };
 
   return (
-    <aside className={`sidebar ${isCollapsed ? "collapsed" : ""} ${isSidebarOpen ? "open" : ""}`}>
+    <aside className={`sidebar ${isCollapsed ? "is-sidebar-collapsed" : ""} ${isSidebarOpen ? "open" : ""}`}>
       {/* HEADER DEL SIDEBAR: LOGO */}
       <div style={{ marginTop: "35px", marginBottom: "40px", padding: "0 20px" }}>
         <div
@@ -108,15 +108,15 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             }}
           />
 
-          <div
-            style={{
-              width: "100%",
-              maxWidth: isCollapsed && !isMobile ? "55px" : "180px",
-              position: "relative",
-              zIndex: 1,
-              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-            }}
-          >
+          <div style={{
+            width: "100%",
+            maxWidth: isCollapsed && !isMobile ? "40px" : "180px",
+            margin: "0 auto",
+            transition: "max-width 0.3s ease",
+            overflow: "hidden", // <--- ESTA COMA ES LA QUE FALTABA
+            flexShrink: 0       // Ahora el compilador lo aceptará correctamenteNo permite que el contenido interno empuje el ancho */
+          }}>
+
             <img
               src="/logo-unificado.png"
               alt="PRO-FINANCE"
@@ -197,154 +197,83 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                 style={{ marginBottom: "8px", padding: "0 15px", position: "relative" }}
               >
                 <Link
-
                   href={item.href}
-
                   onClick={handleNavigation}
-
                   onMouseEnter={() => setHoveredItem(item.label)}
-
                   onMouseLeave={() => setHoveredItem(null)}
+                  /* El título (tooltip nativo) es lo único que mantenemos condicional por accesibilidad */
                   title={isCollapsed && !isMobile ? item.label : ""}
-
                   style={{
-
                     display: "flex",
-
                     alignItems: "center",
 
-                    justifyContent: isCollapsed && !isMobile ? "center" : "flex-start",
-
+                    /* ESTADO BASE (Desktop): El CSS sobreescribirá esto en Tablet/Mobile */
+                    justifyContent: "flex-start",
                     gap: "15px",
+                    padding: "12px 20px",
 
                     width: "100%",
-
-                    padding: isCollapsed && !isMobile ? "12px" : "12px 20px",
+                    minWidth: "0",
+                    flexShrink: 0,
+                    overflow: "hidden",
 
                     cursor: "pointer",
-
                     borderRadius: "12px",
-
                     textAlign: "left",
-
                     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-
                     position: "relative",
-
+                    zIndex: 1,
                     outline: "none",
                     WebkitTapHighlightColor: "transparent",
                     textDecoration: "none",
 
+                    /* Estilos visuales de la marca PROFINANCE */
+                    border: isActive || isHovered ? "1px solid #bd8e48" : "1px solid transparent",
+                    backgroundColor: isActive ? "#bd8e48" : isHovered ? "rgba(189, 142, 72, 0.05)" : "transparent",
+                    boxShadow: isHovered && !isActive
+                      ? "0 0 15px rgba(189, 142, 72, 0.3)"
+                      : isActive
+                        ? "0 4px 20px rgba(189, 142, 72, 0.4)"
+                        : "none",
+                    color: isActive ? "#000" : isHovered ? "#fff" : "rgba(255,255,255,0.4)",
 
-
-                    border:
-
-                      isActive || isHovered
-
-                        ? "1px solid #bd8e48"
-
-                        : "1px solid transparent",
-
-
-
-                    backgroundColor: isActive
-
-                      ? "#bd8e48"
-
-                      : isHovered
-
-                        ? "rgba(189, 142, 72, 0.05)"
-
-                        : "transparent",
-
-
-
-                    boxShadow:
-
-                      isHovered && !isActive
-
-                        ? "0 0 15px rgba(189, 142, 72, 0.3), inset 0 0 10px rgba(189, 142, 72, 0.1)"
-
-                        : isActive
-
-                          ? "0 4px 20px rgba(189, 142, 72, 0.4)"
-
-                          : "none",
-
-
-
-                    color: isActive
-
-                      ? "#000"
-
-                      : isHovered
-
-                        ? "#fff"
-
-                        : "rgba(255,255,255,0.4)",
-
-                    transform:
-
-                      !isActive && isHovered && !isCollapsed
-
-                        ? "translateX(8px)"
-
-                        : "translateX(0)",
-
+                    /* Efecto de desplazamiento: solo si el sidebar no está colapsado */
+                    transform: !isActive && isHovered && !isCollapsed ? "translateX(8px)" : "translateX(0)",
                   }}
-
                 >
 
+                  {/* 1. Contenedor del Icono */}
                   <span
-
+                    className="sidebar-icon-container"
                     style={{
-
                       display: "flex",
-
                       color: isActive ? "#000" : "#bd8e48",
-
-                      filter:
-
-                        isHovered && !isActive
-
-                          ? "drop-shadow(0 0 5px #bd8e48)"
-
-                          : "none",
-
+                      filter: isHovered && !isActive ? "drop-shadow(0 0 5px #bd8e48)" : "none",
                       transition: "all 0.3s",
-
+                      /* Aseguramos que el icono sea el centro del recuadro dorado */
+                      flexShrink: 0,
+                      width: isCollapsed && !isMobile ? "100%" : "auto",
+                      justifyContent: "center",
                     }}
-
                   >
-
                     {item.icon}
-
                   </span>
 
-
-
-                  {/* Texto del menú (oculto en modo colapsado) */}
-
+                  {/* 2. Texto del menú (Condicional de React + Clase para CSS) */}
                   {(!isCollapsed || isMobile) && (
-
                     <span
-
+                      className="sidebar-text-label"
                       style={{
-
                         fontSize: "0.95rem",
-
                         fontWeight: isActive ? "700" : "500",
-
                         transition: "all 0.3s",
-
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                       }}
-
                     >
-
                       {item.label}
-
                     </span>
-
                   )}
 
                 </Link>
@@ -400,8 +329,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             display: "flex",
             alignItems: "center",
             justifyContent: isCollapsed && !isMobile ? "center" : "flex-start",
-            gap: "15px",
+            gap: isCollapsed && !isMobile ? "0" : "15px", // Gap 0 en colapsado
             width: "100%",
+            minWidth: "0px", // CRÍTICO
+            overflow: "hidden", // CRÍTICO
             padding: isCollapsed && !isMobile ? "12px" : "12px 20px",
             backgroundColor: "transparent",
             border: "none",

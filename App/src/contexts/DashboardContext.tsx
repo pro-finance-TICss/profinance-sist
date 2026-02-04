@@ -57,8 +57,8 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
     // Estado del sidebar drawer (solo relevante en móvil/tablet cuando actúa como drawer)
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    // MODIFICACIÓN QUIRÚRGICA: Iniciamos en false para evitar el error de hidratación
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    // 1. Iniciamos el estado como 'null' para detectar la hidratación
+    const [isCollapsed, setIsCollapsed] = useState<boolean | null>(null);
 
 
     // Handlers para el drawer (móvil/tablet) - MANTENIDOS IGUAL
@@ -92,25 +92,25 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
         });
     };
 
-    // Cerrar automáticamente el drawer cuando se pasa a desktop - MANTENIDO IGUAL
-    React.useEffect(() => {
-        if (isDesktop) {
-            setIsSidebarOpen(false);
-        }
-    }, [isDesktop]);
+    React.useLayoutEffect(() => {
+        const root = window.document.documentElement;
+        const saved = localStorage.getItem("sidebar-collapsed");
 
-    // Ajustar el estado de colapso según el breakpoint - MANTENIDO IGUAL
-    // Nota: Esta lógica del agente sobreescribe la persistencia si cambias de tamaño
-    // Ajustar el estado de colapso según el breakpoint
-    React.useEffect(() => {
+        // Limpiamos siempre para que Desktop no herede nada
+        root.classList.remove('user-wants-tablet-expanded');
+
         if (isTablet) {
-            // En Tablet: Forzamos el colapso (80px) para ganar espacio
-            setIsCollapsed(true);
-            setIsSidebarOpen(false);
+            // Si saved es "false", significa que el usuario quiere verla ABIERTA
+            const wantsExpanded = saved === "false";
+            setIsCollapsed(!wantsExpanded);
+            if (wantsExpanded) {
+                root.classList.add('user-wants-tablet-expanded');
+            }
         } else if (isDesktop) {
-            // En Desktop: Forzamos expansión SIEMPRE
             setIsCollapsed(false);
-            setIsSidebarOpen(false);
+        } else {
+            // Mobile
+            setIsCollapsed(false);
         }
     }, [isTablet, isDesktop]);
 
