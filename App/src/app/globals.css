@@ -358,6 +358,40 @@ body {
   letter-spacing: 2px;
 }
 
+/* ===================================================
+   SISTEMA DE CENTRADO (RESOLUCIÓN DE CONTEXTO)
+   =================================================== */
+
+.selector-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Centrado horizontal */
+  justify-content: center;
+  /* Centrado vertical */
+  min-height: 100vh;
+  /* Ocupa todo el alto de pantalla */
+  width: 100%;
+  padding: 2rem;
+  position: relative;
+  z-index: 10;
+  margin: 0 auto;
+}
+
+.account-grid {
+  display: grid;
+  /* Define el ancho de las cards de forma determinista */
+  grid-template-columns: repeat(auto-fit, minmax(300px, 420px));
+  justify-content: center;
+  /* Centra las columnas resultantes */
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 1000px;
+  /* Límite para que no se peguen a los bordes en 4K */
+  margin-top: 2rem;
+}
+
+
 /* Responsive */
 @media (max-width: 480px) {
   .bg-logo-placeholder {
