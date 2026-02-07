@@ -64,12 +64,12 @@ function LoginForm2FAStep({
 
       const result = (await signIn("credentials", credentials as any)) as
         | {
-            error: string;
-            code?: string;
-            ok: boolean;
-            status: number;
-            url: string | null;
-          }
+          error: string;
+          code?: string;
+          ok: boolean;
+          status: number;
+          url: string | null;
+        }
         | undefined;
 
       if (result?.error) {
@@ -106,30 +106,8 @@ function LoginForm2FAStep({
         }
       }
 
-      // Verificación de redirección basada en roles
-      try {
-        const sessionRes = await fetch("/api/auth/session");
-        const session = await sessionRes.json();
-
-        if (session?.user?.role) {
-          const role = session.user.role;
-          let targetUrl = callbackUrl;
-
-          if (callbackUrl === "/dashboard") {
-            if (role === "SUPER_ADMIN") targetUrl = "/superadmin";
-            else if (role === "ADMIN") targetUrl = "/admin";
-            else targetUrl = "/dashboard";
-          }
-
-          router.push(targetUrl);
-          router.refresh();
-          return;
-        }
-      } catch (e) {
-        console.error("Error fetching session for redirect", e);
-      }
-
-      router.push(callbackUrl);
+      // CAMBIO: Redirigir a /select-account para resolución de contexto
+      router.replace("/select-account");
       router.refresh();
     } catch (error) {
       console.error("Error en Auth:", error);
@@ -362,31 +340,8 @@ function LoginContent() {
         return;
       }
 
-      // Verificación de redirección basada en roles después de login exitoso
-      try {
-        const sessionRes = await fetch("/api/auth/session");
-        const session = await sessionRes.json();
-
-        if (session?.user?.role) {
-          const role = session.user.role;
-          let targetUrl = callbackUrl;
-
-          // Only override callbackUrl if it is the default "/dashboard"
-          if (callbackUrl === "/dashboard") {
-            if (role === "SUPER_ADMIN") targetUrl = "/superadmin";
-            else if (role === "ADMIN") targetUrl = "/admin";
-            else targetUrl = "/dashboard";
-          }
-
-          router.push(targetUrl);
-          router.refresh();
-          return;
-        }
-      } catch (e) {
-        console.error("Error fetching session for redirect", e);
-      }
-
-      router.push(callbackUrl);
+      // CAMBIO: Redirigir a /select-account para resolución de contexto
+      router.replace("/select-account");
       router.refresh();
     } catch (error) {
       console.error("Error en login:", error);

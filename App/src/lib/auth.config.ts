@@ -76,6 +76,7 @@ export const authConfig: NextAuthConfig = {
         "/profile",
         "/admin",
         "/superadmin",
+        "/select-account", // NUEVO: Pantalla de selección de cuenta
       ];
       const isProtectedRoute = protectedRoutes.some(
         (route) => pathname === route || pathname.startsWith(`${route}/`)
@@ -99,7 +100,8 @@ export const authConfig: NextAuthConfig = {
         if (auth?.user?.requiresSecuritySetup) {
           return Response.redirect(new URL("/setup-security", nextUrl));
         }
-        return Response.redirect(new URL("/dashboard/fondos", nextUrl));
+        // CAMBIO: Redirigir a /select-account en lugar de /dashboard/fondos
+        return Response.redirect(new URL("/select-account", nextUrl));
       }
 
       // Si el usuario necesita configuración de seguridad y NO está en esa página
