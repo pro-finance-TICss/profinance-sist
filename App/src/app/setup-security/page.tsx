@@ -339,8 +339,7 @@ export default function SetupSecurityPage() {
         <div style={styles.securityNotice}>
           <Shield size={16} color="rgba(189, 142, 72, 0.8)" />
           <span>
-            Esta configuración es obligatoria para cuentas con privilegios
-            administrativos.
+            Esta configuración de seguridad es obligatoria para proteger tu cuenta.
           </span>
         </div>
       </div>

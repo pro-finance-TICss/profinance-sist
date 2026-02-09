@@ -30,19 +30,18 @@ export async function checkSecuritySetupStatus() {
     return { requiresSetup: false, reason: "USER_NOT_FOUND" };
   }
 
-  // Solo aplicar a ADMIN y SUPER_ADMIN
+  // Determinar si es usuario privilegiado (ADMIN/SUPER_ADMIN)
   const isPrivilegedUser =
     user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
 
-  if (!isPrivilegedUser) {
-    return { requiresSetup: false, reason: "NOT_PRIVILEGED_USER" };
-  }
-
   // Determinar qué pasos faltan
-  const needsTotpSetup = !user.totpEnabled;
+  // TOTP es obligatorio para:
+  // 1. Usuarios privilegiados (ADMIN/SUPER_ADMIN)
+  // 2. Usuarios creados por script (mustChangePassword = true)
+  const needsTotpSetup = !user.totpEnabled && (isPrivilegedUser || user.mustChangePassword);
   const needsPasswordChange = user.mustChangePassword;
 
-  // Si ambos están completos, no se requiere setup
+  // Si el usuario no necesita ninguna configuración, no requiere setup
   if (!needsTotpSetup && !needsPasswordChange) {
     return { requiresSetup: false, reason: "COMPLETE" };
   }
@@ -52,7 +51,7 @@ export async function checkSecuritySetupStatus() {
     needsTotpSetup,
     needsPasswordChange,
     currentStep: needsTotpSetup ? 1 : 2, // Paso 1: TOTP, Paso 2: Contraseña
-    totalSteps: 2,
+    totalSteps: 2, // Siempre 2 pasos para usuarios que requieren setup
   };
 }
 
