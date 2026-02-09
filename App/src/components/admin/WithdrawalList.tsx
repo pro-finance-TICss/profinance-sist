@@ -33,7 +33,7 @@ interface WithdrawalRequestData {
   requestedAt: string;
   user: {
     email: string;
-    availableBalance: string | number;
+    investedCapital: string | number;
   };
   bankAccount?: BankAccountInfo | null;
 }
@@ -239,7 +239,7 @@ export function WithdrawalList({
                 >
                   {new Date(req.requestedAt).toLocaleString()} • P. Balance: $
                   {parseFloat(
-                    String(req.user.availableBalance)
+                    String(req.user.investedCapital)
                   ).toLocaleString()}
                 </div>
               </div>

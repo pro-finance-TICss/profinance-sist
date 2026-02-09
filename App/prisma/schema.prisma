@@ -68,6 +68,16 @@ model User {
   /// Values: USER, SOCIO, ADMIN, SUPER_ADMIN
   role              String    @default("USER")
 
+  /// Moneda preferida para visualización (USD, COP, EUR, etc.)
+  preferredCurrency String    @default("USD")
+
+  /// Moneda base de la cuenta (inmutable por el usuario)
+  /// Se establece al registrarse y define la moneda real del balance
+  baseCurrency      String    @default("COP")
+
+  /// País de residencia del usuario (código ISO 3166-1 alpha-2 ej: CO, MX)
+  country           String?
+
   
   /// Versión del token para invalidar sesiones concurrentes (Single Session)
   /// Se incrementa en cada login exitoso, invalidando tokens anteriores
@@ -77,11 +87,8 @@ model User {
   // CAMPOS FINANCIEROS (WALLET)
   // ================================================================
   
-  /// Capital total invertido por el usuario (suma de todos los depósitos confirmados)
+  /// Balance total de la cuenta (capital invertido)
   investedCapital   Decimal   @default(0)
-  
-  /// Balance disponible para retiro (puede diferir del capital invertido)
-  availableBalance  Decimal   @default(0)
 
   // ================================================================
   // RELACIONES

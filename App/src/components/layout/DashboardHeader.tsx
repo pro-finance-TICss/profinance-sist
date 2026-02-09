@@ -1,8 +1,9 @@
 "use client";
 import React from "react";
-import { Search, Bell, User, Menu } from "lucide-react";
+import { Search, Bell, User, Menu, DollarSign } from "lucide-react";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { useSession } from "next-auth/react";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 export const DashboardHeader = ({ title }: { title: string }) => {
   const { isMobile, isTablet, isCollapsed, toggleSidebar } = useDashboard();
@@ -125,8 +126,9 @@ export const DashboardHeader = ({ title }: { title: string }) => {
           </button>
         )}
 
-        {/* CONTENEDOR DERECHO: Campana + Perfil */}
+        {/* CONTENEDOR DERECHO: Divisa + Campana + Perfil */}
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? "10px" : "25px" }}>
+          <CurrencySelector />
           <NotificationBell />
 
           <div
@@ -430,6 +432,165 @@ function NotificationBell() {
               ))
             )}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPONENTE DE SELECTOR DE DIVISA
+// ============================================================================
+
+// ============================================================================
+// COMPONENTE DE SELECTOR DE DIVISA (DROPDOWN)
+// ============================================================================
+
+function CurrencySelector() {
+  const { currency, setCurrency, isLoading } = useCurrency();
+  const { isMobile } = useDashboard();
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const CURRENCIES = [
+    { code: "USD", name: "Dólar", symbol: "$", flag: "🇺🇸" },
+    { code: "COP", name: "Peso COL", symbol: "$", flag: "🇨🇴" },
+    { code: "EUR", name: "Euro", symbol: "€", flag: "🇪🇺" },
+    { code: "MXN", name: "Peso MEX", symbol: "$", flag: "🇲🇽" },
+    { code: "GBP", name: "Libra", symbol: "£", flag: "🇬🇧" },
+  ];
+
+  // Cerrar al hacer clic fuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelect = (code: string) => {
+    setCurrency(code);
+    setIsOpen(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div style={{ padding: "12px", color: "rgba(255,255,255,0.3)" }}>...</div>
+    );
+  }
+
+  const currentCurrency = CURRENCIES.find((c) => c.code === currency) || CURRENCIES[0];
+
+  return (
+    <div style={{ position: "relative" }} ref={dropdownRef}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          cursor: "pointer",
+          padding: isMobile ? "8px 12px" : "10px 16px",
+          borderRadius: "8px",
+          transition: "all 0.3s",
+          backgroundColor: isOpen
+            ? "rgba(189, 142, 72, 0.15)"
+            : "rgba(189, 142, 72, 0.05)",
+          border: "1px solid rgba(189, 142, 72, 0.2)",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+        onMouseEnter={(e) =>
+          !isOpen && (e.currentTarget.style.backgroundColor = "rgba(189, 142, 72, 0.15)")
+        }
+        onMouseLeave={(e) =>
+          !isOpen && (e.currentTarget.style.backgroundColor = "rgba(189, 142, 72, 0.05)")
+        }
+      >
+        <span style={{ fontSize: "1.2rem", lineHeight: 1 }}>{currentCurrency.flag}</span>
+        {!isMobile && (
+          <span
+            style={{
+              color: "#bd8e48",
+              fontSize: "0.9rem",
+              fontWeight: "600",
+            }}
+          >
+            {currency}
+          </span>
+        )}
+      </div>
+
+      {/* DROPDOWN MENU */}
+      {isOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 10px)",
+            right: "0",
+            width: "180px",
+            backgroundColor: "#1a1a1a",
+            border: "1px solid rgba(189, 142, 72, 0.3)",
+            borderRadius: "12px",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+            overflow: "hidden",
+            zIndex: 100,
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          {CURRENCIES.map((c) => (
+            <div
+              key={c.code}
+              onClick={() => handleSelect(c.code)}
+              style={{
+                padding: "10px 15px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                cursor: "pointer",
+                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                backgroundColor:
+                  currency === c.code
+                    ? "rgba(189, 142, 72, 0.1)"
+                    : "transparent",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) =>
+                currency !== c.code &&
+                (e.currentTarget.style.backgroundColor =
+                  "rgba(255, 255, 255, 0.05)")
+              }
+              onMouseLeave={(e) =>
+                currency !== c.code &&
+                (e.currentTarget.style.backgroundColor = "transparent")
+              }
+            >
+              <span style={{ fontSize: "1.2rem" }}>{c.flag}</span>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span
+                  style={{
+                    color: currency === c.code ? "#bd8e48" : "#fff",
+                    fontSize: "0.85rem",
+                    fontWeight: "600",
+                  }}
+                >
+                  {c.code}
+                </span>
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.5)",
+                    fontSize: "0.7rem",
+                  }}
+                >
+                  {c.name}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

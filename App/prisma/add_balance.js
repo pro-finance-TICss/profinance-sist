@@ -6,7 +6,7 @@
  * capital invertido y saldo disponible para pruebas de interfaz.
  *
  * USO:
- * node prisma/add_balance.js <correo>
+ * (EN CD APP) node prisma/add_balance.js <correo>
  */
 
 const { PrismaClient } = require("@prisma/client");
@@ -36,18 +36,16 @@ async function main() {
 
   console.log(`Usuario encontrado: ${user.firstName} ${user.paternalSurname} (${user.id})`);
 
-  // Actualizar los valores en la base de datos
+  // Actualizar el balance total en la base de datos
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: {
       investedCapital: 50000,
-      availableBalance: 15000,
     },
   });
 
-  console.log(`✅ Saldo actualizado para el usuario ${user.email}:`);
-  console.log(`   - Capital Invertido: $${updated.investedCapital}`);
-  console.log(`   - Saldo Disponible: $${updated.availableBalance}`);
+  console.log(`✅ Balance actualizado para el usuario ${user.email}:`);
+  console.log(`   - Balance Total: $${updated.investedCapital}`);
 }
 
 main()

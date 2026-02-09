@@ -11,7 +11,7 @@ import { decimalToNumber } from "@/lib/utils/currency";
 
 /**
  * GET /api/wallet/balance
- * Retorna el balance del usuario (investedCapital, availableBalance).
+ * Retorna el balance del usuario (investedCapital).
  */
 export async function GET(req: NextRequest) {
   try {
@@ -26,7 +26,6 @@ export async function GET(req: NextRequest) {
       where: { id: session.user.id },
       select: {
         investedCapital: true,
-        availableBalance: true,
       },
     });
 
@@ -37,7 +36,18 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 3. Obtener resumen de transacciones recientes (últimas 5)
+    // 3. Obtener retiros pendientes (SUMA)
+    const pendingWithdrawalsSum = await prisma.withdrawalRequest.aggregate({
+      _sum: {
+        amount: true,
+      },
+      where: {
+        userId: session.user.id,
+        status: "PENDING",
+      },
+    });
+
+    // 4. Obtener resumen de transacciones recientes (últimas 5)
     const recentTransactions = await prisma.transaction.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
@@ -51,10 +61,14 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // 4. Convertir Decimals a números
+    const pendingWithdrawals = pendingWithdrawalsSum._sum.amount 
+      ? decimalToNumber(pendingWithdrawalsSum._sum.amount) 
+      : 0;
+
+    // 5. Convertir Decimals a números
     const balance = {
       investedCapital: decimalToNumber(user.investedCapital),
-      availableBalance: decimalToNumber(user.availableBalance),
+      pendingWithdrawals,
     };
 
     const transactions = recentTransactions.map((tx) => ({

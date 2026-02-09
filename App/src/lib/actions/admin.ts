@@ -35,6 +35,7 @@ export async function getUsers() {
         role: true,
         createdAt: true,
         totpEnabled: true,
+        baseCurrency: true,
       },
     });
     return { success: true, users };
@@ -232,7 +233,7 @@ export async function getWithdrawals() {
     const withdrawalsRaw = await prisma.withdrawalRequest.findMany({
       orderBy: { requestedAt: "desc" },
       include: {
-        user: { select: { email: true, availableBalance: true } },
+        user: { select: { email: true, investedCapital: true } },
         bankAccount: {
           select: {
             id: true,
@@ -256,7 +257,7 @@ export async function getWithdrawals() {
       requestedAt: w.requestedAt.toISOString(),
       user: {
         email: w.user.email,
-        availableBalance: w.user.availableBalance.toString(),
+        investedCapital: w.user.investedCapital.toString(),
       },
       bankAccount: w.bankAccount
         ? {
@@ -363,7 +364,7 @@ export async function processWithdrawal(
       ) {
         await tx.user.update({
           where: { id: withdrawal.userId },
-          data: { availableBalance: { increment: withdrawal.amount } },
+          data: { investedCapital: { increment: withdrawal.amount } },
         });
         await tx.transaction.create({
           data: {

@@ -121,6 +121,12 @@ export const registerSchema = z
       .min(1, { message: "La contraseña es requerida." })
       .regex(PASSWORD_REGEX, { message: PASSWORD_ERROR_MESSAGE }),
 
+    // Campo país (opcional para mantener compatibilidad, pero recomendado en UI)
+    country: z.string().optional(),
+    
+    // Campo moneda base (opcional, se infiere del país si no se envía)
+    baseCurrency: z.string().optional(),
+
     confirmPassword: z.string().min(1, { message: "Confirma tu contraseña." }),
 
     terms: z.boolean().refine((val) => val === true, {

@@ -8,6 +8,7 @@ import { Footer } from "../../components/layout/Footer";
 import { Menu } from "lucide-react";
 import { useSessionValidator } from "@/hooks/useSessionValidator";
 import { DashboardProvider, useDashboard } from "@/contexts/DashboardContext";
+import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { Z_INDEX } from "@/constants/zIndex";
 
 export default function DashboardLayout({
@@ -17,7 +18,9 @@ export default function DashboardLayout({
 }) {
   return (
     <DashboardProvider>
-      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      <CurrencyProvider>
+        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      </CurrencyProvider>
     </DashboardProvider>
   );
 }

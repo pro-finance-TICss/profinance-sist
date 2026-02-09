@@ -13,7 +13,6 @@ import {
 // Tipos
 interface BalanceData {
   investedCapital: number;
-  availableBalance: number;
 }
 
 interface WithdrawalRequest {
@@ -29,7 +28,6 @@ export function WalletView() {
   // Estados de datos
   const [balance, setBalance] = useState<BalanceData>({
     investedCapital: 0,
-    availableBalance: 0,
   });
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -98,7 +96,6 @@ export function WalletView() {
         <div style={{ minHeight: "200px" }}>
           <BalanceCard
             investedCapital={balance.investedCapital}
-            availableBalance={balance.availableBalance}
             pendingWithdrawal={pendingWithdrawal}
           />
         </div>
@@ -299,7 +296,7 @@ export function WalletView() {
       <WithdrawModal
         isOpen={isWithdrawModalOpen}
         onClose={() => setIsWithdrawModalOpen(false)}
-        availableBalance={balance.availableBalance}
+        availableBalance={balance.investedCapital}
         onSuccess={fetchData}
       />
 
