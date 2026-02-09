@@ -5,7 +5,7 @@
  * Crea un nuevo usuario con rol SOCIO, nombre completo, país y moneda base.
  *
  * USO:
- * node prisma/create_partner.js
+ * (EN CD APP) node prisma/create_partner.js
  * (El script solicitará los datos de manera interactiva)
  */
 

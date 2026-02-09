@@ -46,14 +46,14 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
     if (session?.user && !isInitialized) {
       const user = session.user as any;
       
-      // Set base currency from session or default to COP
+      // Set both base and display currency to user's base currency
+      // This effectively disables currency switching as requested
       if (user.baseCurrency) {
         setBaseCurrency(user.baseCurrency);
-      }
-      
-      // Set display currency from session or default to USD
-      if (user.preferredCurrency) {
-        setDisplayCurrency(user.preferredCurrency);
+        setDisplayCurrency(user.baseCurrency);
+      } else {
+        setBaseCurrency("COP");
+        setDisplayCurrency("COP");
       }
       
       setIsInitialized(true);

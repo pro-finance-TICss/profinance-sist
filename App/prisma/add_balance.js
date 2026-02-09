@@ -45,7 +45,8 @@ async function main() {
   });
 
   console.log(`✅ Balance actualizado para el usuario ${user.email}:`);
-  console.log(`   - Balance Total: $${updated.investedCapital}`);
+  const currency = updated.baseCurrency || "COP";
+  console.log(`   - Balance Total: $${updated.investedCapital} ${currency}`);
 }
 
 main()
