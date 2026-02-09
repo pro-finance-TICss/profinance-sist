@@ -10,37 +10,47 @@ import {
 
 interface QuickActionsProps {
     onActionClick?: (title: string, type: string) => void;
+    withdrawalWindow?: {
+        isOpen: boolean;
+        reason?: string;
+    };
 }
 
-export function QuickActions({ onActionClick }: QuickActionsProps) {
+export function QuickActions({ onActionClick, withdrawalWindow }: QuickActionsProps) {
     const actions = [
         {
             id: 'deposit',
             title: 'Depositar',
             desc: 'Cargar capital',
             info: 'Inicia un fondeo seguro vía USDT o Transferencia Directa.',
-            icon: <Wallet size={32} strokeWidth={1.2} />
+            icon: <Wallet size={32} strokeWidth={1.2} />,
+            disabled: false,
         },
         {
             id: 'withdraw',
             title: 'Retirar',
             desc: 'Liquidar a banco',
-            info: 'Solicita la liquidación de tus rendimientos a tu cuenta preferida.',
-            icon: <Banknote size={32} strokeWidth={1.2} />
+            info: withdrawalWindow?.isOpen 
+                ? 'Solicita la liquidación de tus rendimientos a tu cuenta preferida.'
+                : (withdrawalWindow?.reason || 'Periodo cerrado'),
+            icon: <Banknote size={32} strokeWidth={1.2} />,
+            disabled: !withdrawalWindow?.isOpen,
         },
         {
             id: 'transfer',
             title: 'Transferir',
             desc: 'Entre cuentas',
             info: 'Envía capital a otros usuarios de la red Profinance sin costo.',
-            icon: <ArrowLeftRight size={32} strokeWidth={1.2} />
+            icon: <ArrowLeftRight size={32} strokeWidth={1.2} />,
+            disabled: false,
         },
         {
             id: 'invest',
             title: 'Nueva Inversión',
             desc: 'Activos de lujo',
             info: 'Explora nuevos portafolios y diversifica tu capital hoy mismo.',
-            icon: <Gem size={32} strokeWidth={1.2} />
+            icon: <Gem size={32} strokeWidth={1.2} />,
+            disabled: false,
         },
     ];
 
@@ -122,7 +132,13 @@ export function QuickActions({ onActionClick }: QuickActionsProps) {
                         <div
                             key={action.id}
                             className="quick-action-item"
-                            onClick={() => onActionClick?.(action.title, action.id)}
+                            onClick={() => !action.disabled && onActionClick?.(action.title, action.id)}
+                            style={{
+                                opacity: action.disabled ? 0.5 : 1,
+                                cursor: action.disabled ? 'not-allowed' : 'pointer',
+                                pointerEvents: action.disabled ? 'auto' : 'auto',
+                            }}
+                            title={action.disabled ? action.info : undefined}
                         >
                             <div className="particles-quick" />
 
@@ -130,13 +146,17 @@ export function QuickActions({ onActionClick }: QuickActionsProps) {
                                 width: '70px',
                                 height: '70px',
                                 borderRadius: '50%',
-                                background: 'radial-gradient(circle, rgba(189, 142, 72, 0.2) 0%, rgba(0,0,0,0) 70%)',
+                                background: action.disabled 
+                                    ? 'radial-gradient(circle, rgba(150, 150, 150, 0.2) 0%, rgba(0,0,0,0) 70%)'
+                                    : 'radial-gradient(circle, rgba(189, 142, 72, 0.2) 0%, rgba(0,0,0,0) 70%)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 marginBottom: '20px',
-                                color: '#bd8e48',
-                                border: '1px solid rgba(189, 142, 72, 0.4)',
+                                color: action.disabled ? '#888' : '#bd8e48',
+                                border: action.disabled 
+                                    ? '1px solid rgba(150, 150, 150, 0.4)'
+                                    : '1px solid rgba(189, 142, 72, 0.4)',
                                 position: 'relative',
                                 zIndex: 1
                             }}>
@@ -145,7 +165,7 @@ export function QuickActions({ onActionClick }: QuickActionsProps) {
 
                             <div style={{ position: 'relative', zIndex: 1, width: '100%' }}>
                                 <h4 style={{
-                                    color: '#FFFFFF',
+                                    color: action.disabled ? 'rgba(255, 255, 255, 0.4)' : '#FFFFFF',
                                     fontSize: '1.2rem',
                                     fontWeight: '700',
                                     marginBottom: '8px',
@@ -156,16 +176,18 @@ export function QuickActions({ onActionClick }: QuickActionsProps) {
                                 </h4>
 
                                 <p className="base-desc" style={{
-                                    color: 'rgba(255, 255, 255, 0.5)',
+                                    color: action.disabled ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.5)',
                                     fontSize: '0.9rem',
                                     margin: 0
                                 }}>
-                                    {action.desc}
+                                    {action.disabled ? (action.info.length > 30 ? 'Periodo cerrado' : action.info) : action.desc}
                                 </p>
 
-                                <p className="info-text">
-                                    {action.info}
-                                </p>
+                                {!action.disabled && (
+                                    <p className="info-text">
+                                        {action.info}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     ))}

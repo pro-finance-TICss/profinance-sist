@@ -322,11 +322,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           console.log("📋 SessionId:", session.id);
 
           // Determinar si el usuario necesita completar configuración de seguridad
-          // Solo aplica a ADMIN y SUPER_ADMIN
+          // Aplica a:
+          // 1. Roles privilegiados (ADMIN/SUPER_ADMIN) si no tienen TOTP o deben cambiar pass
+          // 2. Cualquier usuario que tenga el flag mustChangePassword (ej: creados por script)
           const isPrivileged =
             user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+          
           const requiresSecuritySetup =
-            isPrivileged && (!user.totpEnabled || user.mustChangePassword);
+            (isPrivileged && !user.totpEnabled) || 
+            user.mustChangePassword;
 
           // Retornar usuario con datos extendidos para el JWT
           return {
@@ -336,6 +340,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             role: updatedUser.role,
             tokenVersion: updatedUser.tokenVersion,
             lastLogin: updatedUser.lastLogin,
+            preferredCurrency: updatedUser.preferredCurrency,
+            baseCurrency: updatedUser.baseCurrency,
             // Nuevo: ID de sesión para revocación individual
             sessionId: session.id,
             // Campos para setup de seguridad
@@ -378,6 +384,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.role = user.role;
         token.tokenVersion = user.tokenVersion;
         token.sessionId = user.sessionId; // 🔑 Nuevo: ID de sesión para revocación
+        token.preferredCurrency = user.preferredCurrency || "USD";
+        token.baseCurrency = user.baseCurrency || "COP";
         token.lastLogin =
           user.lastLogin instanceof Date
             ? user.lastLogin.toISOString()
@@ -401,6 +409,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.name = token.name;
         session.user.role = token.role;
         session.user.lastLogin = token.lastLogin;
+        session.user.preferredCurrency = token.preferredCurrency || "USD";
+        session.user.baseCurrency = token.baseCurrency || "COP";
         // Exponer si necesita setup de seguridad (para redirección en cliente)
         session.user.requiresSecuritySetup = token.requiresSecuritySetup;
         // tokenVersion NO se expone al cliente por seguridad

@@ -465,3 +465,15 @@ body {
     display: none; /* Ocultar slogan en móvil */
   }
 }
+
+/* Animación para tooltips del sidebar colapsado */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}

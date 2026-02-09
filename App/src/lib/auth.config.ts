@@ -99,7 +99,7 @@ export const authConfig: NextAuthConfig = {
         if (auth?.user?.requiresSecuritySetup) {
           return Response.redirect(new URL("/setup-security", nextUrl));
         }
-        return Response.redirect(new URL("/dashboard/fondos", nextUrl));
+        return Response.redirect(new URL("/dashboard", nextUrl));
       }
 
       // Si el usuario necesita configuración de seguridad y NO está en esa página

@@ -65,7 +65,6 @@ export async function POST(req: NextRequest) {
             where: { id: userId },
             data: {
               investedCapital: { increment: transactionAmount },
-              availableBalance: { increment: transactionAmount },
             },
           });
 

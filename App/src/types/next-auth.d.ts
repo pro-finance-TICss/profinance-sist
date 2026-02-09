@@ -22,8 +22,12 @@ declare module "next-auth" {
     tokenVersion: number;
     /** ID de la sesión activa (para revocación individual) */
     sessionId?: string;
-    /** Fecha del último inicio de sesión */
+    /** Timestamp del último login */
     lastLogin?: Date | string | null;
+    /** Moneda base (inmutable) */
+    baseCurrency?: string;
+    /** Moneda preferida (visualización) */
+    preferredCurrency?: string;
     /** Indica si el usuario necesita completar configuración de seguridad */
     requiresSecuritySetup?: boolean;
     /** Indica si el usuario tiene TOTP habilitado */
@@ -42,6 +46,8 @@ declare module "next-auth" {
       name: string;
       role: string;
       lastLogin?: string | null;
+      baseCurrency?: string;
+      preferredCurrency?: string;
       /** Indica si el usuario necesita completar configuración de seguridad */
       requiresSecuritySetup?: boolean;
     } & import("next-auth").DefaultSession["user"];
@@ -67,6 +73,10 @@ declare module "next-auth/jwt" {
     sessionId?: string;
     /** Timestamp del último login */
     lastLogin?: string | null;
+    /** Moneda base (inmutable) */
+    baseCurrency?: string;
+    /** Moneda preferida (visualización) */
+    preferredCurrency?: string;
     /** Indica si el usuario necesita completar configuración de seguridad */
     requiresSecuritySetup?: boolean;
     /** Indica si el usuario tiene TOTP habilitado */

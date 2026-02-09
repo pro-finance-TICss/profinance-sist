@@ -35,6 +35,7 @@ export async function getUsers() {
         role: true,
         createdAt: true,
         totpEnabled: true,
+        baseCurrency: true,
       },
     });
     return { success: true, users };
@@ -62,6 +63,59 @@ export async function updateUserRole(userId: string, newRole: string) {
     return { success: false, message: "Error updating role" };
   }
 }
+
+/**
+ * Toggle user role between USER and SOCIO (SUPERADMIN only)
+ */
+export async function toggleUserSocioRole(userId: string) {
+  await requireRole(UserRole.SUPER_ADMIN);
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, email: true },
+    });
+
+    if (!user) {
+      return { success: false, message: "User not found" };
+    }
+
+    // Only allow toggling between USER and SOCIO
+    if (user.role !== "USER" && user.role !== "SOCIO") {
+      return {
+        success: false,
+        message: "Can only toggle between USER and SOCIO roles",
+      };
+    }
+
+    const newRole = user.role === "USER" ? "SOCIO" : "USER";
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { role: newRole },
+    });
+
+    await logAudit("USER_ROLE_TOGGLED", "User", userId, {
+      oldRole: user.role,
+      newRole,
+    });
+    
+    // Revalidate paths
+    revalidatePath("/admin/users");
+    revalidatePath("/superadmin");
+    revalidatePath("/dashboard");
+    
+    return { 
+      success: true, 
+      newRole,
+      message: `Rol actualizado. El usuario (${user.email}) debe cerrar sesión y volver a iniciar para ver los cambios.`
+    };
+  } catch (error) {
+    console.error("Error toggling role:", error);
+    return { success: false, message: "Error toggling role" };
+  }
+}
+
 
 // ============================================================================
 // GESTIÓN DE TICKETS (ADMIN)
@@ -179,7 +233,15 @@ export async function getWithdrawals() {
     const withdrawalsRaw = await prisma.withdrawalRequest.findMany({
       orderBy: { requestedAt: "desc" },
       include: {
-        user: { select: { email: true, availableBalance: true } },
+        user: {
+          select: {
+            email: true,
+            investedCapital: true,
+            firstName: true,
+            paternalSurname: true,
+            maternalSurname: true,
+          },
+        },
         bankAccount: {
           select: {
             id: true,
@@ -203,7 +265,10 @@ export async function getWithdrawals() {
       requestedAt: w.requestedAt.toISOString(),
       user: {
         email: w.user.email,
-        availableBalance: w.user.availableBalance.toString(),
+        investedCapital: w.user.investedCapital.toString(),
+        firstName: w.user.firstName,
+        paternalSurname: w.user.paternalSurname,
+        maternalSurname: w.user.maternalSurname,
       },
       bankAccount: w.bankAccount
         ? {
@@ -310,7 +375,7 @@ export async function processWithdrawal(
       ) {
         await tx.user.update({
           where: { id: withdrawal.userId },
-          data: { availableBalance: { increment: withdrawal.amount } },
+          data: { investedCapital: { increment: withdrawal.amount } },
         });
         await tx.transaction.create({
           data: {

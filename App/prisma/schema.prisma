@@ -65,8 +65,18 @@ model User {
   mustChangePassword Boolean @default(false)
 
   /// Rol del usuario para control de acceso (USER, ADMIN, etc.)
-  /// Values: USER, ADMIN, SUPER_ADMIN
+  /// Values: USER, SOCIO, ADMIN, SUPER_ADMIN
   role              String    @default("USER")
+
+  /// Moneda preferida para visualización (USD, COP, EUR, etc.)
+  preferredCurrency String    @default("USD")
+
+  /// Moneda base de la cuenta (inmutable por el usuario)
+  /// Se establece al registrarse y define la moneda real del balance
+  baseCurrency      String    @default("COP")
+
+  /// País de residencia del usuario (código ISO 3166-1 alpha-2 ej: CO, MX)
+  country           String?
 
   
   /// Versión del token para invalidar sesiones concurrentes (Single Session)
@@ -77,11 +87,8 @@ model User {
   // CAMPOS FINANCIEROS (WALLET)
   // ================================================================
   
-  /// Capital total invertido por el usuario (suma de todos los depósitos confirmados)
+  /// Balance total de la cuenta (capital invertido)
   investedCapital   Decimal   @default(0)
-  
-  /// Balance disponible para retiro (puede diferir del capital invertido)
-  availableBalance  Decimal   @default(0)
 
   // ================================================================
   // RELACIONES
@@ -465,4 +472,26 @@ model SystemSetting {
   value       String
   description String?
   updatedAt   DateTime @updatedAt
+}
+
+// ============================================================================
+// MODELO DE RENDIMIENTO (PERFORMANCE)
+// ============================================================================
+model Performance {
+  id        String   @id @default(cuid())
+  
+  currency1 String
+  currency2 String
+  type      String   // COMPRA | VENTA
+  percentage Decimal
+  date      DateTime @default(now())
+
+  // Target audience role (USER or SOCIO)
+  targetRole String // USER | SOCIO
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([targetRole])
+  @@index([date])
 }

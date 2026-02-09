@@ -7,7 +7,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { X, AlertCircle, CheckCircle, Plus, CreditCard } from "lucide-react";
-import { formatCurrency, parseCurrency } from "@/lib/utils/currency";
+import { parseCurrency } from "@/lib/utils/currency";
+import { useCurrency } from "@/contexts/CurrencyContext";
 import { BankAccountModal } from "@/components/dashboard/billetera/BankAccountModal";
 
 // ============================================================================
@@ -40,6 +41,7 @@ export function WithdrawModal({
   availableBalance,
   onSuccess,
 }: WithdrawModalProps) {
+  const { formatAmount } = useCurrency();
   const [amount, setAmount] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
     null
@@ -116,7 +118,7 @@ export function WithdrawModal({
 
       if (numericAmount > availableBalance) {
         setError(
-          `No puedes retirar más de tu balance disponible (${formatCurrency(
+          `No puedes retirar más de tu balance total (${formatAmount(
             availableBalance
           )})`
         );
@@ -299,7 +301,7 @@ export function WithdrawModal({
                 </p>
               </div>
 
-              {/* Balance disponible */}
+              {/* Balance total */}
               <div
                 style={{
                   padding: "16px",
@@ -318,7 +320,7 @@ export function WithdrawModal({
                     letterSpacing: "0.5px",
                   }}
                 >
-                  Balance Disponible
+                  Balance Total
                 </p>
                 <p
                   style={{
@@ -328,7 +330,7 @@ export function WithdrawModal({
                     margin: 0,
                   }}
                 >
-                  {formatCurrency(availableBalance)}
+                  {formatAmount(availableBalance)}
                 </p>
               </div>
 
@@ -518,7 +520,7 @@ export function WithdrawModal({
                       letterSpacing: "0.5px",
                     }}
                   >
-                    Monto a Retirar (USD)
+                    Monto a Retirar
                   </label>
                   <input
                     type="text"

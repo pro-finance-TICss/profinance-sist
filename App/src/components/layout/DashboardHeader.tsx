@@ -1,18 +1,47 @@
 "use client";
 import React from "react";
-import { Search, Bell, User } from "lucide-react";
+import { Search, Bell, User, Menu, DollarSign } from "lucide-react";
+import { useDashboard } from "@/contexts/DashboardContext";
+import { useSession } from "next-auth/react";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 export const DashboardHeader = ({ title }: { title: string }) => {
+  const { isMobile, isTablet, isCollapsed, toggleSidebar } = useDashboard();
+  const { data: session } = useSession();
+
+  // Get user display name and role
+  const userName = session?.user?.name || "Usuario";
+  
+  const userRole = session?.user?.role || "USER";
+  
+  // Map role to display text
+  const getRoleDisplay = (role: string) => {
+    switch (role) {
+      case "SOCIO":
+        return "Socio";
+      case "USER":
+        return "Usuario";
+      case "ADMIN":
+        return "Administrador";
+      case "SUPER_ADMIN":
+        return "Super Admin";
+      default:
+        return "Usuario";
+    }
+  };
+
+  const roleDisplay = getRoleDisplay(userRole);
+
   return (
     <header
       style={{
-        height: "80px",
-        padding: "0 30px",
+        height: isMobile ? "60px" : "80px",
+        padding: isMobile ? "0 15px" : "0 30px",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        backgroundColor: "rgba(0, 0, 0, 0.8)", // Fondo oscuro con transparencia
-        backdropFilter: "blur(10px)", // Efecto cristal
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
+        backdropFilter: "blur(10px)",
         borderBottom: "1px solid rgba(189, 142, 72, 0.2)",
         position: "sticky",
         top: 0,
@@ -20,125 +49,143 @@ export const DashboardHeader = ({ title }: { title: string }) => {
         width: "100%",
       }}
     >
-      {/* 1. TÍTULO DINÁMICO (Ahora aprovecha el espacio izquierdo) */}
-      <div style={{ minWidth: "200px" }}>
-        <h2
-          style={{
-            margin: 0,
-            fontSize: "1.4rem",
-            color: "#fff",
-            fontWeight: "600",
-            letterSpacing: "0.5px",
-            textTransform: "uppercase",
-          }}
-        >
-          {title}
-        </h2>
-        <span
-          style={{
-            fontSize: "0.75rem",
-            color: "#bd8e48",
-            opacity: 0.8,
-            fontWeight: "500",
-          }}
-        >
-          SISTEMA DE GESTIÓN PRO
-        </span>
-      </div>
 
-      {/* 2. BUSCADOR CENTRAL MEJORADO */}
-      <div style={{ flex: 0.4, position: "relative" }}>
-        <Search
-          size={16}
-          color="#bd8e48"
-          style={{
-            position: "absolute",
-            left: "15px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            opacity: 0.6,
-          }}
-        />
-        <input
-          type="text"
-          placeholder="Buscar activos, transacciones..."
-          style={{
-            width: "100%",
-            backgroundColor: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(189, 142, 72, 0.15)",
-            borderRadius: "12px",
-            padding: "12px 15px 12px 45px",
-            color: "#fff",
-            fontSize: "0.85rem",
-            outline: "none",
-            transition: "all 0.3s ease",
-          }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = "#bd8e48")}
-          onBlur={(e) =>
-            (e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.15)")
-          }
-        />
-      </div>
+      {/* 2. BUSCADOR CENTRAL MEJORADO (Oculto en móvil) */}
+      {!isMobile && (
+        <div style={{
+          flex: isTablet ? "0 1 250px" : "0 1 400px",
+          position: "relative",
+          marginRight: "auto",
+        }}>
+          <Search
+            size={16}
+            color="#bd8e48"
+            style={{
+              position: "absolute",
+              left: "15px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              opacity: 0.6,
+            }}
+          />
+          <input
+            type="text"
+            placeholder="Buscar activos, transacciones..."
+            style={{
+              width: "100%",
+              backgroundColor: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(189, 142, 72, 0.15)",
+              borderRadius: "12px",
+              padding: "12px 15px 12px 45px",
+              color: "#fff",
+              fontSize: "0.85rem",
+              outline: "none",
+              transition: "all 0.3s ease",
+            }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "#bd8e48")}
+            onBlur={(e) =>
+              (e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.15)")
+            }
+          />
+        </div>
+      )}
 
-      {/* 3. PERFIL Y NOTIFICACIONES */}
-      <div style={{ display: "flex", alignItems: "center", gap: "25px" }}>
-        {/* Notificaciones */}
-        <NotificationBell />
+      {/* 3. PERFIL Y NOTIFICACIONES - AJUSTE PARA MÓVIL (CORREGIDO) */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: isMobile ? "space-between" : "flex-end",
+          width: isMobile ? "100%" : "auto",
+          gap: isMobile ? "0" : "25px",
+          position: "relative",
+          zIndex: 10,
+          backgroundColor: isTablet ? "rgba(0,0,0,0.5)" : "transparent",
+          borderRadius: "12px",
+        }}
+      >
+        {/* BOTÓN HAMBURGUESA: Extremo izquierdo en móvil */}
+        {isMobile && (
+          <button
+            onClick={toggleSidebar}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#bd8e48",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "8px",
+              borderRadius: "8px",
+              backgroundColor: "rgba(189, 142, 72, 0.05)",
+              zIndex: 60
+            }}
+          >
+            <Menu size={24} />
+          </button>
+        )}
 
-        {/* Perfil de Socio */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "15px",
-            paddingLeft: "20px",
-            borderLeft: "1px solid rgba(189, 142, 72, 0.2)",
-          }}
-        >
-          <div style={{ textAlign: "right" }}>
-            <p
-              style={{
-                margin: 0,
-                fontSize: "0.85rem",
-                fontWeight: "700",
-                color: "#fff",
-                letterSpacing: "0.3px",
-              }}
-            >
-              Socio Pro-Finance
-            </p>
-            <p
-              style={{
-                margin: 0,
-                fontSize: "0.65rem",
-                color: "#bd8e48",
-                fontWeight: "bold",
-                textTransform: "uppercase",
-              }}
-            >
-              Platinum Member
-            </p>
+        {/* CONTENEDOR DERECHO: Divisa + Campana + Perfil */}
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? "10px" : "25px" }}>
+          <CurrencyDisplay />
+          <NotificationBell />
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "15px",
+              paddingLeft: isMobile ? "0" : "20px",
+              borderLeft: isMobile ? "none" : "1px solid rgba(189, 142, 72, 0.2)",
+            }}
+          >
+            {!isMobile && (
+              <div style={{ textAlign: "right" }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "0.85rem",
+                    fontWeight: "700",
+                    color: "#fff",
+                    letterSpacing: "0.3px",
+                  }}
+                >
+                  {userName}
+                </p>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "0.65rem",
+                    color: "#bd8e48",
+                    fontWeight: "bold",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {roleDisplay}
+                </p>
+              </div>
+            )}
+
+            <Link href="/dashboard/ajustes?tab=profile">
+              <div
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "12px",
+                  background: "linear-gradient(135deg, #bd8e48, #8a662d)",
+                  border: "2px solid rgba(189, 142, 72, 0.4)",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
+                  cursor: "pointer",
+                }}
+              >
+                <User size={22} color="#000" />
+              </div>
+            </Link>
           </div>
-
-          {/* Avatar con el estilo de la marca */}
-          <Link href="/dashboard/ajustes?tab=profile">
-            <div
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "12px",
-                background: "linear-gradient(135deg, #bd8e48, #8a662d)",
-                border: "2px solid rgba(189, 142, 72, 0.4)",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
-                cursor: "pointer",
-              }}
-            >
-              <User size={22} color="#000" />
-            </div>
-          </Link>
         </div>
       </div>
     </header>
@@ -146,7 +193,7 @@ export const DashboardHeader = ({ title }: { title: string }) => {
 };
 
 // ============================================================================
-// COMPONENTE DE NOTIFICACIONES (INTERNO)
+// COMPONENTE DE NOTIFICACIONES (RESTAURADO COMPLETAMENTE)
 // ============================================================================
 import { useState, useEffect, useRef } from "react";
 import {
@@ -162,7 +209,7 @@ import {
   CheckCircle,
   AlertCircle,
 } from "lucide-react";
-import Link from "next/link"; // Agregado para el link del perfil
+import Link from "next/link";
 
 function NotificationBell() {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -179,12 +226,10 @@ function NotificationBell() {
 
   useEffect(() => {
     loadNotifications();
-    // Polling simple cada 30s
     const interval = setInterval(loadNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Cerrar dropdown al hacer click fuera
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -232,7 +277,7 @@ function NotificationBell() {
         style={{
           cursor: "pointer",
           position: "relative",
-          padding: "8px",
+          padding: "12px",
           borderRadius: "8px",
           transition: "background 0.3s",
           backgroundColor: isOpen ? "rgba(189, 142, 72, 0.1)" : "transparent",
@@ -308,7 +353,7 @@ function NotificationBell() {
             )}
           </div>
 
-          <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+          <div className="custom-scrollbar" style={{ maxHeight: "300px", overflowY: "auto" }}>
             {notifications.length === 0 ? (
               <div
                 style={{
@@ -388,6 +433,65 @@ function NotificationBell() {
             )}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPONENTE DE SELECTOR DE DIVISA
+// ============================================================================
+
+
+// ============================================================================
+// COMPONENTE DE PANTALLA DE DIVISA (SOLO LECTURA)
+// ============================================================================
+
+function CurrencyDisplay() {
+  const { currency, isLoading } = useCurrency(); // Esto ahora siempre será baseCurrency
+  const { isMobile } = useDashboard();
+
+  const CURRENCIES = [
+    { code: "USD", name: "Dólar", symbol: "$", flag: "🇺🇸" },
+    { code: "COP", name: "Peso COL", symbol: "$", flag: "🇨🇴" },
+    { code: "EUR", name: "Euro", symbol: "€", flag: "🇪🇺" },
+    { code: "MXN", name: "Peso MEX", symbol: "$", flag: "🇲🇽" },
+    { code: "GBP", name: "Libra", symbol: "£", flag: "🇬🇧" },
+  ];
+
+  if (isLoading) {
+    return (
+      <div style={{ padding: "12px", color: "rgba(255,255,255,0.3)" }}>...</div>
+    );
+  }
+
+  const currentCurrency = CURRENCIES.find((c) => c.code === currency) || CURRENCIES[0];
+
+  return (
+    <div
+      style={{
+        padding: isMobile ? "8px 12px" : "10px 16px",
+        borderRadius: "8px",
+        backgroundColor: "rgba(189, 142, 72, 0.05)",
+        border: "1px solid rgba(189, 142, 72, 0.2)",
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        cursor: "default",
+      }}
+      title="Moneda Base (fija)"
+    >
+      <span style={{ fontSize: "1.2rem", lineHeight: 1 }}>{currentCurrency.flag}</span>
+      {!isMobile && (
+        <span
+          style={{
+            color: "#bd8e48",
+            fontSize: "0.9rem",
+            fontWeight: "600",
+          }}
+        >
+          {currency}
+        </span>
       )}
     </div>
   );

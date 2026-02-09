@@ -41,12 +41,12 @@ export async function POST(req: NextRequest) {
       // a. Leer balance dentro de la transacción (para bloqueo/consistencia si fuera Postgres con FOR UPDATE, pero en SQLite serializa)
       const user = await tx.user.findUnique({
         where: { id: session.user.id },
-        select: { availableBalance: true, email: true },
+        select: { investedCapital: true, email: true },
       });
 
       if (!user) throw new Error("USER_NOT_FOUND");
 
-      const currentBalance = decimalToNumber(user.availableBalance);
+      const currentBalance = decimalToNumber(user.investedCapital);
 
       if (amount > currentBalance) {
         throw new Error("INSUFFICIENT_FUNDS");
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       // c. Descontar balance
       await tx.user.update({
         where: { id: session.user.id },
-        data: { availableBalance: { decrement: amount } },
+        data: { investedCapital: { decrement: amount } },
       });
 
       // d. Crear solicitud con cuenta bancaria

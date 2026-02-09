@@ -1,31 +1,36 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "../../components/layout/Sidebar";
 import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { Footer } from "../../components/layout/Footer";
 import { Menu } from "lucide-react";
 import { useSessionValidator } from "@/hooks/useSessionValidator";
+import { DashboardProvider, useDashboard } from "@/contexts/DashboardContext";
+import { CurrencyProvider } from "@/contexts/CurrencyContext";
+import { Z_INDEX } from "@/constants/zIndex";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  return (
+    <DashboardProvider>
+      <CurrencyProvider>
+        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      </CurrencyProvider>
+    </DashboardProvider>
+  );
+}
+
+function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const { isMobile, isTablet, isDesktop, isSidebarOpen, closeSidebar, toggleSidebar, isCollapsed, toggleCollapse } = useDashboard();
 
   // Validar sesión cada 30 segundos y cuando la ventana recupere el foco
   useSessionValidator(30000);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
 
   // Determinar título basado en la ruta
   const getTitle = (path: string) => {
@@ -43,6 +48,10 @@ export default function DashboardLayout({
   };
 
   const title = getTitle(pathname);
+
+  // Determinar el ancho del sidebar dinámicamente
+  const sidebarWidth = isCollapsed && !isMobile ? "80px" : "260px";
+  const isDrawerMode = isMobile;
 
   return (
     <div
@@ -70,41 +79,45 @@ export default function DashboardLayout({
           backgroundSize: "contain",
           opacity: 0.04,
           pointerEvents: "none",
-          zIndex: 0,
+          zIndex: Z_INDEX.BACKGROUND,
         }}
       />
 
-      {/* SIDEBAR con control móvil */}
+      {/* SIDEBAR REESTRUCTURADO */}
       <aside
         style={{
-          width: "260px",
+          width: sidebarWidth,
           flexShrink: 0,
           backgroundColor: "#000",
           borderRight: "1px solid rgba(189, 142, 72, 0.1)",
-          zIndex: 100,
+          height: "100vh",
+          // --- CAMBIO CLAVE PARA TABLET/DESKTOP ---
+          // En móvil sigue siendo absolute/fixed para flotar.
+          // En tablet, usamos 'relative' para que sea un bloque físico que NO tapa nada.
           position: isMobile ? "absolute" : "relative",
-          left: isMobile ? (isMobileMenuOpen ? "0" : "-260px") : "0",
-          transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-          height: "100%",
+          left: isMobile ? (isSidebarOpen ? "0" : "-260px") : "0",
+          zIndex: isMobile ? Z_INDEX.SIDEBAR : 1, // Z-index mínimo en tablet
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        <Sidebar
-          onNavigate={() => {
-            if (isMobile) setIsMobileMenuOpen(false);
-          }}
-        />
+        <Sidebar onNavigate={closeSidebar} />
       </aside>
 
-      {/* OVERLAY MENÚ MÓVIL */}
-      {isMobile && isMobileMenuOpen && (
+      {/* 🛡️ OVERLAY ESTILIZADO (Respetando arquitectura) */}
+      {isSidebarOpen && (isMobile || (isTablet && !isCollapsed)) && (
         <div
-          onClick={() => setIsMobileMenuOpen(false)}
+          onClick={closeSidebar}
           style={{
-            position: "absolute",
+            position: "fixed",
             inset: 0,
-            backgroundColor: "rgba(0,0,0,0.6)",
-            zIndex: 90,
+            // Bajamos la intensidad del negro (0.3) para que no sea un bloque sólido
+            backgroundColor: "rgba(0, 0, 0, 0.3)",
+            // El Z_INDEX.OVERLAY debe ser menor al del Sidebar pero mayor al contenido
+            zIndex: Z_INDEX.OVERLAY || 40,
+            // Aumentamos el blur para que se vea más moderno/platinum
             backdropFilter: "blur(4px)",
+            cursor: "pointer",
+            transition: "all 0.3s ease",
           }}
         />
       )}
@@ -116,29 +129,17 @@ export default function DashboardLayout({
           display: "flex",
           flexDirection: "column",
           minWidth: 0,
-          zIndex: 5,
           position: "relative",
           backgroundColor: "transparent",
+          // --- ELIMINAMOS EL MARGIN LEFT EN TABLET ---
+          marginLeft: 0,
+          // El ancho ahora es automático gracias a flex: 1
+          width: "100%",
+          zIndex: 5, // Un poco más que el sidebar pero menos que los modales
+          transition: "all 0.3s ease",
         }}
       >
-        {isMobile && (
-          <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            style={{
-              position: "absolute",
-              top: "20px",
-              left: "20px",
-              zIndex: 80,
-              background: "rgba(189, 142, 72, 0.1)",
-              border: "1px solid rgba(189, 142, 72, 0.3)",
-              borderRadius: "8px",
-              padding: "8px",
-              color: "#bd8e48",
-            }}
-          >
-            <Menu size={24} />
-          </button>
-        )}
+
 
         <DashboardHeader title={title} />
 
@@ -156,20 +157,20 @@ export default function DashboardLayout({
         >
           <div
             style={{
-              padding: isMobile ? "20px" : "30px 40px",
+              padding: isMobile ? "20px" : isTablet ? "20px" : "30px 40px",
               display: "flex",
               flexDirection: "column",
               gap: isMobile ? "1.5rem" : "2.5rem",
-              marginTop: isMobile ? "40px" : "0",
-              flex: "1 0 auto", // Flex grow, don't shrink, auto basis
-              minHeight: "min-content", // Allow content to dictate height
+              marginTop: isMobile ? "60px" : "0",
+              flex: "1 0 auto",
+              minHeight: "min-content",
             }}
           >
             {/* Header de la sección actual se renderiza aquí para consistencia */}
             <div>
               <h1
                 style={{
-                  fontSize: isMobile ? "1.4rem" : "1.8rem",
+                  fontSize: isMobile ? "1.4rem" : isTablet ? "1.6rem" : "1.8rem",
                   color: "#fff",
                   margin: 0,
                 }}
@@ -181,6 +182,8 @@ export default function DashboardLayout({
                   ? "Monitorea tus activos en tiempo real."
                   : title === "Ajustes"
                   ? "Gestiona tu perfil y preferencias."
+                  : title === "Transacciones"
+                  ? "Historial de Transacciones y Solicitudes de retiro"
                   : `Gestión de ${title.toLowerCase()}.`}
               </p>
             </div>

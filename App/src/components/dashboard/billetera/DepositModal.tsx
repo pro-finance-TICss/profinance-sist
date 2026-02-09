@@ -164,7 +164,7 @@ export function DepositModal({
                 letterSpacing: "0.5px",
               }}
             >
-              Monto a depositar (COP)
+              Monto a depositar
             </label>
             <input
               type="text"

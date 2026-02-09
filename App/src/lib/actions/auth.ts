@@ -106,7 +106,7 @@ export async function registerUser(
       };
     }
 
-    const { email, password, firstName, paternalSurname, maternalSurname } =
+    const { email, password, firstName, paternalSurname, maternalSurname, country, baseCurrency } =
       validatedFields.data;
 
     // ================================================================
@@ -137,6 +137,19 @@ export async function registerUser(
     const totpSecret = generateTotpSecret();
 
     // ================================================================
+    // PASO 4.5: Determinar moneda base
+    // ================================================================
+    // Si se proporciona moneda base explícita, usarla.
+    // Si no, inferir del país. Si no hay país, default "COP".
+    let finalBaseCurrency = baseCurrency || "COP";
+    
+    if (!baseCurrency && country) {
+      // Import dinámico para evitar ciclos o problemas en build time si fuera necesario
+      const { getCurrencyForCountry } = await import("@/lib/utils/country-currency-map");
+      finalBaseCurrency = getCurrencyForCountry(country);
+    }
+
+    // ================================================================
     // PASO 5: Crear usuario en la base de datos
     // ================================================================
     const newUser = await prisma.user.create({
@@ -146,6 +159,8 @@ export async function registerUser(
         firstName,
         paternalSurname,
         maternalSurname,
+        country: country || null,
+        baseCurrency: finalBaseCurrency,
         totpSecret, // Guardar secreto (aún no habilitado)
         totpEnabled: false, // Se habilitará al verificar primer código
       },

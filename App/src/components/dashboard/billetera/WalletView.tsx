@@ -1,8 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
 import { BalanceCard } from "./BalanceCard";
-import { TransactionHistory } from "./TransactionHistory";
-import { WithdrawalStatus } from "./WithdrawalStatus";
 import { DepositModal } from "./DepositModal";
 import { WithdrawModal } from "./WithdrawModal";
 import { BankAccountList } from "./BankAccountList";
@@ -15,15 +13,6 @@ import {
 // Tipos
 interface BalanceData {
   investedCapital: number;
-  availableBalance: number;
-}
-
-interface Transaction {
-  id: string;
-  type: string;
-  amount: number;
-  status: string;
-  createdAt: string;
 }
 
 interface WithdrawalRequest {
@@ -39,9 +28,7 @@ export function WalletView() {
   // Estados de datos
   const [balance, setBalance] = useState<BalanceData>({
     investedCapital: 0,
-    availableBalance: 0,
   });
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -58,20 +45,14 @@ export function WalletView() {
     try {
       setIsLoading(true);
 
-      const [balanceRes, transactionsRes, withdrawalsRes] = await Promise.all([
+      const [balanceRes, withdrawalsRes] = await Promise.all([
         fetch("/api/wallet/balance"),
-        fetch("/api/wallet/transactions?limit=5"), // Últimas 5 transacciones
         fetch("/api/wallet/withdrawals"),
       ]);
 
       if (balanceRes.ok) {
         const data = await balanceRes.json();
         setBalance(data.balance);
-      }
-
-      if (transactionsRes.ok) {
-        const data = await transactionsRes.json();
-        setTransactions(data.transactions);
       }
 
       if (withdrawalsRes.ok) {
@@ -115,7 +96,6 @@ export function WalletView() {
         <div style={{ minHeight: "200px" }}>
           <BalanceCard
             investedCapital={balance.investedCapital}
-            availableBalance={balance.availableBalance}
             pendingWithdrawal={pendingWithdrawal}
           />
         </div>
@@ -301,18 +281,8 @@ export function WalletView() {
         </div>
       </div>
 
-      {/* 2. Estado de Retiros (si hay) */}
-      {withdrawals.length > 0 && (
-        <div style={{ width: "100%" }}>
-          <WithdrawalStatus withdrawals={withdrawals} isLoading={isLoading} />
-        </div>
-      )}
-
-      {/* 3. Sección de Cuentas Bancarias */}
+      {/* 2. Sección de Cuentas Bancarias */}
       <BankAccountList />
-
-      {/* 4. Historial de Transacciones */}
-      <TransactionHistory transactions={transactions} isLoading={isLoading} />
 
       {/* Modales */}
       <DepositModal
@@ -326,7 +296,7 @@ export function WalletView() {
       <WithdrawModal
         isOpen={isWithdrawModalOpen}
         onClose={() => setIsWithdrawModalOpen(false)}
-        availableBalance={balance.availableBalance}
+        availableBalance={balance.investedCapital}
         onSuccess={fetchData}
       />
 
