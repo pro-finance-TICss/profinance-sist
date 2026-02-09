@@ -224,9 +224,8 @@ export default function SetupSecurityPage() {
                 </h2>
               </div>
               <p style={styles.stepDescription}>
-                Por seguridad, las cuentas con privilegios administrativos deben
-                tener 2FA habilitado. Configura tu aplicación autenticadora para
-                continuar.
+                Por seguridad, las cuentas deben tener 2FA habilitado. Configura
+                tu aplicación autenticadora para continuar.
               </p>
 
               {/* Componente de configuración de TOTP */}

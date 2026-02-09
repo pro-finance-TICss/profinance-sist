@@ -520,7 +520,7 @@ export function WithdrawModal({
                       letterSpacing: "0.5px",
                     }}
                   >
-                    Monto a Retirar (USD)
+                    Monto a Retirar
                   </label>
                   <input
                     type="text"

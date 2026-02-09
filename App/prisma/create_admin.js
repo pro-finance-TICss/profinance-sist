@@ -93,7 +93,6 @@ async function main() {
       mustChangePassword: true, // Debe cambiar contraseña al primer login
       // Valores financieros iniciales
       investedCapital: 0,
-      availableBalance: 0,
     },
   });
 

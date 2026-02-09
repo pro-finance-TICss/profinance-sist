@@ -233,7 +233,15 @@ export async function getWithdrawals() {
     const withdrawalsRaw = await prisma.withdrawalRequest.findMany({
       orderBy: { requestedAt: "desc" },
       include: {
-        user: { select: { email: true, investedCapital: true } },
+        user: {
+          select: {
+            email: true,
+            investedCapital: true,
+            firstName: true,
+            paternalSurname: true,
+            maternalSurname: true,
+          },
+        },
         bankAccount: {
           select: {
             id: true,
@@ -258,6 +266,9 @@ export async function getWithdrawals() {
       user: {
         email: w.user.email,
         investedCapital: w.user.investedCapital.toString(),
+        firstName: w.user.firstName,
+        paternalSurname: w.user.paternalSurname,
+        maternalSurname: w.user.maternalSurname,
       },
       bankAccount: w.bankAccount
         ? {

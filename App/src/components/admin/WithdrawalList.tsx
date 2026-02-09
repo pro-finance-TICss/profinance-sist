@@ -34,6 +34,9 @@ interface WithdrawalRequestData {
   user: {
     email: string;
     investedCapital: string | number;
+    firstName: string;
+    paternalSurname: string;
+    maternalSurname: string;
   };
   bankAccount?: BankAccountInfo | null;
 }
@@ -227,7 +230,13 @@ export function WithdrawalList({
                 </div>
                 <div style={{ marginTop: "8px", color: "#888" }}>
                   Solicitado por:{" "}
-                  <span style={{ color: "#bd8e48" }}>{req.user.email}</span>
+                  <span style={{ color: "#fff", fontWeight: "600", display: "block" }}>
+                    {req.user.firstName} {req.user.paternalSurname}{" "}
+                    {req.user.maternalSurname}
+                  </span>
+                  <span style={{ color: "#bd8e48", fontSize: "0.85rem" }}>
+                    {req.user.email}
+                  </span>
                 </div>
                 <div
                   style={{
