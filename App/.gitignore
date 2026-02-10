@@ -45,4 +45,13 @@ next-env.d.ts
 
 # Prisma / SQLite
 prisma/dev.db
+prisma/dev.db-shm
+prisma/dev.db-wal
+prisma/dev.db-journal
 
+# Archivos de debug y utilidades de desarrollo
+check-users.*
+debug-*.js
+setup-env.js
+build_error.log
+*.log

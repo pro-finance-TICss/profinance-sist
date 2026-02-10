@@ -6,34 +6,50 @@ import { requireRole } from "@/lib/security";
 import { UserRole } from "@/lib/enums";
 
 // ============================================================================
-// TYPES
+// ANÁLISIS DE INVERSIONES PARA SUPER ADMIN - PRO-FINANCE
+// ============================================================================
+// Proporciona datos analíticos de capital invertido por rol (USER/SOCIO)
+// con gráficos temporales y resúmenes mensuales comparativos.
 // ============================================================================
 
+/** Punto de datos para el gráfico temporal */
 interface ChartDataPoint {
-  date: string; // ISO string
-  total: number; // Aggregated investedCapital at this point
+  /** Fecha en formato ISO */
+  date: string;
+  /** Capital invertido total acumulado en este punto */
+  total: number;
 }
 
+/** Resumen mensual de capital invertido */
 interface MonthlyTotal {
-  month: string; // "2026-01" format
-  displayMonth: string; // "Enero 2026"
+  /** Mes en formato "2026-01" */
+  month: string;
+  /** Mes legible: "Enero 2026" */
+  displayMonth: string;
+  /** Total del capital en el mes */
   total: number;
-  changeFromPrevious: number; // percentage
+  /** Cambio porcentual respecto al mes anterior */
+  changeFromPrevious: number;
+  /** Indica si hubo incremento respecto al mes anterior */
   isIncrease: boolean;
 }
 
+/** Datos completos de análisis de inversión */
 interface AnalyticsData {
+  /** Total actual de capital invertido */
   currentTotal: number;
+  /** Datos para el gráfico temporal */
   chartData: ChartDataPoint[];
+  /** Resúmenes mensuales con comparación */
   monthlyTotals: MonthlyTotal[];
 }
 
 // ============================================================================
-// HELPER FUNCTIONS
+// FUNCIONES AUXILIARES
 // ============================================================================
 
 /**
- * Get month name in Spanish
+ * Obtiene el nombre del mes en español por su índice (0-11).
  */
 function getMonthName(monthIndex: number): string {
   const months = [
@@ -44,7 +60,9 @@ function getMonthName(monthIndex: number): string {
 }
 
 /**
- * Filter data by time range
+ * Filtra datos del gráfico según el rango de tiempo seleccionado.
+ * @param data - Datos completos del gráfico
+ * @param timeRange - Rango: 1 día, 1 semana, 1 mes o todos
  */
 function filterByTimeRange(
   data: ChartDataPoint[],
@@ -72,7 +90,8 @@ function filterByTimeRange(
 }
 
 /**
- * Calculate monthly summaries from chart data
+ * Calcula resúmenes mensuales a partir de los datos del gráfico.
+ * Incluye el cambio porcentual respecto al mes anterior.
  */
 function calculateMonthlyTotals(data: ChartDataPoint[]): MonthlyTotal[] {
   if (data.length === 0) return [];
@@ -124,22 +143,23 @@ function calculateMonthlyTotals(data: ChartDataPoint[]): MonthlyTotal[] {
 }
 
 // ============================================================================
-// MAIN ANALYTICS FUNCTION
+// FUNCIÓN PRINCIPAL DE ANÁLISIS
 // ============================================================================
 
 /**
- * Get investment analytics for a specific role
- * Aggregates all users' invested capital over time
+ * Obtiene análisis de inversiones para un rol específico.
+ * Agrega el capital invertido de todos los usuarios del rol a lo largo del tiempo.
+ * Solo accesible por SUPER_ADMIN.
  */
 export async function getInvestmentAnalytics(
   role: "USER" | "SOCIO",
   timeRange: "1D" | "1W" | "1M" | "ALL" = "1M"
 ): Promise<{ success: boolean; data?: AnalyticsData; message?: string }> {
   try {
-    // Require SUPER_ADMIN role
+    // Requiere rol SUPER_ADMIN
     await requireRole(UserRole.SUPER_ADMIN);
 
-    // Get all users with the specified role
+    // Obtener todos los usuarios con el rol especificado
     const users = await prisma.user.findMany({
       where: { role },
       select: {
@@ -149,7 +169,7 @@ export async function getInvestmentAnalytics(
       },
     });
 
-    // Get all transactions for these users
+    // Obtener todas las transacciones de estos usuarios
     const userIds = users.map((u) => u.id);
     const transactions = await prisma.transaction.findMany({
       where: {
@@ -165,22 +185,22 @@ export async function getInvestmentAnalytics(
       orderBy: { createdAt: "asc" },
     });
 
-    // Calculate current total
+    // Calcular total actual de capital invertido
     const currentTotal = users.reduce(
       (sum, user) => sum + Number(user.investedCapital),
       0
     );
 
-    // Build aggregated timeline
+    // Construir línea temporal agregada
     const aggregatedTimeline: ChartDataPoint[] = [];
     const userBalances = new Map<string, number>();
 
-    // Initialize all users with 0
+    // Inicializar todos los usuarios con balance 0
     users.forEach((user) => {
       userBalances.set(user.id, 0);
     });
 
-    // Process transactions chronologically
+    // Procesar transacciones cronológicamente
     transactions.forEach((tx) => {
       const currentBalance = userBalances.get(tx.userId) || 0;
       let newBalance = currentBalance;
@@ -193,7 +213,7 @@ export async function getInvestmentAnalytics(
 
       userBalances.set(tx.userId, newBalance);
 
-      // Calculate aggregate total at this point
+      // Calcular total agregado en este punto temporal
       const aggregateTotal = Array.from(userBalances.values()).reduce(
         (sum, balance) => sum + balance,
         0
@@ -205,7 +225,7 @@ export async function getInvestmentAnalytics(
       });
     });
 
-    // If no transactions, create flat line at current total
+    // Si no hay transacciones, crear línea plana al total actual
     if (aggregatedTimeline.length === 0) {
       const now = new Date();
       aggregatedTimeline.push({
@@ -217,17 +237,17 @@ export async function getInvestmentAnalytics(
         total: currentTotal,
       });
     } else {
-      // Add current point
+      // Agregar punto actual al final de la línea temporal
       aggregatedTimeline.push({
         date: new Date().toISOString(),
         total: currentTotal,
       });
     }
 
-    // Filter by time range
+    // Filtrar por rango de tiempo seleccionado
     const filteredData = filterByTimeRange(aggregatedTimeline, timeRange);
 
-    // Calculate monthly totals (use full data, not filtered)
+    // Calcular resúmenes mensuales (usar datos completos, no filtrados)
     const monthlyTotals = calculateMonthlyTotals(aggregatedTimeline);
 
     return {
@@ -235,14 +255,14 @@ export async function getInvestmentAnalytics(
       data: {
         currentTotal,
         chartData: filteredData,
-        monthlyTotals: monthlyTotals.slice(0, 6), // Last 6 months
+        monthlyTotals: monthlyTotals.slice(0, 6), // Últimos 6 meses
       },
     };
   } catch (error) {
     console.error("Error fetching investment analytics:", error);
     return {
       success: false,
-      message: "Failed to fetch analytics data",
+      message: "Error al obtener datos de análisis",
     };
   }
 }

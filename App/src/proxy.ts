@@ -20,7 +20,15 @@ import { auth } from "@/lib/auth";
  * Rutas que requieren autenticación.
  * Si el usuario no tiene sesión válida, será redirigido a /login.
  */
-const PROTECTED_ROUTES = ["/dashboard", "/home", "/settings", "/profile"];
+const PROTECTED_ROUTES = [
+  "/dashboard",
+  "/home",
+  "/settings",
+  "/profile",
+  "/admin",
+  "/superadmin",
+  "/setup-security",
+];
 
 /**
  * Rutas exclusivas para usuarios no autenticados.
@@ -46,7 +54,7 @@ const PUBLIC_ROUTES = ["/", "/api", "/conocenos"];
 const CRITICAL_ROUTES = ["/dashboard/transfer", "/settings/security"];
 
 // ============================================================================
-// HELPERS
+// FUNCIONES AUXILIARES
 // ============================================================================
 
 /**
@@ -76,10 +84,10 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set("Pragma", "no-cache");
   response.headers.set("Expires", "0");
 
-  // Clickjacking protection: Prevenir que la página sea embebida en iframes
+  // Protección contra clickjacking: Prevenir que la página sea embebida en iframes
   response.headers.set("X-Frame-Options", "DENY");
 
-  // MIME type sniffing protection
+  // Protección contra sniping de tipo MIME
   response.headers.set("X-Content-Type-Options", "nosniff");
 
   // XSS Protection (para navegadores antiguos)

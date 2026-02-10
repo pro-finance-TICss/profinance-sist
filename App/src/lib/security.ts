@@ -1,3 +1,10 @@
+// ============================================================================
+// UTILIDADES DE CONTROL DE ACCESO BASADO EN ROLES (RBAC) - PRO-FINANCE
+// ============================================================================
+// Funciones para verificar permisos, validar transiciones de estado
+// y registrar auditoría de acciones en el sistema.
+// ============================================================================
+
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
@@ -9,11 +16,11 @@ import {
 } from "./enums";
 
 // ============================================================================
-// RBAC UTILITIES
+// UTILIDADES RBAC (Control de Acceso Basado en Roles)
 // ============================================================================
 
 /**
- * Obtiene el rol del usuario actual. Returns null si no hay sesión.
+ * Obtiene el rol del usuario actual. Retorna null si no hay sesión.
  */
 export async function getCurrentRole(): Promise<UserRole | null> {
   const session = await auth();
@@ -65,7 +72,7 @@ export async function requireRole(requiredRole: UserRole) {
 }
 
 // ============================================================================
-// STATE MACHINE LOGIC
+// LÓGICA DE MÁQUINA DE ESTADOS
 // ============================================================================
 
 /**
@@ -88,7 +95,7 @@ export function validateTicketTransition(
 }
 
 // ============================================================================
-// AUDIT LOGGING
+// REGISTRO DE AUDITORÍA
 // ============================================================================
 
 export async function logAudit(
@@ -101,7 +108,7 @@ export async function logAudit(
   const userId = session?.user?.id;
 
   if (!userId) {
-    console.warn("Audit Log attempted without User ID");
+    console.warn("⚠️ Intento de registro de auditoría sin ID de usuario");
     return;
   }
 
@@ -117,7 +124,7 @@ export async function logAudit(
       },
     });
   } catch (error) {
-    console.error("Failed to write audit log:", error);
-    // No fallar la transacción principal si el log falla, pero reportar
+    console.error("❌ Error al escribir registro de auditoría:", error);
+    // No fallar la transacción principal si el log falla, pero reportar el error
   }
 }

@@ -30,7 +30,7 @@ export async function createNotification(
       },
     });
   } catch (error) {
-    console.error("Error creating notification:", error);
+    console.error("❌ Error al crear notificación:", error);
   }
 }
 
@@ -55,18 +55,22 @@ export async function getRecentNotifications(limit = 20) {
 
     return { notifications, unreadCount };
   } catch (error) {
-    console.error("Error fetching notifications:", error);
+    console.error("❌ Error al obtener notificaciones:", error);
     return { notifications: [], unreadCount: 0 };
   }
 }
 
 /**
- * @deprecated Use getRecentNotifications instead
+ * @deprecated Usar getRecentNotifications en su lugar.
  */
 export async function getUnreadNotifications() {
   return getRecentNotifications();
 }
 
+/**
+ * Marca una notificación específica como leída.
+ * Solo permite marcar notificaciones propias del usuario autenticado.
+ */
 export async function markAsRead(notificationId: string) {
   const session = await auth();
   if (!session?.user?.id) return;
@@ -77,10 +81,13 @@ export async function markAsRead(notificationId: string) {
       data: { read: true },
     });
   } catch (error) {
-    console.error("Error marking notification as read:", error);
+    console.error("❌ Error al marcar notificación como leída:", error);
   }
 }
 
+/**
+ * Marca todas las notificaciones no leídas del usuario como leídas.
+ */
 export async function markAllAsRead() {
   const session = await auth();
   if (!session?.user?.id) return;
@@ -91,6 +98,6 @@ export async function markAllAsRead() {
       data: { read: true },
     });
   } catch (error) {
-    console.error("Error marking all notifications as read:", error);
+    console.error("❌ Error al marcar todas como leídas:", error);
   }
 }

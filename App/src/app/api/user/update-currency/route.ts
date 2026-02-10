@@ -1,6 +1,6 @@
 // ============================================================================
-// API ROUTE - UPDATE USER CURRENCY PREFERENCE
-//============================================================================
+// RUTA API - ACTUALIZAR PREFERENCIA DE MONEDA DEL USUARIO
+// ============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
@@ -11,21 +11,21 @@ export async function POST(req: NextRequest) {
     const session = await auth();
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
     const { currency } = await req.json();
 
-    // Validar moneda
+    // Validar que la moneda sea una de las soportadas
     const validCurrencies = ["USD", "COP", "EUR", "MXN", "GBP"];
     if (!validCurrencies.includes(currency)) {
       return NextResponse.json(
-        { error: "Invalid currency" },
+        { error: "Moneda no válida" },
         { status: 400 }
       );
     }
 
-    // Actualizar en base de datos
+    // Actualizar preferencia en la base de datos
     await prisma.user.update({
       where: { id: session.user.id },
       data: { preferredCurrency: currency },
@@ -36,9 +36,9 @@ export async function POST(req: NextRequest) {
       currency,
     });
   } catch (error) {
-    console.error("Error updating currency:", error);
+    console.error("❌ Error al actualizar moneda:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Error interno del servidor" },
       { status: 500 }
     );
   }

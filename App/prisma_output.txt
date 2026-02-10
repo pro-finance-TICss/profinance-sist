@@ -1,0 +1,43 @@
+﻿Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": SQLite database "dev.db" at "file:./dev.db"
+
+node.exe : Error: P3016
+En línea: 1 Carácter: 1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified: (Error:   
+  P3016:String) [], Remote   
+ Exception
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+
+The fallback method for 
+database resets failed, 
+meaning Migrate could not 
+clean up the database 
+entirely. Original error: 
+Error describing the 
+database.
+Error querying the database: 
+Error code 11: The database 
+disk image is malformed
+   0: sql_schema_connector::b
+est_effort_reset
+           with 
+namespaces=None
+             at schema-engine
+\connectors\sql-schema-connec
+tor\src\lib.rs:416
+   1: 
+schema_core::state::Reset
+             at schema-engine
+\core\src\state.rs:496
+

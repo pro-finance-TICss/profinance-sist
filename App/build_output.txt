@@ -1,0 +1,53 @@
+﻿Ôû▓ Next.js 16.1.0 (webpack)
+- Environments: .env
+
+  Creating an optimized production build ...
+Ô£ô Compiled successfully in 17.6s
+  Running TypeScript ...
+node.exe : Failed to compile.
+En línea: 1 Carácter: 1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified: (Failed   
+  to compile.:String) [],    
+ RemoteException
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+
+./prisma/add_balance.ts:26:7
+Type error: Object literal 
+may only specify known 
+properties, and 
+'availableBalance' does not 
+exist in type 
+'(Without<UserUpdateInput, 
+UserUncheckedUpdateInput> & 
+UserUncheckedUpdateInput) | 
+(Without<...> & 
+UserUpdateInput)'.
+
+[0m [90m 24 |[39m     
+data[33m:[39m {
+ [90m 25 |[39m       
+investedCapital[33m:[39m 
+[35m50000[39m[33m,[39m
+[31m[1m>[22m[39m[90m 26 
+|[39m       
+availableBalance[33m:[39m 
+[35m15000[39m[33m,[39m
+ [90m    |[39m       
+[31m[1m^[22m[39m
+ [90m 27 |[39m     
+}[33m,[39m
+ [90m 28 |[39m   
+})[33m;[39m
+ [90m 29 |[39m[0m
+Next.js build worker exited 
+with code: 1 and signal: null

@@ -251,20 +251,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const deviceName = parseUserAgent(userAgent);
 
           // ================================================================
-          // NEW DEVICE DETECTION & AUDIT
+          // DETECCIÓN DE NUEVO DISPOSITIVO Y AUDITORÍA
           // ================================================================
           if (userAgent) {
             try {
-              // Check if we have seen this device before
+              // Verificar si hemos visto este dispositivo antes
               const previousLogin = await prisma.auditLog.findFirst({
                 where: {
                   userId: user.id,
                   action: "USER_LOGIN",
-                  userAgent: userAgent, // match exact User-Agent string
+                  userAgent: userAgent, // Coincidir cadena exacta de User-Agent
                 },
               });
 
-              // If not seen before, send notification
+              // Si no se ha visto antes, enviar notificación
               if (!previousLogin) {
                 await createNotification(
                   user.id,
@@ -274,7 +274,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 );
               }
 
-              // Log this login for future reference
+              // Registrar este inicio de sesión para referencia futura
               await prisma.auditLog.create({
                 data: {
                   userId: user.id,
@@ -287,8 +287,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 },
               });
             } catch (error) {
-              console.error("Error logging login audit:", error);
-              // Don't block login if audit fails
+              console.error("❌ Error al registrar auditoría de login:", error);
+              // No bloquear el login si la auditoría falla
             }
           }
 

@@ -38,7 +38,7 @@ export async function getUserProfile() {
 
     return { success: true, user };
   } catch (error) {
-    console.error("Error fetching profile:", error);
+    console.error("❌ Error al obtener perfil:", error);
     return { success: false, message: "Error al obtener perfil" };
   }
 }
@@ -119,14 +119,14 @@ export async function changePassword({
       data: { password: hashedPassword },
     });
 
-    console.log(`🔐 Password changed for user: ${user.email}`);
+    console.log(`🔐 Contraseña cambiada para el usuario: ${user.email}`);
 
     return {
       success: true,
       message: "Contraseña actualizada exitosamente.",
     };
   } catch (error) {
-    console.error("Error changing password:", error);
+    console.error("❌ Error al cambiar contraseña:", error);
     return {
       success: false,
       message: "Error al cambiar la contraseña. Intente nuevamente.",
