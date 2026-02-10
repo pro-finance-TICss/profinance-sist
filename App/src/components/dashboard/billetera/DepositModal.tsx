@@ -72,8 +72,7 @@ export function DepositModal({
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        backdropFilter: "blur(8px)",
+        backgroundColor: "rgba(0, 0, 0, 0.85)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

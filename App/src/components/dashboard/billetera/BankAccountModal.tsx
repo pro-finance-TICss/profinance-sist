@@ -1,18 +1,16 @@
 "use client";
 // ============================================================================
-// COMPONENTE: MODAL DE CUENTA BANCARIA - PRO-FINANCE
+// COMPONENTE: MODAL DE CUENTA BANCARIA - PRO-FINANCE (OPTIMIZADO)
 // ============================================================================
 // Formulario para agregar una nueva cuenta bancaria.
+// Optimizado: sin backdropFilter blur, estilos estáticos, datos memoizados.
 // ============================================================================
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, memo } from "react";
 import { X, CheckCircle, Loader2 } from "lucide-react";
 import {
   getAvailableCountries,
   getCountryData,
-  type Bank,
-  type DocumentType,
-  type AccountType,
 } from "@/lib/data/banks";
 
 // ============================================================================
@@ -26,10 +24,81 @@ interface BankAccountModalProps {
 }
 
 // ============================================================================
+// ESTILOS ESTÁTICOS (fuera del componente para evitar recreación)
+// ============================================================================
+
+const OVERLAY_STYLE: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  backgroundColor: "rgba(0, 0, 0, 0.85)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 1000,
+  padding: "20px",
+};
+
+const CARD_STYLE: React.CSSProperties = {
+  background: "#0a0a0a",
+  border: "1px solid rgba(189, 142, 72, 0.3)",
+  borderRadius: "24px",
+  padding: "32px",
+  maxWidth: "550px",
+  width: "100%",
+  maxHeight: "90vh",
+  overflowY: "auto",
+  position: "relative",
+};
+
+const CLOSE_BTN_STYLE: React.CSSProperties = {
+  position: "absolute",
+  top: "16px",
+  right: "16px",
+  background: "transparent",
+  border: "none",
+  color: "rgba(255, 255, 255, 0.5)",
+  cursor: "pointer",
+  padding: "8px",
+};
+
+const INPUT_STYLE: React.CSSProperties = {
+  width: "100%",
+  padding: "12px 14px",
+  background: "rgba(255, 255, 255, 0.03)",
+  border: "1px solid rgba(189, 142, 72, 0.2)",
+  borderRadius: "10px",
+  color: "#fff",
+  fontSize: "0.95rem",
+  outline: "none",
+};
+
+const LABEL_STYLE: React.CSSProperties = {
+  display: "block",
+  color: "rgba(189, 142, 72, 0.8)",
+  fontSize: "0.8rem",
+  fontWeight: 600,
+  marginBottom: "6px",
+  textTransform: "uppercase",
+  letterSpacing: "0.5px",
+};
+
+// CSS estático para opciones de dropdown (inyectado una vez)
+const DROPDOWN_CSS = `
+select option {
+  background-color: #1a1a1a;
+  color: #fff;
+  padding: 10px;
+}
+@keyframes bankModalSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}`;
+
+// ============================================================================
 // COMPONENTE PRINCIPAL
 // ============================================================================
 
-export function BankAccountModal({
+function BankAccountModalInner({
   isOpen,
   onClose,
   onSuccess,
@@ -49,29 +118,24 @@ export function BankAccountModal({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  // Datos del país seleccionado
-  const [banks, setBanks] = useState<Bank[]>([]);
-  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
-  const [accountTypes, setAccountTypes] = useState<AccountType[]>([]);
-  const [accountNumberHint, setAccountNumberHint] = useState("");
+  // Memoizar países disponibles (no cambian nunca)
+  const countries = useMemo(() => getAvailableCountries(), []);
 
-  // Países disponibles
-  const countries = getAvailableCountries();
+  // Memoizar datos del país seleccionado (solo recalcular cuando cambie el país)
+  const countryData = useMemo(() => getCountryData(country), [country]);
+  const banks = countryData?.banks ?? [];
+  const documentTypes = countryData?.documentTypes ?? [];
+  const accountTypes = countryData?.accountTypes ?? [];
+  const accountNumberHint = countryData?.accountNumberHint ?? "";
 
-  // Actualizar datos cuando cambia el país
+  // Resetear selecciones dependientes cuando cambia el país
   useEffect(() => {
-    const countryData = getCountryData(country);
     if (countryData) {
-      setBanks(countryData.banks);
-      setDocumentTypes(countryData.documentTypes);
-      setAccountTypes(countryData.accountTypes);
-      setAccountNumberHint(countryData.accountNumberHint);
-      // Resetear selecciones dependientes
       setDocumentType(countryData.documentTypes[0]?.code || "");
       setBankCode("");
       setAccountType(countryData.accountTypes[0]?.code || "");
     }
-  }, [country]);
+  }, [country, countryData]);
 
   // Resetear formulario cuando se abre
   useEffect(() => {
@@ -122,7 +186,7 @@ export function BankAccountModal({
         onSuccess();
       }, 1500);
     } catch (err: unknown) {
-      console.error("Error guardando cuenta bancaria:", err);
+      console.error("❌ Error guardando cuenta bancaria:", err);
       setError(
         err instanceof Error ? err.message : "Error al guardar la cuenta"
       );
@@ -131,71 +195,12 @@ export function BankAccountModal({
     }
   };
 
-  // Estilos del input
-  const inputStyle = {
-    width: "100%",
-    padding: "12px 14px",
-    background: "rgba(255, 255, 255, 0.03)",
-    border: "1px solid rgba(189, 142, 72, 0.2)",
-    borderRadius: "10px",
-    color: "#fff",
-    fontSize: "0.95rem",
-    outline: "none",
-  };
-
-  const labelStyle = {
-    display: "block",
-    color: "rgba(189, 142, 72, 0.8)",
-    fontSize: "0.8rem",
-    fontWeight: "600" as const,
-    marginBottom: "6px",
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.5px",
-  };
-
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        backdropFilter: "blur(3px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-        padding: "20px",
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: "#0a0a0a",
-          border: "1px solid rgba(189, 142, 72, 0.3)",
-          borderRadius: "24px",
-          padding: "32px",
-          maxWidth: "550px",
-          width: "100%",
-          maxHeight: "90vh",
-          overflowY: "auto",
-          position: "relative",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div style={OVERLAY_STYLE} onClick={onClose}>
+      <style>{DROPDOWN_CSS}</style>
+      <div style={CARD_STYLE} onClick={(e) => e.stopPropagation()}>
         {/* Botón cerrar */}
-        <button
-          onClick={onClose}
-          style={{
-            position: "absolute",
-            top: "16px",
-            right: "16px",
-            background: "transparent",
-            border: "none",
-            color: "rgba(255, 255, 255, 0.5)",
-            cursor: "pointer",
-            padding: "8px",
-          }}
-        >
+        <button onClick={onClose} style={CLOSE_BTN_STYLE}>
           <X size={24} />
         </button>
 
@@ -265,11 +270,11 @@ export function BankAccountModal({
             <form onSubmit={handleSubmit}>
               {/* País */}
               <div style={{ marginBottom: "16px" }}>
-                <label style={labelStyle}>País</label>
+                <label style={LABEL_STYLE}>País</label>
                 <select
                   value={country}
                   onChange={(e) => setCountry(e.target.value)}
-                  style={inputStyle}
+                  style={INPUT_STYLE}
                   disabled={isLoading}
                 >
                   {countries.map((c) => (
@@ -282,13 +287,13 @@ export function BankAccountModal({
 
               {/* Nombre del titular */}
               <div style={{ marginBottom: "16px" }}>
-                <label style={labelStyle}>Nombre del titular</label>
+                <label style={LABEL_STYLE}>Nombre del titular</label>
                 <input
                   type="text"
                   value={holderName}
                   onChange={(e) => setHolderName(e.target.value)}
                   placeholder="Como aparece en la cuenta"
-                  style={inputStyle}
+                  style={INPUT_STYLE}
                   disabled={isLoading}
                   required
                 />
@@ -304,11 +309,11 @@ export function BankAccountModal({
                 }}
               >
                 <div>
-                  <label style={labelStyle}>Documento</label>
+                  <label style={LABEL_STYLE}>Documento</label>
                   <select
                     value={documentType}
                     onChange={(e) => setDocumentType(e.target.value)}
-                    style={inputStyle}
+                    style={INPUT_STYLE}
                     disabled={isLoading}
                     required
                   >
@@ -320,13 +325,13 @@ export function BankAccountModal({
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Número de documento</label>
+                  <label style={LABEL_STYLE}>Número de documento</label>
                   <input
                     type="text"
                     value={documentNumber}
                     onChange={(e) => setDocumentNumber(e.target.value)}
                     placeholder="Ej: 1234567890"
-                    style={inputStyle}
+                    style={INPUT_STYLE}
                     disabled={isLoading}
                     required
                   />
@@ -335,11 +340,11 @@ export function BankAccountModal({
 
               {/* Banco */}
               <div style={{ marginBottom: "16px" }}>
-                <label style={labelStyle}>Entidad bancaria</label>
+                <label style={LABEL_STYLE}>Entidad bancaria</label>
                 <select
                   value={bankCode}
                   onChange={(e) => setBankCode(e.target.value)}
-                  style={inputStyle}
+                  style={INPUT_STYLE}
                   disabled={isLoading}
                   required
                 >
@@ -354,7 +359,7 @@ export function BankAccountModal({
 
               {/* Número de cuenta */}
               <div style={{ marginBottom: "16px" }}>
-                <label style={labelStyle}>Número de cuenta</label>
+                <label style={LABEL_STYLE}>Número de cuenta</label>
                 <input
                   type="text"
                   value={accountNumber}
@@ -362,7 +367,7 @@ export function BankAccountModal({
                     setAccountNumber(e.target.value.replace(/\D/g, ""))
                   }
                   placeholder={accountNumberHint}
-                  style={inputStyle}
+                  style={INPUT_STYLE}
                   disabled={isLoading}
                   required
                 />
@@ -379,11 +384,11 @@ export function BankAccountModal({
 
               {/* Tipo de cuenta */}
               <div style={{ marginBottom: "16px" }}>
-                <label style={labelStyle}>Tipo de cuenta</label>
+                <label style={LABEL_STYLE}>Tipo de cuenta</label>
                 <select
                   value={accountType}
                   onChange={(e) => setAccountType(e.target.value)}
-                  style={inputStyle}
+                  style={INPUT_STYLE}
                   disabled={isLoading}
                   required
                 >
@@ -458,7 +463,7 @@ export function BankAccountModal({
                     borderRadius: "12px",
                     color: "rgba(255, 255, 255, 0.7)",
                     fontSize: "0.95rem",
-                    fontWeight: "600",
+                    fontWeight: 600,
                     cursor: isLoading ? "not-allowed" : "pointer",
                     transition: "all 0.3s",
                   }}
@@ -478,7 +483,7 @@ export function BankAccountModal({
                     borderRadius: "12px",
                     color: "#000",
                     fontSize: "0.95rem",
-                    fontWeight: "700",
+                    fontWeight: 700,
                     cursor: isLoading ? "not-allowed" : "pointer",
                     transition: "all 0.3s",
                     display: "flex",
@@ -491,7 +496,7 @@ export function BankAccountModal({
                     <>
                       <Loader2
                         size={18}
-                        style={{ animation: "spin 1s linear infinite" }}
+                        style={{ animation: "bankModalSpin 1s linear infinite" }}
                       />
                       Guardando...
                     </>
@@ -504,23 +509,11 @@ export function BankAccountModal({
           </>
         )}
       </div>
-
-      <style jsx>{`
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-        /* Fix for dropdown options visibility in dark mode */
-        select option {
-          background-color: #1a1a1a;
-          color: #fff;
-          padding: 10px;
-        }
-      `}</style>
     </div>
   );
 }
+
+// Memo previene re-renders innecesarios del componente padre
+export const BankAccountModal = memo(BankAccountModalInner);
+BankAccountModal.displayName = "BankAccountModal";
+
