@@ -67,6 +67,7 @@ export function AccountProvider({ children }: AccountProviderProps) {
                     { id: "acc-socio-1", name: "Cuenta Socio Premium", userId: session.user.id, role: "SOCIO" }
                 ];
 
+
                 setAccounts(mockAccounts);
 
                 // Restaurar última cuenta usada
