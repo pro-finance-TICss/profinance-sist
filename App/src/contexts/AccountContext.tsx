@@ -59,36 +59,74 @@ export function AccountProvider({ children }: AccountProviderProps) {
             setIsLoading(true);
 
             try {
-                // Simulación de latencia de red (800ms)
-                await new Promise((resolve) => setTimeout(resolve, 800));
+                // ================================================================
+                // FETCH REAL A /api/accounts (Adapter Pattern)
+                // ================================================================
+                console.log("🔄 Fetching cuentas desde /api/accounts...");
 
-                const mockAccounts: Account[] = [
-                    { id: "acc-user-1", name: "Cuenta Personal", userId: session.user.id, role: "USER" },
-                    { id: "acc-socio-1", name: "Cuenta Socio Premium", userId: session.user.id, role: "SOCIO" }
-                ];
+                const response = await fetch("/api/accounts", {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
 
-                setAccounts(mockAccounts);
+                const fetchedAccounts: Account[] = await response.json();
 
-                // Restaurar última cuenta usada
+                // Validar que las cuentas pertenezcan al usuario actual
+                const validAccounts = fetchedAccounts.filter(
+                    (acc) => acc.userId === session.user.id
+                );
+
+                if (validAccounts.length === 0) {
+                    console.warn("⚠️ No se encontraron cuentas válidas para el usuario");
+                    setAccounts([]);
+                    setIsLoading(false);
+                    return;
+                }
+
+                setAccounts(validAccounts);
+                console.log(`✅ ${validAccounts.length} cuenta(s) cargada(s):`, validAccounts);
+
+                // ================================================================
+                // RESTAURAR ÚLTIMA CUENTA USADA (si existe y es válida)
+                // ================================================================
                 const savedAccountId = localStorage.getItem("activeAccountId");
                 if (savedAccountId) {
-                    const savedAccount = mockAccounts.find(
+                    // Validar que la cuenta guardada pertenezca al usuario actual
+                    const savedAccount = validAccounts.find(
                         (acc) => acc.id === savedAccountId && acc.userId === session.user.id
                     );
 
                     if (savedAccount) {
                         setActiveAccountId(savedAccountId);
+                        console.log(`🔄 Cuenta restaurada desde localStorage: ${savedAccount.name}`);
                     } else {
+                        // Cuenta guardada no válida, limpiar
+                        console.warn("⚠️ activeAccountId en localStorage no es válido, limpiando...");
                         localStorage.removeItem("activeAccountId");
                         setActiveAccountId(null);
                     }
                 }
-            } catch (error) {
-                console.error("Error fetching accounts:", error);
-                setAccounts([]);
-            } finally {
+
+                // Éxito: Establecer isLoading=false
                 setIsLoading(false);
+
+            } catch (error) {
+                console.error("❌ Error fetching accounts:", error);
+
+                // FALLBACK SEGURO: No romper la aplicación
+                setAccounts([]);
+
+                // Mantener isLoading=true para evitar redirecciones prematuras
+                // Después de 5 segundos, permitir que el usuario vea el mensaje de error
+                setTimeout(() => {
+                    setIsLoading(false);
+                }, 5000);
             }
         };
 
