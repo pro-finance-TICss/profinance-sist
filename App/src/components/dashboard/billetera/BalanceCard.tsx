@@ -1,18 +1,19 @@
 "use client";
 import React from "react";
-import { formatCurrency } from "@/lib/utils/currency";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { CurrencyDisclaimer } from "@/components/dashboard/CurrencyDisclaimer";
 
 interface BalanceCardProps {
   investedCapital: number;
-  availableBalance: number;
   pendingWithdrawal: number;
 }
 
 export function BalanceCard({
   investedCapital,
-  availableBalance,
   pendingWithdrawal,
 }: BalanceCardProps) {
+  const { formatAmount } = useCurrency();
+
   return (
     <div style={{ height: "100%" }}>
       <style>
@@ -72,46 +73,12 @@ export function BalanceCard({
                 letterSpacing: "-0.5px",
               }}
             >
-              {formatCurrency(investedCapital)}
+              {formatAmount(investedCapital)}
             </p>
           </div>
 
-          {/* Cajas de Balance (Disponible y Solicitado) */}
+          {/* Caja de Retiros Pendientes */}
           <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-            {/* Disponible para retiro */}
-            <div
-              style={{
-                padding: "8px 12px",
-                background: "rgba(189, 142, 72, 0.05)",
-                border: "1px solid rgba(189, 142, 72, 0.2)",
-                borderRadius: "10px",
-                minWidth: "140px",
-              }}
-            >
-              <p
-                style={{
-                  color: "rgba(255, 255, 255, 0.5)",
-                  margin: 0,
-                  fontSize: "0.7rem",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                  marginBottom: "4px",
-                }}
-              >
-                Disponible para retiro
-              </p>
-              <p
-                style={{
-                  color: "#bd8e48",
-                  margin: 0,
-                  fontSize: "1.1rem",
-                  fontWeight: "700",
-                }}
-              >
-                {formatCurrency(availableBalance)}
-              </p>
-            </div>
-
             {/* Solicitado para retiro */}
             <div
               style={{
@@ -142,10 +109,11 @@ export function BalanceCard({
                   fontWeight: "700",
                 }}
               >
-                {formatCurrency(pendingWithdrawal)}
+                {formatAmount(pendingWithdrawal)}
               </p>
             </div>
           </div>
+
           {/* Aviso de Fecha Límite */}
           <div
             style={{
@@ -179,6 +147,11 @@ export function BalanceCard({
               Solicitud de retiros habilitada hasta el{" "}
               <strong>16 de cada mes</strong>.
             </p>
+          </div>
+          
+          {/* Disclaimer de Moneda */}
+          <div style={{ marginTop: "16px" }}>
+            <CurrencyDisclaimer className="bg-opacity-10 bg-white border-white/20 text-white/90" />
           </div>
         </div>
       </div>

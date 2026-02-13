@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
           select: {
             id: true,
             email: true,
-            availableBalance: true,
+            investedCapital: true,
           },
         },
       },
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     if (action === "APPROVE") {
       // Verificar que el usuario aún tenga balance suficiente
       const availableBalance = decimalToNumber(
-        withdrawal.user.availableBalance
+        withdrawal.user.investedCapital
       );
       const withdrawalAmount = decimalToNumber(withdrawal.amount);
 
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
         await tx.user.update({
           where: { id: withdrawal.userId },
           data: {
-            availableBalance: { decrement: withdrawalAmount },
+            investedCapital: { decrement: withdrawalAmount },
           },
         });
 

@@ -1,0 +1,68 @@
+﻿Ôû▓ Next.js 16.1.0 (webpack)
+- Environments: .env
+
+  Creating an optimized production build ...
+Ô£ô Compiled successfully in 14.9s
+  Running TypeScript ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/45) ...
+  Generating static pages using 7 workers (11/45) 
+  Generating static pages using 7 workers (22/45) 
+  Generating static pages using 7 workers (33/45) 
+Ô£ô Generating static pages using 7 workers (45/45) in 4.1s
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+Ôöî Ôùï /
+Ôö£ Ôùï /_not-found
+Ôö£ ãÆ /admin
+Ôö£ ãÆ /admin/tickets
+Ôö£ ãÆ /admin/users
+Ôö£ ãÆ /api/admin/users/base-currency
+Ôö£ ãÆ /api/admin/withdrawals
+Ôö£ ãÆ /api/admin/withdrawals/approve
+Ôö£ ãÆ /api/auth/[...nextauth]
+Ôö£ ãÆ /api/auth/check-email
+Ôö£ ãÆ /api/auth/check-trusted-device
+Ôö£ ãÆ /api/auth/reset-password/confirm
+Ôö£ ãÆ /api/auth/reset-password/verify
+Ôö£ ãÆ /api/auth/trusted-device
+Ôö£ ãÆ /api/auth/verify-session
+Ôö£ ãÆ /api/exchange-rates
+Ôö£ ãÆ /api/mercadopago/create-preference
+Ôö£ ãÆ /api/mercadopago/webhook
+Ôö£ ãÆ /api/superadmin/analytics
+Ôö£ ãÆ /api/user/sessions
+Ôö£ ãÆ /api/user/update-currency
+Ôö£ ãÆ /api/wallet/balance
+Ôö£ ãÆ /api/wallet/bank-accounts
+Ôö£ ãÆ /api/wallet/bank-accounts/[id]
+Ôö£ ãÆ /api/wallet/transactions
+Ôö£ ãÆ /api/wallet/withdraw
+Ôö£ ãÆ /api/wallet/withdrawals
+Ôö£ Ôùï /dashboard
+Ôö£ Ôùï /dashboard/ajustes
+Ôö£ Ôùï /dashboard/ajustes/dispositivos
+Ôö£ Ôùï /dashboard/billetera
+Ôö£ Ôùï /dashboard/inversiones
+Ôö£ Ôùï /dashboard/productos
+Ôö£ Ôùï /dashboard/seguridad
+Ôö£ Ôùï /dashboard/soporte
+Ôö£ Ôùï /dashboard/transacciones
+Ôö£ Ôùï /forgot-password
+Ôö£ Ôùï /login
+Ôö£ Ôùï /register
+Ôö£ Ôùï /setup-security
+Ôö£ ãÆ /superadmin
+Ôö£ ãÆ /superadmin/performance
+Ôö£ ãÆ /superadmin/users
+Ôö£ ãÆ /superadmin/withdrawals
+Ôöö Ôùï /verification
+
+
+ãÆ Proxy (Middleware)
+
+Ôùï  (Static)   prerendered as static content
+ãÆ  (Dynamic)  server-rendered on demand
+

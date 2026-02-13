@@ -1,13 +1,15 @@
 "use client";
 // ============================================================================
-// COMPONENTE: MODAL DE RETIRO - PRO-FINANCE
+// COMPONENTE: MODAL DE RETIRO - PRO-FINANCE (OPTIMIZADO)
 // ============================================================================
 // Modal para solicitar retiro de fondos con selección de cuenta bancaria.
+// Optimizado: sin backdropFilter blur, estilos estáticos extraídos.
 // ============================================================================
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import { X, AlertCircle, CheckCircle, Plus, CreditCard } from "lucide-react";
-import { formatCurrency, parseCurrency } from "@/lib/utils/currency";
+import { parseCurrency } from "@/lib/utils/currency";
+import { useCurrency } from "@/contexts/CurrencyContext";
 import { BankAccountModal } from "@/components/dashboard/billetera/BankAccountModal";
 
 // ============================================================================
@@ -31,15 +33,54 @@ interface BankAccount {
 }
 
 // ============================================================================
+// ESTILOS ESTÁTICOS (fuera del componente para evitar recreación en cada render)
+// ============================================================================
+
+const WITHDRAW_OVERLAY: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  backgroundColor: "rgba(0, 0, 0, 0.85)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 1000,
+  padding: "20px",
+};
+
+const WITHDRAW_CARD: React.CSSProperties = {
+  background: "#0a0a0a",
+  border: "1px solid rgba(189, 142, 72, 0.3)",
+  borderRadius: "24px",
+  padding: "32px",
+  maxWidth: "550px",
+  width: "100%",
+  maxHeight: "90vh",
+  overflowY: "auto",
+  position: "relative",
+};
+
+const WITHDRAW_CLOSE_BTN: React.CSSProperties = {
+  position: "absolute",
+  top: "16px",
+  right: "16px",
+  background: "transparent",
+  border: "none",
+  color: "rgba(255, 255, 255, 0.5)",
+  cursor: "pointer",
+  padding: "8px",
+};
+
+// ============================================================================
 // COMPONENTE PRINCIPAL
 // ============================================================================
 
-export function WithdrawModal({
+function WithdrawModalInner({
   isOpen,
   onClose,
   availableBalance,
   onSuccess,
 }: WithdrawModalProps) {
+  const { formatAmount } = useCurrency();
   const [amount, setAmount] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
     null
@@ -116,7 +157,7 @@ export function WithdrawModal({
 
       if (numericAmount > availableBalance) {
         setError(
-          `No puedes retirar más de tu balance disponible (${formatCurrency(
+          `No puedes retirar más de tu balance total (${formatAmount(
             availableBalance
           )})`
         );
@@ -174,48 +215,10 @@ export function WithdrawModal({
 
   return (
     <>
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          backgroundColor: "rgba(0, 0, 0, 0.8)",
-          backdropFilter: "blur(3px)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 1000,
-          padding: "20px",
-        }}
-        onClick={onClose}
-      >
-        <div
-          style={{
-            background: "#0a0a0a",
-            border: "1px solid rgba(189, 142, 72, 0.3)",
-            borderRadius: "24px",
-            padding: "32px",
-            maxWidth: "550px",
-            width: "100%",
-            maxHeight: "90vh",
-            overflowY: "auto",
-            position: "relative",
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
+      <div style={WITHDRAW_OVERLAY} onClick={onClose}>
+        <div style={WITHDRAW_CARD} onClick={(e) => e.stopPropagation()}>
           {/* Botón cerrar */}
-          <button
-            onClick={onClose}
-            style={{
-              position: "absolute",
-              top: "16px",
-              right: "16px",
-              background: "transparent",
-              border: "none",
-              color: "rgba(255, 255, 255, 0.5)",
-              cursor: "pointer",
-              padding: "8px",
-            }}
-          >
+          <button onClick={onClose} style={WITHDRAW_CLOSE_BTN}>
             <X size={24} />
           </button>
 
@@ -299,7 +302,7 @@ export function WithdrawModal({
                 </p>
               </div>
 
-              {/* Balance disponible */}
+              {/* Balance total */}
               <div
                 style={{
                   padding: "16px",
@@ -318,7 +321,7 @@ export function WithdrawModal({
                     letterSpacing: "0.5px",
                   }}
                 >
-                  Balance Disponible
+                  Balance Total
                 </p>
                 <p
                   style={{
@@ -328,7 +331,7 @@ export function WithdrawModal({
                     margin: 0,
                   }}
                 >
-                  {formatCurrency(availableBalance)}
+                  {formatAmount(availableBalance)}
                 </p>
               </div>
 
@@ -518,7 +521,7 @@ export function WithdrawModal({
                       letterSpacing: "0.5px",
                     }}
                   >
-                    Monto a Retirar (USD)
+                    Monto a Retirar
                   </label>
                   <input
                     type="text"
@@ -641,3 +644,7 @@ export function WithdrawModal({
     </>
   );
 }
+
+// Memo previene re-renders innecesarios del componente padre
+export const WithdrawModal = memo(WithdrawModalInner);
+WithdrawModal.displayName = "WithdrawModal";

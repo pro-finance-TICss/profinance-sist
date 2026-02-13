@@ -284,6 +284,52 @@ export default function RegisterPage() {
                       />
                     </div>
 
+                    <div className={styles.inputWrapper}>
+                      <label 
+                        htmlFor="country" 
+                        style={{ 
+                          display: 'block', 
+                          marginBottom: '0.5rem', 
+                          fontSize: '0.9rem', 
+                          fontWeight: 500, 
+                          color: '#333' 
+                        }}
+                      >
+                        País de Residencia
+                      </label>
+                      <select
+                        id="country"
+                        {...register("country")}
+                        style={{
+                          width: "100%",
+                          padding: "0.8rem",
+                          borderRadius: "8px",
+                          border: errors.country ? "1px solid #dc3545" : "1px solid #ddd",
+                          backgroundColor: "#fff",
+                          fontSize: "1rem",
+                          outline: "none",
+                          transition: "border-color 0.2s",
+                        }}
+                      >
+                        <option value="">Selecciona tu país</option>
+                        <option value="CO">Colombia (COP)</option>
+                        <option value="MX">México (MXN)</option>
+                        <option value="US">Estados Unidos (USD)</option>
+                        <option value="ES">España (EUR)</option>
+                        <option value="DE">Alemania (EUR)</option>
+                        <option value="Gb">Reino Unido (GBP)</option>
+                        <option value="OTRO">Otro (USD)</option>
+                      </select>
+                      {errors.country && (
+                        <p style={{ color: "#dc3545", fontSize: "0.8rem", marginTop: "0.25rem" }}>
+                          {errors.country.message}
+                        </p>
+                      )}
+                      <p style={{ fontSize: "0.75rem", color: "#666", marginTop: "0.25rem" }}>
+                        Determina la moneda base de tu cuenta.
+                      </p>
+                    </div>
+
                     <Button
                       type="button"
                       onClick={handleNextStep}

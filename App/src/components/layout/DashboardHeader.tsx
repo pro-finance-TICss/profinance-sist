@@ -1,8 +1,9 @@
 "use client";
 import React from "react";
-import { Search, Bell, User, Menu } from "lucide-react";
+import { Search, Bell, User, Menu, DollarSign } from "lucide-react";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { useSession } from "next-auth/react";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 export const DashboardHeader = ({ title }: { title: string }) => {
   const { isMobile, isTablet, isCollapsed, toggleSidebar } = useDashboard();
@@ -116,8 +117,9 @@ export const DashboardHeader = ({ title }: { title: string }) => {
         </button>
 
 
-        {/* CONTENEDOR DERECHO: Campana + Perfil */}
+        {/* CONTENEDOR DERECHO: Divisa + Campana + Perfil */}
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? "10px" : "25px" }}>
+          <CurrencyDisplay />
           <NotificationBell />
 
           <div
@@ -433,6 +435,65 @@ function NotificationBell() {
             )}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPONENTE DE SELECTOR DE DIVISA
+// ============================================================================
+
+
+// ============================================================================
+// COMPONENTE DE PANTALLA DE DIVISA (SOLO LECTURA)
+// ============================================================================
+
+function CurrencyDisplay() {
+  const { currency, isLoading } = useCurrency(); // Esto ahora siempre será baseCurrency
+  const { isMobile } = useDashboard();
+
+  const CURRENCIES = [
+    { code: "USD", name: "Dólar", symbol: "$", flag: "🇺🇸" },
+    { code: "COP", name: "Peso COL", symbol: "$", flag: "🇨🇴" },
+    { code: "EUR", name: "Euro", symbol: "€", flag: "🇪🇺" },
+    { code: "MXN", name: "Peso MEX", symbol: "$", flag: "🇲🇽" },
+    { code: "GBP", name: "Libra", symbol: "£", flag: "🇬🇧" },
+  ];
+
+  if (isLoading) {
+    return (
+      <div style={{ padding: "12px", color: "rgba(255,255,255,0.3)" }}>...</div>
+    );
+  }
+
+  const currentCurrency = CURRENCIES.find((c) => c.code === currency) || CURRENCIES[0];
+
+  return (
+    <div
+      style={{
+        padding: isMobile ? "8px 12px" : "10px 16px",
+        borderRadius: "8px",
+        backgroundColor: "rgba(189, 142, 72, 0.05)",
+        border: "1px solid rgba(189, 142, 72, 0.2)",
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        cursor: "default",
+      }}
+      title="Moneda Base (fija)"
+    >
+      <span style={{ fontSize: "1.2rem", lineHeight: 1 }}>{currentCurrency.flag}</span>
+      {!isMobile && (
+        <span
+          style={{
+            color: "#bd8e48",
+            fontSize: "0.9rem",
+            fontWeight: "600",
+          }}
+        >
+          {currency}
+        </span>
       )}
     </div>
   );

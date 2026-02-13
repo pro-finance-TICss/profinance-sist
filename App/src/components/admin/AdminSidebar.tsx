@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Wallet,
   TrendingUp,
+  BarChart3,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 
@@ -19,7 +20,12 @@ export function AdminSidebar() {
   const { data: session } = useSession();
 
   // Helper para verificar ruta activa
-  const isActive = (path: string) => pathname.startsWith(path);
+  const isActive = (path: string) => {
+    if (path === "/superadmin") {
+      return pathname === "/superadmin";
+    }
+    return pathname.startsWith(path);
+  };
 
   const adminItems = [
     {
@@ -35,6 +41,11 @@ export function AdminSidebar() {
   ];
 
   const superAdminItems = [
+    {
+      icon: <BarChart3 size={22} />,
+      label: "Analíticas",
+      path: "/superadmin",
+    },
     {
       icon: <Users size={22} />,
       label: "Usuarios",

@@ -1,8 +1,10 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
+// Imports de Setup-Rama10 (Semana 3)
 import { PageHeader } from "@/components/PageHeader";
-import { Plus } from "lucide-react"; // Importa un icono para la acción
-import React, { useState } from "react";
+import { Plus } from "lucide-react";
+
 import { useDashboard } from "@/contexts/DashboardContext";
 import { BalanceSection } from "../../components/dashboard/BalanceSection";
 import { ActivitySection } from "../../components/dashboard/ActivitySection";
@@ -11,24 +13,73 @@ import { SummaryCards } from "../../components/dashboard/SummaryCards";
 import { ActionModal } from "../../components/dashboard/ActionModal";
 import { DepositForm } from "../../components/dashboard/DepositForm";
 import { PerformanceTable } from "../../components/dashboard/PerformanceTable";
+import { WithdrawModal } from "../../components/dashboard/billetera/WithdrawModal";
+import { checkWithdrawalWindowStatus } from "@/lib/actions/wallet-checks";
 
 export default function DashboardPage() {
   const { isMobile } = useDashboard();
 
-  // --- ESTADOS PARA EL MODAL ---
+  // --- ESTADOS PARA MODALES Y LOGICA DE NEGOCIO ---
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState({ title: "", type: "" });
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [balance, setBalance] = useState(0);
+  const [withdrawalWindow, setWithdrawalWindow] = useState<{
+    isOpen: boolean;
+    reason?: string;
+  }>({ isOpen: true });
+
+  // Verificar estado de ventana de retiros (Rama10)
+  useEffect(() => {
+    const checkStatus = async () => {
+      const status = await checkWithdrawalWindowStatus();
+      setWithdrawalWindow(status);
+    };
+    checkStatus();
+  }, []);
+
+  // Sincronización de Balance con API (Rama10)
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        const res = await fetch("/api/wallet/balance");
+        if (res.ok) {
+          const data = await res.json();
+          setBalance(data.balance?.investedCapital || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching balance:", error);
+      }
+    };
+    fetchBalance();
+  }, []);
 
   const handleOpenModal = (title: string, type: string) => {
-    setModalConfig({ title, type });
-    setIsModalOpen(true);
+    if (type === "withdraw") {
+      if (withdrawalWindow.isOpen) {
+        setIsWithdrawModalOpen(true);
+      }
+    } else {
+      setModalConfig({ title, type });
+      setIsModalOpen(true);
+    }
   };
-  // ---------------------------------------
+
+  const handleWithdrawSuccess = async () => {
+    try {
+      const res = await fetch("/api/wallet/balance");
+      if (res.ok) {
+        const data = await res.json();
+        setBalance(data.balance?.investedCapital || 0);
+      }
+    } catch (error) {
+      console.error("Error reloading balance:", error);
+    }
+  };
 
   return (
-
     <>
-      {/* 🟢 Implementación Semana 3: El nuevo Header reemplaza al del Layout */}
+      {/* 🟢 Implementación Senior: PageHeader centralizado */}
       <PageHeader
         title="Resumen Financiero"
         subtitle="Monitorea tus activos y actividad en tiempo real."
@@ -53,7 +104,10 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ gridColumn: "span 12" }}>
-          <QuickActions onActionClick={handleOpenModal} />
+          <QuickActions
+            onActionClick={handleOpenModal}
+            withdrawalWindow={withdrawalWindow}
+          />
         </div>
 
         <div style={{ gridColumn: "span 12" }}>
@@ -61,7 +115,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* --- COMPONENTE MODAL --- */}
       <ActionModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -75,6 +128,13 @@ export default function DashboardPage() {
           </div>
         )}
       </ActionModal>
+
+      <WithdrawModal
+        isOpen={isWithdrawModalOpen}
+        onClose={() => setIsWithdrawModalOpen(false)}
+        availableBalance={balance}
+        onSuccess={handleWithdrawSuccess}
+      />
     </>
   );
-}
+} 

@@ -66,6 +66,15 @@ export default async function UsersPage() {
                   fontSize: "0.9rem",
                 }}
               >
+                Moneda
+              </th>
+              <th
+                style={{
+                  padding: "16px",
+                  fontWeight: "600",
+                  fontSize: "0.9rem",
+                }}
+              >
                 Estado 2FA
               </th>
               <th
@@ -149,6 +158,9 @@ export default async function UsersPage() {
                   >
                     {user.role}
                   </span>
+                </td>
+                <td style={{ padding: "16px", fontWeight: "bold", color: "#ddd" }}>
+                  {(user as any).baseCurrency || "COP"}
                 </td>
                 <td style={{ padding: "16px" }}>
                   {user.totpEnabled ? (

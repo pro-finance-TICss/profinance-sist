@@ -38,20 +38,20 @@ export async function checkAndSendWithdrawalNotification() {
   const day = now.getDate();
   const deadlineDay = WITHDRAWAL_END_DAY; // 16
 
-  // Check if we are in the notification window (3 days before + deadline day)
-  // e.g., if deadline is 16, notify on 13, 14, 15, 16
+  // Verificar si estamos dentro de la ventana de notificación (3 días antes + día límite)
+  // ej. si el límite es el 16, notificar los días 13, 14, 15, 16
   const startNotifyDay = deadlineDay - 3;
 
   if (day < startNotifyDay || day > deadlineDay) {
-    return; // Out of notification range
+    return; // Fuera del rango de notificación
   }
 
-  // Check if we already sent a notification THIS MONTH for this user
+  // Verificar si ya enviamos una notificación ESTE MES para este usuario
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-  // We look for a notification with a specific title pattern created this month
-  // This is a simple heuristic to avoid duplicates without a separate tracking table
+  // Buscamos una notificación con un patrón de título específico creada este mes
+  // Heurística simple para evitar duplicados sin una tabla de seguimiento separada
   const notificationTitle = "📅 Recordatorio de Retiros";
 
   const existingNotification = await prisma.notification.findFirst({

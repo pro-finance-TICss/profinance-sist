@@ -1,6 +1,6 @@
 # Pro-Finance
 
-Proyectos de software para Pro-finance
+Proyectos de software para Pro-finance. Este repositorio opera como un **Monorepo** utilizando npm workspaces.
 
 ## Estructura del Proyecto
 
@@ -14,37 +14,39 @@ El repositorio está dividido en dos aplicaciones principales:
 - Node.js v18.17.0 o superior.
 - npm v9 o superior.
 
-## Instalación y Configuración
+## Instalación
 
-### 1. Landing Page
+Desde la carpeta raíz del proyecto:
 
 ```bash
-cd Landing
+# Instalar todas las dependencias (App y Landing)
 npm install
-cp .env.example .env # (Si aplica)
 ```
 
-**Ejecutar desarrollo:**
+## Ejecución (Comandos Rápidos)
+
+Puedes ejecutar los entornos de desarrollo directamente desde la raíz:
+
+### Sistema (App)
 
 ```bash
-npm run dev
+npm run app:dev
+# Acceder en http://localhost:3000
+```
+
+### Landing Page
+
+```bash
+npm run landing:dev
 # Acceder en http://localhost:4321
 ```
 
-### 2. Sistema (App)
+## Configuración de Entorno
 
-```bash
-cd App
-npm install
-cp .env.example .env
-```
+Asegúrate de configurar las variables de entorno para cada proyecto:
 
-**Ejecutar desarrollo:**
-
-```bash
-npm run dev
-# Acceder en http://localhost:3000
-```
+1.  **App**: Copia `.env.example` a `App/.env` y ajusta según sea necesario.
+2.  **Landing**: Copia `.env.example` a `Landing/.env` (si aplica).
 
 ## Guía de Desarrollo
 

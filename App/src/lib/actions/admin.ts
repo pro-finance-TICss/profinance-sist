@@ -22,6 +22,10 @@ import { createNotification } from "@/lib/actions/notifications";
 // GESTIÓN DE USUARIOS (ADMIN)
 // ============================================================================
 
+/**
+ * Obtiene la lista de todos los usuarios registrados.
+ * Requiere rol de ADMIN o superior.
+ */
 export async function getUsers() {
   await requireRole(UserRole.ADMIN);
   try {
@@ -35,15 +39,20 @@ export async function getUsers() {
         role: true,
         createdAt: true,
         totpEnabled: true,
+        baseCurrency: true,
       },
     });
     return { success: true, users };
   } catch (error) {
-    console.error("Error fetching users:", error);
-    return { success: false, message: "Failed to fetch users" };
+    console.error("❌ Error al obtener usuarios:", error);
+    return { success: false, message: "Error al obtener usuarios" };
   }
 }
 
+/**
+ * Actualiza el rol de un usuario.
+ * Solo SUPER_ADMIN puede promover roles críticos.
+ */
 export async function updateUserRole(userId: string, newRole: string) {
   // Solo SuperAdmin debería poder promover roles críticos
   await requireRole(UserRole.SUPER_ADMIN);
@@ -58,13 +67,14 @@ export async function updateUserRole(userId: string, newRole: string) {
     revalidatePath("/admin/users");
     return { success: true };
   } catch (error) {
-    console.error("Error updating role:", error);
-    return { success: false, message: "Error updating role" };
+    console.error("❌ Error al actualizar rol:", error);
+    return { success: false, message: "Error al actualizar rol" };
   }
 }
 
 /**
- * Toggle user role between USER and SOCIO (SUPERADMIN only)
+ * Alterna el rol de un usuario entre USER y SOCIO (solo SUPERADMIN).
+ * No permite alterar roles de ADMIN o SUPER_ADMIN.
  */
 export async function toggleUserSocioRole(userId: string) {
   await requireRole(UserRole.SUPER_ADMIN);
@@ -76,14 +86,14 @@ export async function toggleUserSocioRole(userId: string) {
     });
 
     if (!user) {
-      return { success: false, message: "User not found" };
+      return { success: false, message: "Usuario no encontrado" };
     }
 
-    // Only allow toggling between USER and SOCIO
+    // Solo permitir alternar entre USER y SOCIO
     if (user.role !== "USER" && user.role !== "SOCIO") {
       return {
         success: false,
-        message: "Can only toggle between USER and SOCIO roles",
+        message: "Solo se puede alternar entre roles USER y SOCIO",
       };
     }
 
@@ -99,7 +109,7 @@ export async function toggleUserSocioRole(userId: string) {
       newRole,
     });
     
-    // Revalidate paths
+    // Revalidar rutas relevantes
     revalidatePath("/admin/users");
     revalidatePath("/superadmin");
     revalidatePath("/dashboard");
@@ -110,8 +120,8 @@ export async function toggleUserSocioRole(userId: string) {
       message: `Rol actualizado. El usuario (${user.email}) debe cerrar sesión y volver a iniciar para ver los cambios.`
     };
   } catch (error) {
-    console.error("Error toggling role:", error);
-    return { success: false, message: "Error toggling role" };
+    console.error("❌ Error al alternar rol:", error);
+    return { success: false, message: "Error al alternar rol" };
   }
 }
 
@@ -120,6 +130,10 @@ export async function toggleUserSocioRole(userId: string) {
 // GESTIÓN DE TICKETS (ADMIN)
 // ============================================================================
 
+/**
+ * Obtiene todos los tickets de soporte del sistema.
+ * Requiere rol de ADMIN o superior.
+ */
 export async function getAllTickets() {
   await requireRole(UserRole.ADMIN);
   try {
@@ -132,10 +146,13 @@ export async function getAllTickets() {
     });
     return { success: true, tickets };
   } catch (error) {
-    return { success: false, message: "Failed to fetch tickets" };
+    return { success: false, message: "Error al obtener tickets" };
   }
 }
 
+/**
+ * Obtiene un ticket específico con sus mensajes para panel de administración.
+ */
 export async function getAdminTicket(ticketId: string) {
   await requireRole(UserRole.ADMIN);
   try {
@@ -150,7 +167,7 @@ export async function getAdminTicket(ticketId: string) {
     });
     return { success: true, ticket };
   } catch (error) {
-    return { success: false, message: "Error fetching ticket" };
+    return { success: false, message: "Error al obtener ticket" };
   }
 }
 
@@ -161,13 +178,13 @@ export async function updateTicketStatus(
   await requireRole(UserRole.ADMIN);
 
   const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
-  if (!ticket) return { success: false, message: "Ticket not found" };
+  if (!ticket) return { success: false, message: "Ticket no encontrado" };
 
   // Validar Transición de Estado
   if (!validateTicketTransition(ticket.status as TicketStatus, newStatus)) {
     return {
       success: false,
-      message: `Invalid transition from ${ticket.status} to ${newStatus}`,
+      message: `Transición de estado no válida: ${ticket.status} → ${newStatus}`,
     };
   }
 
@@ -232,7 +249,15 @@ export async function getWithdrawals() {
     const withdrawalsRaw = await prisma.withdrawalRequest.findMany({
       orderBy: { requestedAt: "desc" },
       include: {
-        user: { select: { email: true, availableBalance: true } },
+        user: {
+          select: {
+            email: true,
+            investedCapital: true,
+            firstName: true,
+            paternalSurname: true,
+            maternalSurname: true,
+          },
+        },
         bankAccount: {
           select: {
             id: true,
@@ -256,7 +281,10 @@ export async function getWithdrawals() {
       requestedAt: w.requestedAt.toISOString(),
       user: {
         email: w.user.email,
-        availableBalance: w.user.availableBalance.toString(),
+        investedCapital: w.user.investedCapital.toString(),
+        firstName: w.user.firstName,
+        paternalSurname: w.user.paternalSurname,
+        maternalSurname: w.user.maternalSurname,
       },
       bankAccount: w.bankAccount
         ? {
@@ -277,8 +305,8 @@ export async function getWithdrawals() {
 
     return { success: true, withdrawals };
   } catch (error) {
-    console.error("Error fetching withdrawals:", error);
-    return { success: false, message: "Failed to fetch withdrawals" };
+    console.error("❌ Error al obtener retiros:", error);
+    return { success: false, message: "Error al obtener solicitudes de retiro" };
   }
 }
 
@@ -313,7 +341,7 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
     return { success: true };
   } catch (error) {
     console.error("Error updating settings:", error);
-    return { success: false, message: "Failed to update settings" };
+    return { success: false, message: "Error al actualizar configuración" };
   }
 }
 
@@ -328,9 +356,9 @@ export async function processWithdrawal(
   const withdrawal = await prisma.withdrawalRequest.findUnique({
     where: { id },
   });
-  if (!withdrawal) return { success: false, message: "Request not found" };
+  if (!withdrawal) return { success: false, message: "Solicitud no encontrada" };
 
-  // 1. Validate Transition
+  // 1. Validar transición de estado
   if (
     !validateWithdrawalTransition(
       withdrawal.status as WithdrawalStatus,
@@ -339,13 +367,13 @@ export async function processWithdrawal(
   ) {
     return {
       success: false,
-      message: `Invalid transition: ${withdrawal.status} -> ${newStatus}`,
+      message: `Transición no válida: ${withdrawal.status} → ${newStatus}`,
     };
   }
 
   try {
     await prisma.$transaction(async (tx) => {
-      // Update Request
+      // Actualizar solicitud
       await tx.withdrawalRequest.update({
         where: { id },
         data: {
@@ -363,7 +391,7 @@ export async function processWithdrawal(
       ) {
         await tx.user.update({
           where: { id: withdrawal.userId },
-          data: { availableBalance: { increment: withdrawal.amount } },
+          data: { investedCapital: { increment: withdrawal.amount } },
         });
         await tx.transaction.create({
           data: {
@@ -377,7 +405,7 @@ export async function processWithdrawal(
       }
     });
 
-    // Notify user
+    // Notificar al usuario
     await createNotification(
       withdrawal.userId,
       `Retiro ${
@@ -394,6 +422,6 @@ export async function processWithdrawal(
     return { success: true };
   } catch (error) {
     console.error(error);
-    return { success: false, message: "Transaction failed" };
+    return { success: false, message: "Error al procesar la transacción" };
   }
 }
