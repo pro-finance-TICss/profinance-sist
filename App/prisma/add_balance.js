@@ -14,12 +14,12 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Searching for user "Prueba Prueba Prueba"...');
+  console.log('Searching for user "ko ko ko"...');
   const user = await prisma.user.findFirst({
     where: {
-      firstName: "Prueba",
-      paternalSurname: "Prueba",
-      maternalSurname: "Prueba",
+      firstName: "ko",
+      paternalSurname: "ko",
+      maternalSurname: "ko",
     },
   });
 
@@ -29,8 +29,8 @@ async function main() {
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: {
-      investedCapital: 50000,
-      availableBalance: 15000,
+      investedCapital: 100,
+      availableBalance: 50,
     },
   });
 

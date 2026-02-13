@@ -10,6 +10,8 @@ export interface Account {
     name: string;
     userId: string;
     role: AccountRole;
+    balance: number;          // <-- Agregamos esto para recibir el dinero real
+    investedCapital: number;   // <-- Agregamos esto para recibir el capital real
     createdAt?: string;
 }
 

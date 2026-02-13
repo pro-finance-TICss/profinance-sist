@@ -5,13 +5,13 @@
 // Mapear User → Account[] virtual SIN modificar el schema de Prisma.
 // 
 // ARQUITECTURA:
-// - HOY: 1 usuario → 1 cuenta virtual (derivada de User)
+// - HOY: 1 usuario → 3 cuentas virtuales (derivada de User para simulación)
 // - FUTURO: 1 usuario → N cuentas reales (tabla Account en DB)
 // 
 // GARANTÍAS:
-// - IDs deterministas (main_${userId})
+// - IDs deterministas (personal_${userId}, socio_${userId}, etc.)
 // - No modifica DB
-// - No rompe scripts existentes
+// - No rompe scripts existentes (lee availableBalance e investedCapital)
 // - Compatible con AccountContext
 // ============================================================================
 
@@ -25,30 +25,25 @@ import { prisma } from "@/lib/prisma";
 type AccountRole = "USER" | "SOCIO";
 
 /**
- * Interfaz de cuenta virtual (debe coincidir con AccountContext)
+ * Interfaz de cuenta virtual (Actualizada para soportar balances reales)
  */
 interface VirtualAccount {
     id: string;
     name: string;
     userId: string;
     role: AccountRole;
+    balance: number;          // Saldo disponible (availableBalance)
+    investedCapital: number;   // Capital invertido (investedCapital)
     createdAt: string;
 }
 
 /**
  * GET /api/accounts
- * 
- * Retorna las cuentas del usuario autenticado.
- * 
- * IMPLEMENTACIÓN ACTUAL (Adapter Pattern):
- * - Lee datos del modelo User
- * - Crea una "cuenta virtual" a partir del usuario
- * - Retorna array de 1 elemento
- * 
- * IMPLEMENTACIÓN FUTURA (cuando exista tabla Account):
- * - Leer directamente de prisma.account.findMany()
- * - Retornar cuentas reales del usuario
- * - NO requiere cambios en el frontend
+ * * Retorna las cuentas del usuario autenticado.
+ * * IMPLEMENTACIÓN ACTUAL (Adapter Pattern - Prueba de Carlos):
+ * - Lee datos reales del modelo User (incluyendo balances de los scripts)
+ * - Crea 3 "cuentas virtuales" para simular diferentes inversiones
+ * - Permite probar el selector de cuentas y los roles USER/SOCIO
  */
 export async function GET(req: NextRequest) {
     try {
@@ -66,6 +61,7 @@ export async function GET(req: NextRequest) {
         // ================================================================
         // 2. OBTENER DATOS DEL USUARIO
         // ================================================================
+        // Incluimos los campos que el script add_balance.js modifica
         const user = await prisma.user.findUnique({
             where: { id: session.user.id },
             select: {
@@ -75,6 +71,8 @@ export async function GET(req: NextRequest) {
                 paternalSurname: true,
                 role: true,
                 createdAt: true,
+                availableBalance: true, // Campo real de la DB
+                investedCapital: true,  // Campo real de la DB
             },
         });
 
@@ -86,58 +84,51 @@ export async function GET(req: NextRequest) {
         }
 
         // ================================================================
-        // 3. ADAPTER: Crear cuenta virtual a partir del User
+        // 3. ADAPTER: Lógica de Transformación (Prueba Multicuenta de Carlos)
         // ================================================================
 
-        // MAPEO DETERMINISTA (NO NEGOCIABLE)
-        // - ID: main_${userId} (siempre el mismo para el mismo usuario)
-        // - Garantiza compatibilidad con localStorage.activeAccountId
-        const accountId = `main_${user.id}`;
+        // Convertimos los Decimal de Prisma a Number para el Frontend
+        const realAvailable = user.availableBalance ? Number(user.availableBalance.toString()) : 0;
+        const realInvested = user.investedCapital ? Number(user.investedCapital.toString()) : 0;
 
-        // Derivar nombre de cuenta según el rol
-        const accountName = user.role === "SOCIO"
-            ? `Cuenta Socio - ${user.firstName} ${user.paternalSurname}`
-            : `Cuenta Personal - ${user.firstName} ${user.paternalSurname}`;
-
-        // Normalizar rol (solo USER o SOCIO son válidos para Account)
-        const accountRole: AccountRole =
-            user.role === "SOCIO" ? "SOCIO" : "USER";
-
-        // Crear objeto de cuenta virtual
-        const virtualAccounts = [
+        // MAPEO DETERMINISTA:
+        // Creamos 3 contextos de inversión para el mismo usuario humano (Carlos)
+        const virtualAccounts: VirtualAccount[] = [
             {
-                id: `personal_${user.id}`,
-                name: `Cuenta Personal`,
+                id: `personal_a_${user.id}`,
+                name: `Cuenta Normal A`,
                 userId: user.id,
                 role: "USER",
+                balance: 10000,           // Inversión simulada de 10k
+                investedCapital: 500,
+                createdAt: user.createdAt.toISOString(),
+            },
+            {
+                id: `personal_b_${user.id}`,
+                name: `Cuenta Normal B`,
+                userId: user.id,
+                role: "USER",
+                balance: 10000,           // Inversión simulada de 10k
+                investedCapital: 500,
                 createdAt: user.createdAt.toISOString(),
             },
             {
                 id: `socio_${user.id}`,
-                name: `Cuenta Socio`,
+                name: `Cuenta Socio Premium`,
                 userId: user.id,
                 role: "SOCIO",
-                createdAt: user.createdAt.toISOString(),
-            },
-            {
-                id: `ahorros_${user.id}`,
-                name: `Cuenta Ahorros`,
-                userId: user.id,
-                role: "USER",
+                balance: realAvailable,   // <--- AQUÍ SE REFLEJA EL SCRIPT add_balance.js
+                investedCapital: realInvested, // <--- AQUÍ SE REFLEJA EL SCRIPT add_balance.js
                 createdAt: user.createdAt.toISOString(),
             },
         ];
 
-
         console.log(
-            `✅ Cuentas virtuales generadas para ${user.email}:`,
-            virtualAccounts
+            `✅ Prueba de Carlos: Cuentas generadas para ${user.email}. ` +
+            `La cuenta Socio usa datos reales de la DB (Balance: ${realAvailable}).`
         );
 
         return NextResponse.json(virtualAccounts);
-
-
-
 
         // ================================================================
         // MIGRACIÓN FUTURA (cuando exista tabla Account):
@@ -149,6 +140,8 @@ export async function GET(req: NextRequest) {
         //     name: true,
         //     userId: true,
         //     role: true,
+        //     balance: true,
+        //     investedCapital: true,
         //     createdAt: true,
         //   },
         // });
