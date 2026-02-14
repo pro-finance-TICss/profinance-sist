@@ -1,28 +1,29 @@
 // ============================================================================
-// COUNTRY TO CURRENCY MAPPING UTILITY
+// MAPEO DE PAÍS A MONEDA - PRO-FINANCE
 // ============================================================================
-// Maps ISO 3166-1 alpha-2 country codes to their respective base currencies.
-// Used during registration to assign the correct baseCurrency to new users.
+// Mapea códigos de país ISO 3166-1 alpha-2 a sus respectivas monedas base.
+// Utilizado durante el registro para asignar la moneda base correcta al usuario.
+// ============================================================================
 
 export const COUNTRY_CURRENCY_MAP: Record<string, string> = {
   CO: 'COP', // Colombia
   MX: 'MXN', // México
-  US: 'USD', // United States
-  GB: 'GBP', // United Kingdom
-  DE: 'EUR', // Germany
-  ES: 'EUR', // Spain
-  FR: 'EUR', // France
-  IT: 'EUR', // Italy
-  NL: 'EUR', // Netherlands
-  // Add more mappings as needed
+  US: 'USD', // Estados Unidos
+  GB: 'GBP', // Reino Unido
+  DE: 'EUR', // Alemania
+  ES: 'EUR', // España
+  FR: 'EUR', // Francia
+  IT: 'EUR', // Italia
+  NL: 'EUR', // Países Bajos
+  // Agregar más mapeos según sea necesario
 };
 
 /**
- * Returns the base currency for a given country code.
- * Defaults to 'COP' if no mapping is found, as requested.
+ * Retorna la moneda base para un código de país dado.
+ * Por defecto retorna 'COP' si no se encuentra el mapeo.
  * 
- * @param countryCode - ISO 3166-1 alpha-2 country code (e.g., 'CO', 'US')
- * @returns Three-letter currency code (e.g., 'COP', 'USD')
+ * @param countryCode - Código de país ISO 3166-1 alpha-2 (ej. 'CO', 'US')
+ * @returns Código de moneda de 3 letras (ej. 'COP', 'USD')
  */
 export function getCurrencyForCountry(countryCode?: string | null): string {
   if (!countryCode) return 'COP';

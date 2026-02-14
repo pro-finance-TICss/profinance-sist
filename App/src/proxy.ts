@@ -11,6 +11,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // CONFIGURACIÓN DE RUTAS
@@ -37,8 +38,6 @@ const PROTECTED_ROUTES = [
 const GUEST_ROUTES = [
   "/login",
   "/register",
-  "/login_backup",
-  "/register_backup",
 ];
 
 /**
@@ -151,7 +150,7 @@ export default auth(async function middleware(request: NextRequest) {
     // session.user.tokenVersion con el valor en la base de datos.
     // Para evitar llamadas a DB en cada request, esto se puede
     // implementar con un cache de Redis/Upstash.
-    console.log(
+    logger.debug(
       `🔒 Acceso a ruta crítica: ${pathname} por usuario: ${session.user?.email}`
     );
   }

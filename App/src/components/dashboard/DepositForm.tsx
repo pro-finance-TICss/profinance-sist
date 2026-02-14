@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { DollarSign, CreditCard, ArrowRight } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 export function DepositForm() {
   const [amount, setAmount] = useState("");
@@ -25,7 +26,7 @@ export function DepositForm() {
         setIsLoading(false);
       }
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       setIsLoading(false);
       alert("Error al conectar con el servidor de pagos");
     }

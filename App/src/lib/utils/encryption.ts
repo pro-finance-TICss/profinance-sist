@@ -6,6 +6,7 @@
 // ============================================================================
 
 import crypto from "crypto";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // CONFIGURACIÓN
@@ -36,7 +37,7 @@ function getEncryptionKey(): Buffer {
       );
     }
     // En desarrollo, usamos una clave fija (solo para testing)
-    console.warn(
+    logger.warn(
       "⚠️ Usando clave de encriptación de desarrollo. NO usar en producción."
     );
     return crypto.scryptSync("dev-key-profinance-2024", "salt", 32);

@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 /// Roles válidos para una cuenta
 const VALID_ROLES = ["USER", "SOCIO"] as const;
@@ -82,7 +83,7 @@ export async function PATCH(
       select: { id: true, name: true, role: true, userId: true },
     });
 
-    console.log(
+    logger.debug(
       `✅ SUPER_ADMIN cambió rol de cuenta "${updated.name}" (${updated.id}): ` +
       `${account.role} → ${updated.role}`
     );
@@ -113,7 +114,7 @@ export async function PATCH(
       },
     });
   } catch (error) {
-    console.error("❌ Error cambiando rol de cuenta:", error);
+    logger.error("❌ Error cambiando rol de cuenta:", error);
     return NextResponse.json(
       { error: "Error al cambiar el rol" },
       { status: 500 }

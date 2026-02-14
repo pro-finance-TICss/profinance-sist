@@ -7,6 +7,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { logger } from "@/lib/logger";
 
 /** Tasas de cambio: clave = código de moneda, valor = tasa respecto a USD */
 interface ExchangeRates {
@@ -85,7 +86,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
           setExchangeRates(data.rates);
         }
       } catch (error) {
-        console.error("Error fetching exchange rates:", error);
+        logger.error("Error fetching exchange rates:", error);
       }
     };
 
@@ -109,7 +110,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
         updateSession();
       }
     } catch (error) {
-      console.error("Error updating currency preference:", error);
+      logger.error("Error updating currency preference:", error);
     }
   };
 

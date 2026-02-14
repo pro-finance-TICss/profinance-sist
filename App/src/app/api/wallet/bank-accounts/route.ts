@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { bankAccountSchema } from "@/lib/validations/wallet";
 import { encryptAccountNumber } from "@/lib/utils/encryption";
 import { getBankByCode } from "@/lib/data/banks";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // GET - LISTAR CUENTAS BANCARIAS
@@ -59,7 +60,7 @@ export async function GET() {
       accounts,
     });
   } catch (error) {
-    console.error("❌ Error obteniendo cuentas bancarias:", error);
+    logger.error("❌ Error obteniendo cuentas bancarias:", error);
     return NextResponse.json(
       { error: "Error al obtener cuentas bancarias" },
       { status: 500 }
@@ -161,7 +162,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log(
+    logger.debug(
       `✅ Cuenta bancaria creada: ${bank.name} ****${last4} para usuario ${session.user.id}`
     );
 
@@ -178,7 +179,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("❌ Error creando cuenta bancaria:", error);
+    logger.error("❌ Error creando cuenta bancaria:", error);
     return NextResponse.json(
       { error: "Error al crear cuenta bancaria" },
       { status: 500 }

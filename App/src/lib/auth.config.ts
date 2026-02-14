@@ -90,7 +90,6 @@ export const authConfig: NextAuthConfig = {
 
       // 2. Lógica para usuarios autenticados en rutas de invitados (Login/Register)
       if (isGuestRoute && isLoggedIn) {
-        // @ts-ignore
         if (auth?.user?.requiresSecuritySetup) {
           return Response.redirect(new URL("/setup-security", nextUrl));
         }
@@ -102,7 +101,6 @@ export const authConfig: NextAuthConfig = {
 
       // 3. Verificación de seguridad obligatoria
       if (isLoggedIn && !isSetupSecurityRoute) {
-        // @ts-ignore
         if (auth?.user?.requiresSecuritySetup) {
           if (pathname.startsWith("/api/")) return true;
           return Response.redirect(new URL("/setup-security", nextUrl));

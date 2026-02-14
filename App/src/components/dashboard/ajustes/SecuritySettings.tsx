@@ -39,9 +39,7 @@ export function SecuritySettings({
   useEffect(() => {
     async function fetchStatus() {
       const result = await getUserProfile();
-      // @ts-ignore - totpEnabled exits in runtime
       if (result.success && result.user) {
-        // @ts-ignore
         setTotpEnabled(result.user.totpEnabled);
       }
     }

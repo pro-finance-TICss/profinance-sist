@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./dispositivos.module.css";
 import { PageHeader } from "@/components/PageHeader";
+import { logger } from "@/lib/logger";
 
 interface Session {
   id: string;
@@ -41,7 +42,7 @@ export default function DispositivosPage() {
         setSessions(data.sessions);
       }
     } catch (error) {
-      console.error("Error cargando sesiones:", error);
+      logger.error("Error cargando sesiones:", error);
       setMessage({ type: "error", text: "Error al cargar sesiones" });
     } finally {
       setLoading(false);

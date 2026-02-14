@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { TicketStatus, TicketPriority } from "@/lib/enums";
 import { logAudit } from "@/lib/security";
+import { logger } from "@/lib/logger";
 
 /**
  * Obtiene los tickets del usuario actual.
@@ -26,7 +27,7 @@ export async function getUserTickets() {
 
     return { success: true, tickets };
   } catch (error) {
-    console.error("Error fetching tickets:", error);
+    logger.error("Error fetching tickets:", error);
     return { success: false, message: "Error al obtener tickets" };
   }
 }
@@ -54,7 +55,7 @@ export async function getTicket(ticketId: string) {
 
     return { success: true, ticket };
   } catch (error) {
-    console.error("Error fetching ticket:", error);
+    logger.error("Error fetching ticket:", error);
     return { success: false, message: "Error al obtener el ticket" };
   }
 }
@@ -101,7 +102,7 @@ export async function createTicket(formData: {
     revalidatePath("/dashboard");
     return { success: true, ticket };
   } catch (error) {
-    console.error("Error creating ticket:", error);
+    logger.error("Error creating ticket:", error);
     return { success: false, message: "Error al crear el ticket" };
   }
 }
@@ -142,7 +143,7 @@ export async function replyTicket(ticketId: string, message: string) {
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
-    console.error("Error replying to ticket:", error);
+    logger.error("Error replying to ticket:", error);
     return { success: false, message: "Error al responder al ticket" };
   }
 }

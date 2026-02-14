@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./seguridad.module.css";
+import { logger } from "@/lib/logger";
 
 interface TrustedDevice {
   id: string;
@@ -37,7 +38,7 @@ export default function SeguridadPage() {
         setDevices(data.devices);
       }
     } catch (error) {
-      console.error("Error cargando dispositivos:", error);
+      logger.error("Error cargando dispositivos:", error);
       setMessage({ type: "error", text: "Error al cargar dispositivos" });
     } finally {
       setLoading(false);

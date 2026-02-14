@@ -10,6 +10,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withdrawalSchema } from "@/lib/validations/wallet";
 import { decimalToNumber } from "@/lib/utils/currency";
+import { logger } from "@/lib/logger";
 
 /**
  * POST /api/wallet/withdraw
@@ -128,13 +129,13 @@ export async function POST(req: NextRequest) {
       return { request, accountId: account.id };
     });
 
-    console.log(
+    logger.debug(
       `📤 Solicitud de retiro creada: $${amount} desde cuenta ${withdrawalResult.accountId}`
     );
 
     // 4. Enviar notificación simulada al departamento de finanzas
     const financeEmail = process.env.FINANCE_DEPARTMENT_EMAIL;
-    console.log(
+    logger.debug(
       `📧 [SIMULADO] Email enviado a ${financeEmail}:`,
       `Usuario ${session.user.id} solicita retiro de $${amount}`
     );
@@ -178,7 +179,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.error("❌ Error creando solicitud de retiro:", error);
+    logger.error("❌ Error creando solicitud de retiro:", error);
     return NextResponse.json(
       { error: "Error al procesar solicitud" },
       { status: 500 }

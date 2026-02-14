@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { depositSchema } from "@/lib/validations/wallet";
 import { MercadoPagoConfig, Preference } from "mercadopago";
+import { logger } from "@/lib/logger";
 
 // Inicializar Mercado Pago
 const client = new MercadoPagoConfig({
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log("✅ Preferencia de MP creada:", result.id);
+    logger.debug("✅ Preferencia de MP creada:", result.id);
 
     // 4. Retornar URL de inicio de pago (init_point)
     // init_point es para producción, sandbox_init_point para pruebas
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
       url: url,
     });
   } catch (error: any) {
-    console.error("❌ Error creando preferencia de MP:", error);
+    logger.error("❌ Error creando preferencia de MP:", error);
     return NextResponse.json(
       { error: "Error al procesar el pago con Mercado Pago" },
       { status: 500 }

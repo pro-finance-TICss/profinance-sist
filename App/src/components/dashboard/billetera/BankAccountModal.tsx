@@ -12,6 +12,7 @@ import {
   getAvailableCountries,
   getCountryData,
 } from "@/lib/data/banks";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // TIPOS
@@ -186,7 +187,7 @@ function BankAccountModalInner({
         onSuccess();
       }, 1500);
     } catch (err: unknown) {
-      console.error("❌ Error guardando cuenta bancaria:", err);
+      logger.error("❌ Error guardando cuenta bancaria:", err);
       setError(
         err instanceof Error ? err.message : "Error al guardar la cuenta"
       );

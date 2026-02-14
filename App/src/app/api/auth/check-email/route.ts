@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // API: Verificar si un correo electrónico está registrado
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
       exists: !!user,
     });
   } catch (error) {
-    console.error("Error verificando email:", error);
+    logger.error("Error verificando email:", error);
     return NextResponse.json(
       { exists: false, error: "Error del servidor" },
       { status: 500 }

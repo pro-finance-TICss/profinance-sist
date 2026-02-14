@@ -11,6 +11,7 @@ import {
 } from "@/lib/actions/wallet-checks";
 import { PageHeader } from "@/components/PageHeader";
 import { useAccount } from "@/contexts/AccountContext";
+import { logger } from "@/lib/logger";
 
 // Tipos
 interface BalanceData {
@@ -67,7 +68,7 @@ export function WalletView() {
         setWithdrawals(data.withdrawals);
       }
     } catch (error) {
-      console.error("Error cargando datos de billetera:", error);
+      logger.error("Error cargando datos de billetera:", error);
     } finally {
       setIsLoading(false);
     }

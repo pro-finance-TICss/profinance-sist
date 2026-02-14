@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
+import { logger } from "@/lib/logger";
 
 const TRUSTED_DEVICE_COOKIE_NAME = "pf_trusted_device";
 
@@ -23,7 +24,6 @@ export async function GET() {
     }
 
     // Obtener sessionId del token actual
-    // @ts-ignore
     const currentSessionId = authSession.user.sessionId;
 
     // Listar todas las sesiones activas del usuario
@@ -55,7 +55,7 @@ export async function GET() {
       count: sessions.length,
     });
   } catch (error) {
-    console.error("Error en GET /api/user/sessions:", error);
+    logger.error("Error en GET /api/user/sessions:", error);
     return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
   }
 }
@@ -75,7 +75,6 @@ export async function DELETE(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { sessionId, revokeAll } = body;
 
-    // @ts-ignore
     const currentSessionId = authSession.user.sessionId;
 
     // Opción 1: Revocar todas las sesiones
@@ -141,7 +140,7 @@ export async function DELETE(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
-    console.error("Error en DELETE /api/user/sessions:", error);
+    logger.error("Error en DELETE /api/user/sessions:", error);
     return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
   }
 }

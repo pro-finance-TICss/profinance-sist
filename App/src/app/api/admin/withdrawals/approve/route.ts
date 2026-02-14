@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { approveWithdrawalSchema } from "@/lib/validations/wallet";
 import { decimalToNumber } from "@/lib/utils/currency";
 import { createNotification } from "@/lib/actions/notifications";
+import { logger } from "@/lib/logger";
 
 /**
  * POST /api/admin/withdrawals/approve
@@ -98,7 +99,7 @@ export async function POST(req: NextRequest) {
         "SUCCESS"
       );
 
-      console.log(
+      logger.debug(
         `✅ Retiro aprobado: $${withdrawalAmount} para ${withdrawal.user.email}`
       );
 
@@ -141,7 +142,7 @@ export async function POST(req: NextRequest) {
         "ERROR"
       );
 
-      console.log(`❌ Retiro rechazado para ${withdrawal.user.email}`);
+      logger.debug(`❌ Retiro rechazado para ${withdrawal.user.email}`);
 
       return NextResponse.json({
         success: true,
@@ -149,7 +150,7 @@ export async function POST(req: NextRequest) {
       });
     }
   } catch (error) {
-    console.error("❌ Error procesando retiro:", error);
+    logger.error("❌ Error procesando retiro:", error);
     return NextResponse.json(
       { error: "Error al procesar solicitud" },
       { status: 500 }

@@ -9,6 +9,7 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 /**
  * Crea una nueva notificación para un usuario específico.
@@ -30,7 +31,7 @@ export async function createNotification(
       },
     });
   } catch (error) {
-    console.error("❌ Error al crear notificación:", error);
+    logger.error("❌ Error al crear notificación:", error);
   }
 }
 
@@ -55,7 +56,7 @@ export async function getRecentNotifications(limit = 20) {
 
     return { notifications, unreadCount };
   } catch (error) {
-    console.error("❌ Error al obtener notificaciones:", error);
+    logger.error("❌ Error al obtener notificaciones:", error);
     return { notifications: [], unreadCount: 0 };
   }
 }
@@ -81,7 +82,7 @@ export async function markAsRead(notificationId: string) {
       data: { read: true },
     });
   } catch (error) {
-    console.error("❌ Error al marcar notificación como leída:", error);
+    logger.error("❌ Error al marcar notificación como leída:", error);
   }
 }
 
@@ -98,6 +99,6 @@ export async function markAllAsRead() {
       data: { read: true },
     });
   } catch (error) {
-    console.error("❌ Error al marcar todas como leídas:", error);
+    logger.error("❌ Error al marcar todas como leídas:", error);
   }
 }

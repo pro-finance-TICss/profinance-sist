@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/utils/currency";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/wallet/balance?accountId=xxx
@@ -100,7 +101,7 @@ export async function GET(req: NextRequest) {
       recentTransactions: transactions,
     });
   } catch (error) {
-    console.error("❌ Error obteniendo balance:", error);
+    logger.error("❌ Error obteniendo balance:", error);
     return NextResponse.json(
       { error: "Error al obtener balance" },
       { status: 500 }

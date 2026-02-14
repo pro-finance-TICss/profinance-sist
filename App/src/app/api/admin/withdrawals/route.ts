@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/utils/currency";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/admin/withdrawals
@@ -74,7 +75,7 @@ export async function GET(req: NextRequest) {
       withdrawals: formattedWithdrawals,
     });
   } catch (error) {
-    console.error("❌ Error obteniendo solicitudes de retiro:", error);
+    logger.error("❌ Error obteniendo solicitudes de retiro:", error);
     return NextResponse.json(
       { error: "Error al obtener solicitudes" },
       { status: 500 }

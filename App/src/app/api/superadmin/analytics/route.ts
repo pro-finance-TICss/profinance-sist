@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getInvestmentAnalytics } from "@/lib/actions/superadmin-analytics";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error("API Error:", error);
+    logger.error("API Error:", error);
     
     // Handle authorization errors
     if (error.message?.includes("Unauthorized") || error.message?.includes("role")) {

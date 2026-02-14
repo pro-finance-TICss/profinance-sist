@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Users, RefreshCw, ChevronDown, ChevronRight, Box } from "lucide-react";
 import { getUsers, toggleAccountRole } from "@/lib/actions/admin";
+import { logger } from "@/lib/logger";
 
 interface AccountInfo {
   id: string;
@@ -46,7 +47,7 @@ export default function UsersManagementPage() {
         );
       }
     } catch (error) {
-      console.error("Error loading users:", error);
+      logger.error("Error loading users:", error);
     }
     setLoading(false);
   };
@@ -78,7 +79,7 @@ export default function UsersManagementPage() {
         alert(result.message || "Error al cambiar el rol");
       }
     } catch (error) {
-      console.error("Error toggling account role:", error);
+      logger.error("Error toggling account role:", error);
       alert("Error al cambiar el rol de la cajita");
     }
     setProcessingId(null);

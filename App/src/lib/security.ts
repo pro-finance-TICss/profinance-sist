@@ -7,6 +7,7 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import {
   UserRole,
   WithdrawalStatus,
@@ -108,7 +109,7 @@ export async function logAudit(
   const userId = session?.user?.id;
 
   if (!userId) {
-    console.warn("⚠️ Intento de registro de auditoría sin ID de usuario");
+    logger.warn("⚠️ Intento de registro de auditoría sin ID de usuario");
     return;
   }
 
@@ -124,7 +125,7 @@ export async function logAudit(
       },
     });
   } catch (error) {
-    console.error("❌ Error al escribir registro de auditoría:", error);
+    logger.error("❌ Error al escribir registro de auditoría:", error);
     // No fallar la transacción principal si el log falla, pero reportar el error
   }
 }

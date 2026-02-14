@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Plus, CreditCard, Star, Trash2, Loader2 } from "lucide-react";
 import { BankAccountModal } from "@/components/dashboard/billetera/BankAccountModal";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // TIPOS
@@ -47,7 +48,7 @@ export function BankAccountList() {
         setAccounts(data.accounts || []);
       }
     } catch (error) {
-      console.error("Error cargando cuentas bancarias:", error);
+      logger.error("Error cargando cuentas bancarias:", error);
     } finally {
       setIsLoading(false);
     }
@@ -80,7 +81,7 @@ export function BankAccountList() {
         alert(data.error || "Error al eliminar la cuenta");
       }
     } catch (error) {
-      console.error("Error eliminando cuenta:", error);
+      logger.error("Error eliminando cuenta:", error);
       alert("Error al eliminar la cuenta");
     } finally {
       setDeletingId(null);
@@ -100,7 +101,7 @@ export function BankAccountList() {
         await fetchAccounts();
       }
     } catch (error) {
-      console.error("Error estableciendo predeterminada:", error);
+      logger.error("Error estableciendo predeterminada:", error);
     }
   };
 

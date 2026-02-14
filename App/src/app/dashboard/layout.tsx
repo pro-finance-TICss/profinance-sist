@@ -108,4 +108,4 @@ const getTitle = (path: string) => {
   if (path.includes("/inversiones")) return "Inversiones";
   if (path.includes("/transacciones")) return "Transacciones";
   return "Dashboard";
-};// Función getTitle omitida por brevedad, debe mantenerse igual.
+};

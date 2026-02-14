@@ -4,6 +4,7 @@ import { Wallet, BarChart3, PieChart } from "lucide-react";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { CurrencyDisclaimer } from "@/components/dashboard/CurrencyDisclaimer";
 import { getDashboardPerformances } from "@/lib/actions/performance";
+import { logger } from "@/lib/logger";
 
 export function SummaryCards() {
   const { formatAmount } = useCurrency();
@@ -34,7 +35,7 @@ export function SummaryCards() {
           });
         }
       } catch (error) {
-        console.error("Error fetching summary data:", error);
+        logger.error("Error fetching summary data:", error);
       } finally {
         setLoading(false);
       }

@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyTotpToken } from "@/lib/totp";
 import { verifyRecoveryCode } from "@/lib/actions/recovery-codes";
 import crypto from "crypto";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
       message: "Código verificado correctamente",
     });
   } catch (error) {
-    console.error("Error en reset-password/verify:", error);
+    logger.error("Error en reset-password/verify:", error);
     return NextResponse.json(
       { success: false, message: "Error del servidor" },
       { status: 500 }

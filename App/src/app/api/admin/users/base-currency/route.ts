@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 // Schema validation for request body
 const updateBaseCurrencySchema = z.object({
@@ -92,7 +93,7 @@ export async function POST(req: Request) {
     });
 
   } catch (error) {
-    console.error("Error updating base currency:", error);
+    logger.error("Error updating base currency:", error);
     return NextResponse.json(
       { success: false, message: "Internal server error" },
       { status: 500 }

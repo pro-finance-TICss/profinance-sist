@@ -5,6 +5,7 @@
 // Datos precisos y actualizados diariamente, alineados con Google Finance
 
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 // Lista de monedas soportadas
 const SUPPORTED_CURRENCIES = ["USD", "COP", "EUR", "MXN", "GBP"];
@@ -24,7 +25,7 @@ export async function GET() {
       ratesCache &&
       Date.now() - ratesCache.timestamp < CACHE_DURATION
     ) {
-      console.log("📦 Using cached exchange rates");
+      logger.debug("📦 Using cached exchange rates");
       return NextResponse.json({
         success: true,
         rates: ratesCache.rates,
@@ -33,7 +34,7 @@ export async function GET() {
       });
     }
 
-    console.log("🔄 Fetching fresh exchange rates...");
+    logger.debug("🔄 Fetching fresh exchange rates...");
 
     // Usar ExchangeRate-API v6 (gratis, 1500 requests/mes, actualizado diariamente)
     // Esta API usa datos del ECB y otros bancos centrales
@@ -71,7 +72,7 @@ export async function GET() {
     // Validar que tengamos todas las monedas
     const missingCurrencies = SUPPORTED_CURRENCIES.filter(c => !filteredRates[c]);
     if (missingCurrencies.length > 0) {
-      console.warn("⚠️ Missing currencies:", missingCurrencies);
+      logger.warn("⚠️ Missing currencies:", missingCurrencies);
     }
 
     // Actualizar cache
@@ -80,8 +81,8 @@ export async function GET() {
       timestamp: Date.now(),
     };
 
-    console.log("✅ Exchange rates updated:", filteredRates);
-    console.log(`💰 1 USD = ${filteredRates.COP?.toFixed(2)} COP (Google TRM)`);
+    logger.debug("✅ Exchange rates updated:", filteredRates);
+    logger.debug(`💰 1 USD = ${filteredRates.COP?.toFixed(2)} COP (Google TRM)`);
 
     return NextResponse.json({
       success: true,
@@ -92,11 +93,11 @@ export async function GET() {
       nextUpdate: data.time_next_update_utc,
     });
   } catch (error) {
-    console.error("❌ Error fetching exchange rates:", error);
+    logger.error("❌ Error fetching exchange rates:", error);
     
     // Si hay caché antiguo, usarlo
     if (ratesCache) {
-      console.log("⚠️ Using stale cache due to error");
+      logger.debug("⚠️ Using stale cache due to error");
       return NextResponse.json({
         success: true,
         rates: ratesCache.rates,

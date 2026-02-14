@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { logger } from "@/lib/logger";
 
 // --- TIPOS ---
 interface Transaction {
@@ -95,7 +96,7 @@ export const BalanceSection = () => {
         );
       }
     } catch (error) {
-      console.error("Error fetching dashboard data:", error);
+      logger.error("Error fetching dashboard data:", error);
     } finally {
       setIsLoading(false);
     }

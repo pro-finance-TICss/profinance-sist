@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/utils/currency";
+import { logger } from "@/lib/logger";
 
 /**
  * GET /api/wallet/transactions
@@ -78,7 +79,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("❌ Error obteniendo transacciones:", error);
+    logger.error("❌ Error obteniendo transacciones:", error);
     return NextResponse.json(
       { error: "Error al obtener transacciones" },
       { status: 500 }

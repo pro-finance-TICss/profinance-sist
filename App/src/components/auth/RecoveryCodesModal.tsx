@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Copy, Download, AlertTriangle, CheckCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { logger } from "@/lib/logger";
 
 interface RecoveryCodesModalProps {
   isOpen: boolean;
@@ -25,7 +26,7 @@ export function RecoveryCodesModal({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error("Failed to copy", err);
+      logger.error("Failed to copy", err);
     }
   };
 

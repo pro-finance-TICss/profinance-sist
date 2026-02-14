@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { MercadoPagoConfig, Payment } from "mercadopago";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
+import { logger } from "@/lib/logger";
 
 // Inicializar cliente de Mercado Pago con token de acceso
 const client = new MercadoPagoConfig({
@@ -29,7 +30,7 @@ function validateWebhookSignature(
 
   // Si no hay secreto configurado, permitir en desarrollo pero advertir
   if (!webhookSecret) {
-    console.warn(
+    logger.warn(
       "⚠️ MERCADOPAGO_WEBHOOK_SECRET no configurado. " +
       "Omitiendo validación de firma (NO usar en producción)."
     );
@@ -37,7 +38,7 @@ function validateWebhookSignature(
   }
 
   if (!xSignature || !xRequestId) {
-    console.error("❌ Webhook sin firma X-Signature o X-Request-Id");
+    logger.error("❌ Webhook sin firma X-Signature o X-Request-Id");
     return false;
   }
 
@@ -52,7 +53,7 @@ function validateWebhookSignature(
   const receivedHash = parts["v1"];
 
   if (!ts || !receivedHash) {
-    console.error("❌ Formato de firma inválido");
+    logger.error("❌ Formato de firma inválido");
     return false;
   }
 
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest) {
 
     // Validar firma HMAC antes de procesar cualquier dato
     if (!validateWebhookSignature(xSignature, xRequestId, id)) {
-      console.error("❌ Firma de webhook inválida - posible intento de falsificación");
+      logger.error("❌ Firma de webhook inválida - posible intento de falsificación");
       return NextResponse.json(
         { error: "Firma inválida" },
         { status: 403 }
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
       const payment = new Payment(client);
       const paymentData = await payment.get({ id: id });
 
-      console.log(`💰 Estado del pago ${id}: ${paymentData.status}`);
+      logger.debug(`💰 Estado del pago ${id}: ${paymentData.status}`);
 
       // 2. Verificar estado aprobado
       if (paymentData.status === "approved") {
@@ -116,7 +117,7 @@ export async function POST(req: NextRequest) {
         const transactionAmount = paymentData.transaction_amount;
 
         if (!userId || type !== "DEPOSIT") {
-          console.error("❌ Metadata faltante o inválida en pago de MP");
+          logger.error("❌ Metadata faltante o inválida en pago de MP");
           return NextResponse.json({ status: "ignored" });
         }
 
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
         });
 
         if (existingTx) {
-          console.log("⚠️ Transacción ya procesada previamente");
+          logger.debug("⚠️ Transacción ya procesada previamente");
           return NextResponse.json({ status: "ok" });
         }
 
@@ -141,7 +142,7 @@ export async function POST(req: NextRequest) {
           });
 
           if (!account) {
-            console.error("❌ No se encontró cuenta para el usuario:", userId);
+            logger.error("❌ No se encontró cuenta para el usuario:", userId);
             throw new Error("Cuenta no encontrada");
           }
 
@@ -165,13 +166,13 @@ export async function POST(req: NextRequest) {
           });
         });
 
-        console.log("✅ Balance actualizado exitosamente");
+        logger.debug("✅ Balance actualizado exitosamente");
       }
     }
 
     return NextResponse.json({ status: "ok" });
   } catch (error) {
-    console.error("❌ Error procesando webhook MP:", error);
+    logger.error("❌ Error procesando webhook MP:", error);
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 }

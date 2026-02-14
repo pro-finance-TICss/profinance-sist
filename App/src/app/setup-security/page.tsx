@@ -23,6 +23,7 @@ import {
   changePassword,
 } from "@/lib/actions/security-setup";
 import { TotpSetupComponent } from "@/components/security/TotpSetupComponent";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // TIPOS
@@ -82,7 +83,7 @@ export default function SetupSecurityPage() {
           setCurrentStep("done");
         }
       } catch (error) {
-        console.error("Error verificando estado:", error);
+        logger.error("Error verificando estado:", error);
       } finally {
         setIsLoading(false);
       }

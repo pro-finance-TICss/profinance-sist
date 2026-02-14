@@ -54,7 +54,7 @@ export async function getUsers() {
     });
     return { success: true, users };
   } catch (error) {
-    console.error("❌ Error al obtener usuarios:", error);
+    logger.error("❌ Error al obtener usuarios:", error);
     return { success: false, message: "Error al obtener usuarios" };
   }
 }
@@ -77,7 +77,7 @@ export async function updateUserRole(userId: string, newRole: string) {
     revalidatePath("/admin/users");
     return { success: true };
   } catch (error) {
-    console.error("❌ Error al actualizar rol:", error);
+    logger.error("❌ Error al actualizar rol:", error);
     return { success: false, message: "Error al actualizar rol" };
   }
 }
@@ -130,7 +130,7 @@ export async function toggleUserSocioRole(userId: string) {
       message: `Rol actualizado. El usuario (${user.email}) debe cerrar sesión y volver a iniciar para ver los cambios.`
     };
   } catch (error) {
-    console.error("❌ Error al alternar rol:", error);
+    logger.error("❌ Error al alternar rol:", error);
     return { success: false, message: "Error al alternar rol" };
   }
 }
@@ -176,7 +176,7 @@ export async function toggleAccountRole(accountId: string) {
       message: `Cajita "${account.name}" actualizada a ${newRole}. El usuario (${account.user.email}) verá los cambios al recargar.`,
     };
   } catch (error) {
-    console.error("❌ Error al alternar rol de cuenta:", error);
+    logger.error("❌ Error al alternar rol de cuenta:", error);
     return { success: false, message: "Error al alternar rol de la cuenta" };
   }
 }
@@ -286,7 +286,7 @@ export async function replyTicket(ticketId: string, message: string) {
     revalidatePath("/admin/tickets");
     return { success: true };
   } catch (error) {
-    console.error("Error replying to ticket:", error);
+    logger.error("Error replying to ticket:", error);
     return { success: false, message: "Error al responder" };
   }
 }
@@ -298,6 +298,7 @@ export async function replyTicket(ticketId: string, message: string) {
 import { decryptAccountNumber } from "@/lib/utils/encryption";
 import { getSystemSettingBoolean, setSystemSetting } from "@/lib/config";
 import { WITHDRAWAL_GLOBAL_SETTING_KEY } from "@/lib/logic/withdrawal-window";
+import { logger } from "@/lib/logger";
 
 export async function getWithdrawals() {
   await requireRole(UserRole.SUPER_ADMIN);
@@ -365,7 +366,7 @@ export async function getWithdrawals() {
 
     return { success: true, withdrawals };
   } catch (error) {
-    console.error("❌ Error al obtener retiros:", error);
+    logger.error("❌ Error al obtener retiros:", error);
     return { success: false, message: "Error al obtener solicitudes de retiro" };
   }
 }
@@ -400,7 +401,7 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error updating settings:", error);
+    logger.error("Error updating settings:", error);
     return { success: false, message: "Error al actualizar configuración" };
   }
 }
@@ -485,7 +486,7 @@ export async function processWithdrawal(
     revalidatePath("/superadmin/withdrawals");
     return { success: true };
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     return { success: false, message: "Error al procesar la transacción" };
   }
 }

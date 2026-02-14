@@ -8,6 +8,7 @@ import {
   deletePerformance,
 } from "@/lib/actions/performance";
 import * as Flags from "country-flag-icons/react/3x2";
+import { logger } from "@/lib/logger";
 
 interface Performance {
   id: string;
@@ -59,7 +60,7 @@ export default function PerformancePage() {
         }))
       );
     } catch (error) {
-      console.error("Error loading performances:", error);
+      logger.error("Error loading performances:", error);
     }
     setLoading(false);
   };
@@ -80,7 +81,7 @@ export default function PerformancePage() {
       });
       loadPerformances();
     } catch (error) {
-      console.error("Error creating performance:", error);
+      logger.error("Error creating performance:", error);
       alert("Error al crear el registro de rendimiento");
     }
   };
@@ -91,7 +92,7 @@ export default function PerformancePage() {
       await deletePerformance(id);
       loadPerformances();
     } catch (error) {
-      console.error("Error deleting performance:", error);
+      logger.error("Error deleting performance:", error);
       alert("Error al eliminar el registro");
     }
   };

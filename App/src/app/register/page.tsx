@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { TotpSetup } from "@/components/auth/TotpSetup";
 
 import styles from "./register.module.css";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // TIPOS
@@ -106,7 +107,7 @@ export default function RegisterPage() {
       // Email disponible, avanzar al siguiente paso
       setStep("security");
     } catch (error) {
-      console.error("Error verificando email:", error);
+      logger.error("Error verificando email:", error);
       setServerError("Error de conexión. Intenta de nuevo.");
     }
   };
@@ -140,7 +141,7 @@ export default function RegisterPage() {
         setStep("totp");
       }
     } catch (error) {
-      console.error("Error en registro:", error);
+      logger.error("Error en registro:", error);
       setServerError("Error de conexión.");
     }
   };

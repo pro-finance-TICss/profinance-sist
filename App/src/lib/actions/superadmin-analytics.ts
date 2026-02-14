@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/security";
 import { UserRole } from "@/lib/enums";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // ANÁLISIS DE INVERSIONES PARA SUPER ADMIN - PRO-FINANCE
@@ -261,7 +262,7 @@ export async function getInvestmentAnalytics(
       },
     };
   } catch (error) {
-    console.error("Error fetching investment analytics:", error);
+    logger.error("Error fetching investment analytics:", error);
     return {
       success: false,
       message: "Error al obtener datos de análisis",

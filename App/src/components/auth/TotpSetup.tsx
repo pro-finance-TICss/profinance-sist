@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // TIPOS
@@ -205,7 +206,7 @@ export function TotpSetup({
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // Fallback para navegadores sin soporte de clipboard
-      console.error("No se pudo copiar al portapapeles");
+      logger.error("No se pudo copiar al portapapeles");
     }
   };
 

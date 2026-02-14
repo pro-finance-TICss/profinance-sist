@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback } from "react";
 import { signOut } from "next-auth/react";
+import { logger } from "@/lib/logger";
 
 /**
  * Hook para verificar la validez de la sesión periódicamente.
@@ -16,7 +17,7 @@ export function useSessionValidator(intervalMs: number = 30000) {
       const data = await response.json();
 
       if (!data.valid) {
-        console.log("❌ Sesión inválida:", data.reason);
+        logger.debug("❌ Sesión inválida:", data.reason);
 
         // Mostrar mensaje antes de cerrar sesión
         if (data.reason === "session_revoked") {
@@ -30,7 +31,7 @@ export function useSessionValidator(intervalMs: number = 30000) {
       }
     } catch (error) {
       // Error de red - no hacer nada, reintentar en el próximo intervalo
-      console.error("Error verificando sesión:", error);
+      logger.error("Error verificando sesión:", error);
     }
   }, []);
 

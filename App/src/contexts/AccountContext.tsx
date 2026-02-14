@@ -10,6 +10,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // TIPOS
@@ -88,7 +89,7 @@ export function AccountProvider({ children }: AccountProviderProps) {
             setAccounts(validAccounts);
             return validAccounts;
         } catch (error) {
-            console.error("❌ Error cargando cuentas:", error);
+            logger.error("❌ Error cargando cuentas:", error);
             setAccounts([]);
             return [];
         }
@@ -162,7 +163,7 @@ export function AccountProvider({ children }: AccountProviderProps) {
             );
 
             if (!account) {
-                console.error("❌ Intento de seleccionar cuenta inválida:", accountId);
+                logger.error("❌ Intento de seleccionar cuenta inválida:", accountId);
                 return;
             }
 
@@ -204,7 +205,7 @@ export function AccountProvider({ children }: AccountProviderProps) {
 
                 return newAccount;
             } catch (error) {
-                console.error("❌ Error creando cajita:", error);
+                logger.error("❌ Error creando cajita:", error);
                 throw error; // Propagar para que el componente muestre el error
             }
         },

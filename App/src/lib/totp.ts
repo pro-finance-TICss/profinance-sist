@@ -9,6 +9,7 @@
 const otplib = require("otplib");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode");
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // CONFIGURACIÓN DE SEGURIDAD
@@ -97,7 +98,7 @@ export function verifyTotpToken(token: string, secret: string): boolean {
 
     return false;
   } catch (e) {
-    console.error("TOTP Verification error:", e);
+    logger.error("TOTP Verification error:", e);
     return false;
   }
 }

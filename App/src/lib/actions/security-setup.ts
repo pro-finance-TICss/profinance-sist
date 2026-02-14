@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { UserRole } from "@/lib/enums";
 import bcrypt from "bcryptjs";
+import { logger } from "@/lib/logger";
 
 /**
  * Verifica si un usuario requiere completar la configuración de seguridad.
@@ -127,7 +128,7 @@ export async function changePassword(
 
     return { success: true, message: "Contraseña actualizada correctamente" };
   } catch (error) {
-    console.error("Error cambiando contraseña:", error);
+    logger.error("Error cambiando contraseña:", error);
     return { success: false, message: "Error al cambiar la contraseña" };
   }
 }

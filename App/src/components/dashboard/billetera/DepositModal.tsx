@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { X, CreditCard, ExternalLink } from "lucide-react";
 import { formatCurrency, parseCurrency } from "@/lib/utils/currency";
+import { logger } from "@/lib/logger";
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -61,7 +62,7 @@ export function DepositModal({
         throw new Error("No se recibió URL de pago");
       }
     } catch (err: any) {
-      console.error("Error en depósito:", err);
+      logger.error("Error en depósito:", err);
       setError(err.message || "Error al iniciar el pago");
       setIsLoading(false);
     }

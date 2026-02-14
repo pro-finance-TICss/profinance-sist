@@ -10,6 +10,7 @@ import { createTrustedDevice } from "@/lib/trusted-device";
 import { cookies } from "next/headers";
 import { TRUSTED_DEVICE_COOKIE_NAME } from "@/lib/trusted-device";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 /**
  * POST: Crear dispositivo de confianza después de verificación TOTP exitosa.
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
       message: "Dispositivo marcado como confiable por 30 días",
     });
   } catch (error) {
-    console.error("Error en POST /api/auth/trusted-device:", error);
+    logger.error("Error en POST /api/auth/trusted-device:", error);
     return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
   }
 }
@@ -74,7 +75,7 @@ export async function DELETE(request: NextRequest) {
       message: "Confianza del dispositivo revocada",
     });
   } catch (error) {
-    console.error("Error en DELETE /api/auth/trusted-device:", error);
+    logger.error("Error en DELETE /api/auth/trusted-device:", error);
     return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
   }
 }

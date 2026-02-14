@@ -8,6 +8,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 export async function GET() {
   try {
@@ -21,7 +22,6 @@ export async function GET() {
     }
 
     // Obtener el sessionId del token (lo agregamos en auth.ts)
-    // @ts-ignore - El campo existe en el token
     const sessionId = authSession.user.sessionId;
 
     if (!sessionId) {
@@ -69,7 +69,7 @@ export async function GET() {
       expiresAt: session.expiresAt,
     });
   } catch (error) {
-    console.error("Error en verify-session:", error);
+    logger.error("Error en verify-session:", error);
     return NextResponse.json(
       { valid: false, reason: "server_error" },
       { status: 500 }

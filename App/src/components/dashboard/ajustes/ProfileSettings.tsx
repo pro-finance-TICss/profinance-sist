@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { User, ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { getUserProfile } from "@/lib/actions/user-settings";
+import { logger } from "@/lib/logger";
 
 interface UserProfile {
   firstName: string;
@@ -23,7 +24,7 @@ export function ProfileSettings() {
           setProfile(result.user);
         }
       } catch (error) {
-        console.error("Error loading profile:", error);
+        logger.error("Error loading profile:", error);
       } finally {
         setLoading(false);
       }

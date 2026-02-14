@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { TransactionHistory } from "@/components/dashboard/billetera/TransactionHistory";
 import { WithdrawalStatus } from "@/components/dashboard/billetera/WithdrawalStatus";
 import { PageHeader } from "@/components/PageHeader";
+import { logger } from "@/lib/logger";
 
 // Tipos
 interface Transaction {
@@ -47,7 +48,7 @@ export default function TransaccionesPage() {
         setWithdrawals(data.withdrawals);
       }
     } catch (error) {
-      console.error("Error cargando datos de transacciones:", error);
+      logger.error("Error cargando datos de transacciones:", error);
     } finally {
       setIsLoading(false);
     }

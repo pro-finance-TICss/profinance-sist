@@ -19,44 +19,12 @@ import { verifyTotpToken } from "@/lib/totp";
 
 import { verifyRecoveryCode } from "@/lib/actions/recovery-codes";
 import { createNotification } from "@/lib/actions/notifications";
+import { parseUserAgent } from "@/lib/trusted-device";
 import { headers } from "next/headers";
+import { logger } from "@/lib/logger";
 
-// ============================================================================
-// UTILIDADES
-// ============================================================================
-
-/**
- * Parsea el User-Agent para obtener un nombre descriptivo del dispositivo.
- */
-function parseUserAgent(userAgent: string | null): string {
-  if (!userAgent) return "Dispositivo desconocido";
-
-  let browser = "Navegador";
-  let os = "";
-
-  // Detectar navegador
-  if (userAgent.includes("Chrome") && !userAgent.includes("Edg"))
-    browser = "Chrome";
-  else if (userAgent.includes("Firefox")) browser = "Firefox";
-  else if (userAgent.includes("Safari") && !userAgent.includes("Chrome"))
-    browser = "Safari";
-  else if (userAgent.includes("Edg")) browser = "Edge";
-  else if (userAgent.includes("Opera") || userAgent.includes("OPR"))
-    browser = "Opera";
-
-  // Detectar SO
-  if (userAgent.includes("Windows")) os = "Windows";
-  else if (userAgent.includes("Mac")) os = "macOS";
-  else if (userAgent.includes("Linux")) os = "Linux";
-  else if (userAgent.includes("Android")) os = "Android";
-  else if (userAgent.includes("iPhone") || userAgent.includes("iPad"))
-    os = "iOS";
-
-  return os ? `${browser} en ${os}` : browser;
-}
-
-// Duración de sesión: 24 horas
-const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+// Duración de sesión: 30 minutos (coherente con auth.config.ts y SessionValidator)
+const SESSION_DURATION_MS = 30 * 60 * 1000;
 
 // ============================================================================
 // ERRORES PERSONALIZADOS DE 2FA
@@ -117,7 +85,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           });
 
           if (!validatedFields.success) {
-            console.error(
+            logger.debug(
               "❌ Validación de Zod falló:",
               validatedFields.error.format()
             );
@@ -125,7 +93,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
 
           const { email, password } = validatedFields.data;
-          console.log("🔍 Intentando login para:", email);
+          logger.debug("🔍 Intentando login para:", email);
 
           // 2. Buscar usuario en la base de datos
           const user = await prisma.user.findUnique({
@@ -133,17 +101,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           });
 
           if (!user) {
-            console.error("❌ Usuario no encontrado:", email);
+            logger.debug("❌ Usuario no encontrado:", email);
             return null;
           }
 
-          console.log("👤 Usuario encontrado:", user.email);
+          logger.debug("👤 Usuario encontrado:", user.email);
 
           // 3. Verificar contraseña con bcrypt
           const passwordMatch = await bcrypt.compare(password, user.password);
 
           if (!passwordMatch) {
-            console.error("❌ Contraseña incorrecta para:", email);
+            logger.debug("❌ Contraseña incorrecta para:", email);
             return null;
           }
 
@@ -169,7 +137,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               });
 
               if (trustedDevice) {
-                console.log(
+                logger.debug(
                   "🔓 Dispositivo confiable verificado, omitiendo TOTP"
                 );
                 // Actualizar última actividad
@@ -180,7 +148,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 // Saltar verificación TOTP - dispositivo confiable
               } else {
                 // Token inválido o expirado, requerir TOTP
-                console.log(
+                logger.debug(
                   "📱 Token de dispositivo inválido, se requiere TOTP"
                 );
                 throw new TwoFactorRequiredError();
@@ -188,7 +156,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             }
             // Caso 1: Usuario intenta entrar con Recovery Code
             else if (recoveryCode) {
-              console.log(
+              logger.debug(
                 "🚑 Intentando acceso con Recovery Code para:",
                 email
               );
@@ -198,7 +166,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               );
 
               if (!verification.success) {
-                console.error(
+                logger.debug(
                   "❌ Recovery Code inválido:",
                   verification.message
                 );
@@ -207,27 +175,27 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 );
               }
 
-              console.log("✅ Acceso concedido por Recovery Code");
+              logger.debug("✅ Acceso concedido por Recovery Code");
               // Nota: verifyRecoveryCode ya incrementa tokenVersion e invalida sesiones
             }
             // Caso 2: Usuario intenta entrar con TOTP (flujo normal)
             else if (totpCode) {
               // Verificar código TOTP
               if (!verifyTotpToken(totpCode, user.totpSecret)) {
-                console.error("❌ Código TOTP inválido para:", email);
+                logger.debug("❌ Código TOTP inválido para:", email);
                 throw new InvalidTwoFactorError();
               }
-              console.log("✅ Código TOTP verificado para:", email);
+              logger.debug("✅ Código TOTP verificado para:", email);
             }
             // Caso 3: No envió ningún código
             else {
-              console.log("📱 Se requiere código TOTP para:", email);
+              logger.debug("📱 Se requiere código TOTP para:", email);
               throw new TwoFactorRequiredError();
             }
           } else {
             // Usuario legacy sin TOTP - permitir login sin 2FA
             // Esto aplica para usuarios admin y test existentes
-            console.log(
+            logger.warn(
               "⚠️ Usuario sin TOTP habilitado, permitiendo acceso:",
               email
             );
@@ -287,7 +255,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 },
               });
             } catch (error) {
-              console.error("❌ Error al registrar auditoría de login:", error);
+              logger.error("❌ Error al registrar auditoría de login:", error);
               // No bloquear el login si la auditoría falla
             }
           }
@@ -306,7 +274,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             },
           });
 
-          console.log("🎟️ Sesión creada:", session.id);
+          logger.debug("🎟️ Sesión creada:", session.id);
 
           // Actualizar lastLogin (sin incrementar tokenVersion para permitir múltiples sesiones)
           const updatedUser = await prisma.user.update({
@@ -318,8 +286,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             },
           });
 
-          console.log("✅ Login exitoso para:", email);
-          console.log("📋 SessionId:", session.id);
+          logger.info("✅ Login exitoso para:", email);
+          logger.debug("📋 SessionId:", session.id);
 
           // Determinar si el usuario necesita completar configuración de seguridad
           // Aplica a:
@@ -358,7 +326,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             throw error;
           }
 
-          console.error("❌ Error en autorización:", error);
+          logger.error("❌ Error en autorización:", error);
           return null;
         }
       },
@@ -415,7 +383,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.requiresSecuritySetup = token.requiresSecuritySetup;
         // tokenVersion NO se expone al cliente por seguridad
         // pero se mantiene en el token para validación en middleware
-        // @ts-ignore
         session.user.sessionId = token.sessionId;
       }
       return session;

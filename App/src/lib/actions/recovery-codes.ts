@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { verifyTotpToken } from "@/lib/totp";
+import { logger } from "@/lib/logger";
 
 // CONFIGURACIÓN DE SEGURIDAD
 const RECOVERY_CODES_COUNT = 8;
@@ -144,7 +145,7 @@ export async function generateRecoveryCodes(
       message: "Códigos generados exitosamente. ¡Guárdalos ahora!",
     };
   } catch (error) {
-    console.error("Error generating recovery codes:", error);
+    logger.error("Error generating recovery codes:", error);
     return { success: false, message: "Error interno al generar códigos" };
   }
 }
@@ -242,7 +243,7 @@ export async function verifyRecoveryCode(userId: string, code: string) {
       return { success: false, message: "Código de recuperación inválido." };
     }
   } catch (error) {
-    console.error("Error verifying recovery code:", error);
+    logger.error("Error verifying recovery code:", error);
     return { success: false, message: "Error al verificar código." };
   }
 }

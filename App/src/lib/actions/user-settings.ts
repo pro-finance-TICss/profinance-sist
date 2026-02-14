@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyTotpToken } from "@/lib/totp";
 import bcrypt from "bcryptjs";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // ACCIONES DE PERFIL DE USUARIO
@@ -38,7 +39,7 @@ export async function getUserProfile() {
 
     return { success: true, user };
   } catch (error) {
-    console.error("❌ Error al obtener perfil:", error);
+    logger.error("❌ Error al obtener perfil:", error);
     return { success: false, message: "Error al obtener perfil" };
   }
 }
@@ -119,14 +120,14 @@ export async function changePassword({
       data: { password: hashedPassword },
     });
 
-    console.log(`🔐 Contraseña cambiada para el usuario: ${user.email}`);
+    logger.debug(`🔐 Contraseña cambiada para el usuario: ${user.email}`);
 
     return {
       success: true,
       message: "Contraseña actualizada exitosamente.",
     };
   } catch (error) {
-    console.error("❌ Error al cambiar contraseña:", error);
+    logger.error("❌ Error al cambiar contraseña:", error);
     return {
       success: false,
       message: "Error al cambiar la contraseña. Intente nuevamente.",

@@ -11,6 +11,7 @@ import { X, AlertCircle, CheckCircle, Plus, CreditCard } from "lucide-react";
 import { parseCurrency } from "@/lib/utils/currency";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { BankAccountModal } from "@/components/dashboard/billetera/BankAccountModal";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // TIPOS
@@ -114,7 +115,7 @@ function WithdrawModalInner({
         }
       }
     } catch (error) {
-      console.error("Error cargando cuentas bancarias:", error);
+      logger.error("Error cargando cuentas bancarias:", error);
     } finally {
       setIsLoadingAccounts(false);
     }
@@ -202,7 +203,7 @@ function WithdrawModalInner({
         }, 2000);
       }
     } catch (err: unknown) {
-      console.error("Error en retiro:", err);
+      logger.error("Error en retiro:", err);
       setError(
         err instanceof Error ? err.message : "Error al procesar la solicitud"
       );

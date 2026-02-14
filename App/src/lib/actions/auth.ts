@@ -166,8 +166,8 @@ export async function registerUser(
       },
     });
 
-    console.log("✅ Usuario registrado exitosamente:", email);
-    console.log("🔐 Esperando configuración de TOTP...");
+    logger.debug("✅ Usuario registrado exitosamente:", email);
+    logger.debug("🔐 Esperando configuración de TOTP...");
 
     // ================================================================
     // PASO 6: Generar QR para configuración de autenticador
@@ -185,7 +185,7 @@ export async function registerUser(
       },
     };
   } catch (error) {
-    console.error("❌ Error al registrar usuario:", error);
+    logger.error("❌ Error al registrar usuario:", error);
 
     return {
       success: false,
@@ -231,7 +231,7 @@ export async function confirmTotpSetup(
 
     // Verificar código
     if (!verifyTotpToken(code, user.totpSecret)) {
-      console.error("❌ Código TOTP inválido durante setup para:", user.email);
+      logger.error("❌ Código TOTP inválido durante setup para:", user.email);
       return {
         success: false,
         message: "Código incorrecto. Intenta de nuevo.",
@@ -282,7 +282,7 @@ export async function confirmTotpSetup(
       await tx.recoveryCode.createMany({ data: hashedCodesData });
     });
 
-    console.log("✅ TOTP configurado y códigos generados para:", user.email);
+    logger.debug("✅ TOTP configurado y códigos generados para:", user.email);
 
     return {
       success: true,
@@ -290,7 +290,7 @@ export async function confirmTotpSetup(
       recoveryCodes: plainCodes,
     };
   } catch (error) {
-    console.error("❌ Error al confirmar TOTP:", error);
+    logger.error("❌ Error al confirmar TOTP:", error);
     return {
       success: false,
       message: "Error al verificar el código. Intenta de nuevo.",
@@ -337,7 +337,7 @@ export async function regenerateTotpSetup(
     const uri = generateTotpUri(email, totpSecret);
     const qrCode = await generateQrDataUrl(uri);
 
-    console.log("🔄 TOTP regenerado para:", email);
+    logger.debug("🔄 TOTP regenerado para:", email);
 
     return {
       success: true,
@@ -349,7 +349,7 @@ export async function regenerateTotpSetup(
       },
     };
   } catch (error) {
-    console.error("❌ Error al regenerar TOTP:", error);
+    logger.error("❌ Error al regenerar TOTP:", error);
     return {
       success: false,
       message: "Error al generar nuevo código. Intenta de nuevo.",
@@ -362,6 +362,7 @@ export async function regenerateTotpSetup(
 // ============================================================================
 
 import { auth } from "@/lib/auth";
+import { logger } from "@/lib/logger";
 
 /**
  * Genera o recupera la configuración TOTP para el usuario autenticado.
@@ -409,7 +410,7 @@ export async function getTotpSetupForCurrentUser(): Promise<RegisterResponse> {
     const uri = generateTotpUri(user.email, totpSecret);
     const qrCode = await generateQrDataUrl(uri);
 
-    console.log("📱 QR de TOTP generado para usuario existente:", user.email);
+    logger.debug("📱 QR de TOTP generado para usuario existente:", user.email);
 
     return {
       success: true,
@@ -421,7 +422,7 @@ export async function getTotpSetupForCurrentUser(): Promise<RegisterResponse> {
       },
     };
   } catch (error) {
-    console.error("❌ Error al obtener setup TOTP:", error);
+    logger.error("❌ Error al obtener setup TOTP:", error);
     return {
       success: false,
       message: "Error al generar código QR. Intenta de nuevo.",

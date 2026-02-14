@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -86,14 +87,14 @@ export async function POST(request: NextRequest) {
       where: { userId: user.id },
     });
 
-    console.log(`✅ Contraseña reseteada para: ${user.email}`);
+    logger.debug(`✅ Contraseña reseteada para: ${user.email}`);
 
     return NextResponse.json({
       success: true,
       message: "Contraseña actualizada exitosamente",
     });
   } catch (error) {
-    console.error("Error en reset-password/confirm:", error);
+    logger.error("Error en reset-password/confirm:", error);
     return NextResponse.json(
       { success: false, message: "Error del servidor" },
       { status: 500 }

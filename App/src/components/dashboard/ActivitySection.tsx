@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { logger } from "@/lib/logger";
 
 interface Transaction {
   id: string;
@@ -30,7 +31,7 @@ export function ActivitySection() {
           setTransactions(sorted.slice(0, 5)); // Mostrar solo las 5 más recientes
         }
       } catch (error) {
-        console.error("Error fetching activity:", error);
+        logger.error("Error fetching activity:", error);
       } finally {
         setIsLoading(false);
       }

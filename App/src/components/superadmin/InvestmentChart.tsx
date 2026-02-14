@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // TYPES
@@ -112,7 +113,7 @@ export function InvestmentChart({ role, title }: InvestmentChartProps) {
         }
       }
     } catch (error) {
-      console.error("Error fetching analytics:", error);
+      logger.error("Error fetching analytics:", error);
     } finally {
       setIsLoading(false);
     }

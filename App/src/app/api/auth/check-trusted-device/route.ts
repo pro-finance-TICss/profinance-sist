@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 const TRUSTED_DEVICE_COOKIE_NAME = "pf_trusted_device";
 
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
       deviceToken,
     });
   } catch (error) {
-    console.error("Error en check-trusted-device:", error);
+    logger.error("Error en check-trusted-device:", error);
     return NextResponse.json(
       { trusted: false, error: "Error del servidor" },
       { status: 500 }

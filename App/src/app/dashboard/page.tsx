@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { Plus } from "lucide-react";
 
 import { useDashboard } from "@/contexts/DashboardContext";
 import { useAccount } from "@/contexts/AccountContext";
@@ -15,6 +14,7 @@ import { DepositForm } from "../../components/dashboard/DepositForm";
 import { PerformanceTable } from "../../components/dashboard/PerformanceTable";
 import { WithdrawModal } from "../../components/dashboard/billetera/WithdrawModal";
 import { checkWithdrawalWindowStatus } from "@/lib/actions/wallet-checks";
+import { logger } from "@/lib/logger";
 
 export default function DashboardPage() {
   const { isMobile } = useDashboard();
@@ -50,7 +50,7 @@ export default function DashboardPage() {
           setBalance(data.balance?.investedCapital || 0);
         }
       } catch (error) {
-        console.error("Error cargando balance:", error);
+        logger.error("Error cargando balance:", error);
       }
     };
     fetchBalance();
@@ -76,7 +76,7 @@ export default function DashboardPage() {
         setBalance(data.balance?.investedCapital || 0);
       }
     } catch (error) {
-      console.error("Error recargando balance:", error);
+      logger.error("Error recargando balance:", error);
     }
   };
 

@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { InactivityModal } from "./InactivityModal";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // CONFIGURACIÓN DE TIMEOUTS (en segundos)
@@ -52,8 +53,6 @@ export function SessionValidator() {
   const isAuthPage = [
     "/login",
     "/register",
-    "/login_backup",
-    "/register_backup",
   ].some((route) => pathname?.startsWith(route));
 
   // ================================================================
@@ -126,12 +125,12 @@ export function SessionValidator() {
       // Mostrar advertencia si se alcanza el threshold
       if (idleSeconds >= WARNING_THRESHOLD && !showWarning) {
         setShowWarning(true);
-        console.log("⚠️ Sesión por expirar - Mostrando advertencia");
+        logger.debug("⚠️ Sesión por expirar - Mostrando advertencia");
       }
 
       // Logout automático si se alcanza el timeout
       if (idleSeconds >= SESSION_TIMEOUT) {
-        console.log("🔒 Sesión expirada por inactividad - Cerrando sesión");
+        logger.debug("🔒 Sesión expirada por inactividad - Cerrando sesión");
         handleLogout();
       }
     }, TICK_INTERVAL);
@@ -148,12 +147,12 @@ export function SessionValidator() {
   // HANDLERS
   // ================================================================
   const handleContinue = useCallback(() => {
-    console.log("✅ Usuario decidió continuar la sesión");
+    logger.debug("✅ Usuario decidió continuar la sesión");
     resetIdleTimer();
   }, [resetIdleTimer]);
 
   const handleLogout = useCallback(async () => {
-    console.log("🚪 Cerrando sesión...");
+    logger.debug("🚪 Cerrando sesión...");
     await signOut({ callbackUrl: "/login" });
   }, []);
 

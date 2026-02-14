@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
 import styles from "./login.module.css";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // TIPOS
@@ -99,9 +100,9 @@ function LoginForm2FAStep({
           await fetch("/api/auth/trusted-device", {
             method: "POST",
           });
-          console.log("✅ Dispositivo marcado como confiable por 30 días");
+          logger.debug("✅ Dispositivo marcado como confiable por 30 días");
         } catch (e) {
-          console.error("Error creando dispositivo confiable:", e);
+          logger.error("Error creando dispositivo confiable:", e);
           // No bloquear login si falla
         }
       }
@@ -110,7 +111,7 @@ function LoginForm2FAStep({
       router.replace("/select-account");
       router.refresh();
     } catch (error) {
-      console.error("Error en Auth:", error);
+      logger.error("Error en Auth:", error);
       setServerError("Error de conexión.");
     }
   };
@@ -306,10 +307,10 @@ function LoginContent() {
 
         if (checkData.trusted && checkData.deviceToken) {
           trustedDeviceToken = checkData.deviceToken;
-          console.log("🔓 Dispositivo confiable detectado, omitiendo TOTP");
+          logger.debug("🔓 Dispositivo confiable detectado, omitiendo TOTP");
         }
       } catch (e) {
-        console.error("Error verificando dispositivo confiable:", e);
+        logger.error("Error verificando dispositivo confiable:", e);
         // Continuar sin token de dispositivo
       }
 
@@ -330,11 +331,11 @@ function LoginContent() {
         ) {
           setEmail(data.email);
           setStep("twoFactor");
-          console.log("📱 Se requiere código TOTP del autenticador.");
+          logger.debug("📱 Se requiere código TOTP del autenticador.");
         } else if (result.error.includes("CredentialsSignin")) {
           setServerError("Correo o contraseña incorrectos.");
         } else {
-          console.log("Login Error Raw:", result);
+          logger.debug("Login Error Raw:", result);
           setServerError("Error al iniciar sesión. Verifica tus datos.");
         }
         return;
@@ -344,7 +345,7 @@ function LoginContent() {
       router.replace("/select-account");
       router.refresh();
     } catch (error) {
-      console.error("Error en login:", error);
+      logger.error("Error en login:", error);
       setServerError("Error de conexión. Intenta de nuevo.");
     }
   };

@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/utils/currency";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // GET /api/accounts — Listar cuentas del usuario autenticado
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(serialized);
   } catch (error) {
-    console.error("❌ Error obteniendo cuentas:", error);
+    logger.error("❌ Error obteniendo cuentas:", error);
     return NextResponse.json(
       { error: "Error al obtener cuentas" },
       { status: 500 }
@@ -153,7 +154,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log(
+    logger.debug(
       `✅ Nueva cajita creada: "${account.name}" para usuario ${session.user.id}`
     );
 
@@ -167,7 +168,7 @@ export async function POST(req: NextRequest) {
       createdAt: account.createdAt.toISOString(),
     }, { status: 201 });
   } catch (error) {
-    console.error("❌ Error creando cuenta:", error);
+    logger.error("❌ Error creando cuenta:", error);
     return NextResponse.json(
       { error: "Error al crear la cuenta" },
       { status: 500 }

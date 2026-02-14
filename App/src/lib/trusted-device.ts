@@ -8,6 +8,7 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
+import { logger } from "@/lib/logger";
 
 // Nombre de la cookie para identificar dispositivos confiables
 export const TRUSTED_DEVICE_COOKIE_NAME = "pf_trusted_device";
@@ -91,10 +92,10 @@ export async function createTrustedDevice(
       path: "/",
     });
 
-    console.log("✅ Dispositivo de confianza creado:", deviceName);
+    logger.debug("✅ Dispositivo de confianza creado:", deviceName);
     return { success: true, deviceToken };
   } catch (error) {
-    console.error("❌ Error creando dispositivo de confianza:", error);
+    logger.error("❌ Error creando dispositivo de confianza:", error);
     return { success: false };
   }
 }
@@ -135,10 +136,10 @@ export async function verifyTrustedDevice(
       data: { lastUsedAt: new Date() },
     });
 
-    console.log("✅ Dispositivo confiable verificado:", device.deviceName);
+    logger.debug("✅ Dispositivo confiable verificado:", device.deviceName);
     return { trusted: true, deviceId: device.id };
   } catch (error) {
-    console.error("❌ Error verificando dispositivo confiable:", error);
+    logger.error("❌ Error verificando dispositivo confiable:", error);
     return { trusted: false };
   }
 }
@@ -163,10 +164,10 @@ export async function revokeTrustedDevice(
       where: { id: deviceId },
     });
 
-    console.log("✅ Dispositivo revocado:", deviceId);
+    logger.debug("✅ Dispositivo revocado:", deviceId);
     return true;
   } catch (error) {
-    console.error("❌ Error revocando dispositivo:", error);
+    logger.error("❌ Error revocando dispositivo:", error);
     return false;
   }
 }
@@ -181,13 +182,13 @@ export async function revokeAllTrustedDevices(userId: string): Promise<number> {
       where: { userId },
     });
 
-    console.log(
+    logger.debug(
       `✅ ${result.count} dispositivos revocados para usuario:`,
       userId
     );
     return result.count;
   } catch (error) {
-    console.error("❌ Error revocando todos los dispositivos:", error);
+    logger.error("❌ Error revocando todos los dispositivos:", error);
     return 0;
   }
 }
@@ -214,7 +215,7 @@ export async function listTrustedDevices(userId: string) {
 
     return devices;
   } catch (error) {
-    console.error("❌ Error listando dispositivos:", error);
+    logger.error("❌ Error listando dispositivos:", error);
     return [];
   }
 }
@@ -230,11 +231,11 @@ export async function cleanupExpiredDevices(): Promise<number> {
     });
 
     if (result.count > 0) {
-      console.log(`🧹 ${result.count} dispositivos expirados eliminados`);
+      logger.debug(`🧹 ${result.count} dispositivos expirados eliminados`);
     }
     return result.count;
   } catch (error) {
-    console.error("❌ Error limpiando dispositivos expirados:", error);
+    logger.error("❌ Error limpiando dispositivos expirados:", error);
     return 0;
   }
 }

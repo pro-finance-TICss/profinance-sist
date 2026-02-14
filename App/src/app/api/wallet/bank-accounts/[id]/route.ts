@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // DELETE - DESACTIVAR CUENTA BANCARIA
@@ -121,7 +122,7 @@ export async function DELETE(
       },
     });
 
-    console.log(
+    logger.debug(
       `🗑️ Cuenta bancaria desactivada: ${account.bankName} ****${account.accountNumberLast4} del usuario ${session.user.id}`
     );
 
@@ -130,7 +131,7 @@ export async function DELETE(
       message: "Cuenta bancaria eliminada exitosamente",
     });
   } catch (error) {
-    console.error("❌ Error eliminando cuenta bancaria:", error);
+    logger.error("❌ Error eliminando cuenta bancaria:", error);
     return NextResponse.json(
       { error: "Error al eliminar cuenta bancaria" },
       { status: 500 }
@@ -215,7 +216,7 @@ export async function PUT(
       message: "Cuenta bancaria actualizada",
     });
   } catch (error) {
-    console.error("❌ Error actualizando cuenta bancaria:", error);
+    logger.error("❌ Error actualizando cuenta bancaria:", error);
     return NextResponse.json(
       { error: "Error al actualizar cuenta bancaria" },
       { status: 500 }
