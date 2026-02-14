@@ -4,6 +4,7 @@ import { Search, Bell, User, Menu, DollarSign } from "lucide-react";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { useSession } from "next-auth/react";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { useAccount } from "@/contexts/AccountContext";
 
 export const DashboardHeader = ({ title }: { title: string }) => {
   const { isMobile, isTablet, isCollapsed, toggleSidebar } = useDashboard();
@@ -11,8 +12,13 @@ export const DashboardHeader = ({ title }: { title: string }) => {
 
   // Get user display name and role
   const userName = session?.user?.name || "Usuario";
+  const { activeAccount } = useAccount();
+  const accountName = activeAccount?.name || "";
 
-  const userRole = session?.user?.role || "USER";
+  // El rol que se muestra es el de la cajita activa, no el del usuario global
+  // Para ADMIN/SUPER_ADMIN que no usan cajitas, se usa el rol global
+  const globalRole = session?.user?.role || "USER";
+  const displayRole = activeAccount?.role || globalRole;
 
   // Map role to display text
   const getRoleDisplay = (role: string) => {
@@ -30,7 +36,7 @@ export const DashboardHeader = ({ title }: { title: string }) => {
     }
   };
 
-  const roleDisplay = getRoleDisplay(userRole);
+  const roleDisplay = getRoleDisplay(displayRole);
 
   return (
     <header
@@ -153,7 +159,7 @@ export const DashboardHeader = ({ title }: { title: string }) => {
                     textTransform: "uppercase",
                   }}
                 >
-                  {roleDisplay}
+                  {roleDisplay}{accountName ? ` | ${accountName}` : ""}
                 </p>
               </div>
             )}

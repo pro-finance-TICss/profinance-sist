@@ -29,17 +29,17 @@ export interface CreatePerformanceInput {
 
 /**
  * Obtiene los registros de rendimiento para el dashboard del usuario actual.
- * Los usuarios ven registros de tipo USER; los socios ven registros de tipo SOCIO.
- * Los Admin/SuperAdmin ven registros USER por defecto.
+ * Si se pasa accountRole, se usa ese rol; si no, se usa el rol global del usuario.
+ * Los usuarios/cuentas USER ven registros USER; los SOCIO ven registros SOCIO.
  */
-export async function getDashboardPerformances() {
+export async function getDashboardPerformances(accountRole?: string) {
   const session = await auth();
   if (!session?.user) return [];
 
-  const role = session.user.role;
+  // Priorizar el rol de la cajita activa sobre el rol global del usuario
   let targetRole = "USER";
 
-  if (role === UserRole.SOCIO) {
+  if (accountRole === "SOCIO" || (!accountRole && session.user.role === UserRole.SOCIO)) {
     targetRole = "SOCIO";
   }
 

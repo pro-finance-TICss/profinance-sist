@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { TransactionHistory } from "@/components/dashboard/billetera/TransactionHistory";
 import { WithdrawalStatus } from "@/components/dashboard/billetera/WithdrawalStatus";
+import { PageHeader } from "@/components/PageHeader";
 
 // Tipos
 interface Transaction {
@@ -58,7 +59,10 @@ export default function TransaccionesPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-
+      <PageHeader
+        title="Transacciones"
+        subtitle="Historial de movimientos y solicitudes de retiro."
+      />
 
       {/* Tablas en dos columnas */}
       <div className="transactions-grid">

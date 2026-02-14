@@ -40,6 +40,16 @@ export async function getUsers() {
         createdAt: true,
         totpEnabled: true,
         baseCurrency: true,
+        accounts: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            investedCapital: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
     return { success: true, users };
@@ -122,6 +132,52 @@ export async function toggleUserSocioRole(userId: string) {
   } catch (error) {
     console.error("❌ Error al alternar rol:", error);
     return { success: false, message: "Error al alternar rol" };
+  }
+}
+
+/**
+ * Alterna el rol de una CUENTA (cajita) específica entre USER y SOCIO.
+ * Solo SUPER_ADMIN puede ejecutar esta acción.
+ */
+export async function toggleAccountRole(accountId: string) {
+  await requireRole(UserRole.SUPER_ADMIN);
+
+  try {
+    const account = await prisma.account.findUnique({
+      where: { id: accountId },
+      select: { id: true, name: true, role: true, userId: true, user: { select: { email: true } } },
+    });
+
+    if (!account) {
+      return { success: false, message: "Cuenta no encontrada" };
+    }
+
+    const newRole = account.role === "USER" ? "SOCIO" : "USER";
+
+    await prisma.account.update({
+      where: { id: accountId },
+      data: { role: newRole },
+    });
+
+    await logAudit("ACCOUNT_ROLE_TOGGLED", "Account", accountId, {
+      accountName: account.name,
+      oldRole: account.role,
+      newRole,
+      userId: account.userId,
+    });
+
+    revalidatePath("/superadmin/users");
+    revalidatePath("/superadmin");
+    revalidatePath("/dashboard");
+
+    return {
+      success: true,
+      newRole,
+      message: `Cajita "${account.name}" actualizada a ${newRole}. El usuario (${account.user.email}) verá los cambios al recargar.`,
+    };
+  } catch (error) {
+    console.error("❌ Error al alternar rol de cuenta:", error);
+    return { success: false, message: "Error al alternar rol de la cuenta" };
   }
 }
 
@@ -252,10 +308,14 @@ export async function getWithdrawals() {
         user: {
           select: {
             email: true,
-            investedCapital: true,
             firstName: true,
             paternalSurname: true,
             maternalSurname: true,
+          },
+        },
+        account: {
+          select: {
+            investedCapital: true,
           },
         },
         bankAccount: {
@@ -281,7 +341,7 @@ export async function getWithdrawals() {
       requestedAt: w.requestedAt.toISOString(),
       user: {
         email: w.user.email,
-        investedCapital: w.user.investedCapital.toString(),
+        investedCapital: w.account?.investedCapital?.toString() || "0",
         firstName: w.user.firstName,
         paternalSurname: w.user.paternalSurname,
         maternalSurname: w.user.maternalSurname,
@@ -389,13 +449,17 @@ export async function processWithdrawal(
         newStatus === WithdrawalStatus.REJECTED &&
         withdrawal.status !== WithdrawalStatus.REJECTED
       ) {
-        await tx.user.update({
-          where: { id: withdrawal.userId },
-          data: { investedCapital: { increment: withdrawal.amount } },
-        });
+        // Devolver balance a la cuenta si hay accountId
+        if (withdrawal.accountId) {
+          await tx.account.update({
+            where: { id: withdrawal.accountId },
+            data: { investedCapital: { increment: withdrawal.amount } },
+          });
+        }
         await tx.transaction.create({
           data: {
             userId: withdrawal.userId,
+            accountId: withdrawal.accountId,
             type: "REFUND",
             amount: withdrawal.amount,
             status: "COMPLETED",

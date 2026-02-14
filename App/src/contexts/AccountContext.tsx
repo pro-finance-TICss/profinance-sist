@@ -1,26 +1,50 @@
 "use client";
 
+// ============================================================================
+// CONTEXTO DE CUENTAS FINANCIERAS ("CAJITAS") - PRO-FINANCE
+// ============================================================================
+// Gestiona el estado de las cuentas del usuario actual.
+// Provee funciones para cargar, seleccionar y crear cuentas.
+// Persiste la cuenta activa en localStorage para mantener la selección.
+// ============================================================================
+
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 
+// ============================================================================
+// TIPOS
+// ============================================================================
+
+/// Roles válidos para una cuenta
 export type AccountRole = "USER" | "SOCIO";
 
+/// Estructura de una cuenta financiera ("cajita")
 export interface Account {
     id: string;
     name: string;
     userId: string;
     role: AccountRole;
-    balance: number;          // <-- Agregamos esto para recibir el dinero real
-    investedCapital: number;   // <-- Agregamos esto para recibir el capital real
+    investedCapital: number;
+    withdrawalLimitByDate: number | null;
     createdAt?: string;
 }
 
+/// Valor expuesto por el contexto
 interface AccountContextValue {
+    /// Lista de cuentas del usuario
     accounts: Account[];
+    /// Cuenta actualmente seleccionada
     activeAccount: Account | null;
+    /// Indica si se están cargando las cuentas
     isLoading: boolean;
+    /// Seleccionar una cuenta activa por ID
     setActiveAccount: (accountId: string) => void;
+    /// Limpiar la cuenta activa (para logout o cambio de cuenta)
     clearActiveAccount: () => void;
+    /// Crear una nueva cajita con nombre personalizado
+    createAccount: (name: string) => Promise<Account | null>;
+    /// Recargar cuentas desde el servidor
+    refreshAccounts: () => Promise<void>;
 }
 
 const AccountContext = createContext<AccountContextValue | undefined>(undefined);
@@ -29,8 +53,11 @@ interface AccountProviderProps {
     children: React.ReactNode;
 }
 
+// ============================================================================
+// PROVEEDOR DE CUENTAS
+// ============================================================================
+
 export function AccountProvider({ children }: AccountProviderProps) {
-    // CORRECCIÓN: Aseguramos la desestructuración limpia de status
     const { data: session, status } = useSession();
 
     const [accounts, setAccounts] = useState<Account[]>([]);
@@ -38,17 +65,47 @@ export function AccountProvider({ children }: AccountProviderProps) {
     const [isLoading, setIsLoading] = useState(true);
 
     // ================================================================
-    // EFECTO 1: Fetch de cuentas cuando hay sesión
+    // Función interna para cargar cuentas desde la API
+    // ================================================================
+    const loadAccounts = useCallback(async (userId: string) => {
+        try {
+            const response = await fetch("/api/accounts", {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: Error cargando cuentas`);
+            }
+
+            const fetchedAccounts: Account[] = await response.json();
+
+            // Seguridad: verificar que las cuentas pertenezcan al usuario actual
+            const validAccounts = fetchedAccounts.filter(
+                (acc) => acc.userId === userId
+            );
+
+            setAccounts(validAccounts);
+            return validAccounts;
+        } catch (error) {
+            console.error("❌ Error cargando cuentas:", error);
+            setAccounts([]);
+            return [];
+        }
+    }, []);
+
+    // ================================================================
+    // EFECTO: Carga inicial de cuentas cuando hay sesión
     // ================================================================
     useEffect(() => {
-        const fetchAccounts = async () => {
-            // 1. Si aún está cargando la sesión de NextAuth, detenemos y esperamos
+        const initAccounts = async () => {
+            // Aún cargando sesión de NextAuth
             if (status === "loading") {
                 setIsLoading(true);
                 return;
             }
 
-            // 2. Si no hay sesión o el status es no autenticado, limpiamos y salimos
+            // No autenticado: limpiar todo
             if (status === "unauthenticated" || !session?.user?.id) {
                 setAccounts([]);
                 setActiveAccountId(null);
@@ -57,87 +114,35 @@ export function AccountProvider({ children }: AccountProviderProps) {
                 return;
             }
 
-            // 3. Flujo de carga de cuentas (Autenticado)
+            // Autenticado: cargar cuentas
             setIsLoading(true);
 
-            try {
-                // ================================================================
-                // FETCH REAL A /api/accounts (Adapter Pattern)
-                // ================================================================
-                console.log("🔄 Fetching cuentas desde /api/accounts...");
+            const validAccounts = await loadAccounts(session.user.id);
 
-                const response = await fetch("/api/accounts", {
-                    method: "GET",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const fetchedAccounts: Account[] = await response.json();
-
-                // Validar que las cuentas pertenezcan al usuario actual
-                const validAccounts = fetchedAccounts.filter(
-                    (acc) => acc.userId === session.user.id
+            // Restaurar cuenta guardada en localStorage
+            const savedAccountId = localStorage.getItem("activeAccountId");
+            if (savedAccountId) {
+                const savedAccount = validAccounts.find(
+                    (acc) => acc.id === savedAccountId && acc.userId === session.user.id
                 );
 
-                if (validAccounts.length === 0) {
-                    console.warn("⚠️ No se encontraron cuentas válidas para el usuario");
-                    setAccounts([]);
-                    setIsLoading(false);
-                    return;
+                if (savedAccount) {
+                    setActiveAccountId(savedAccountId);
+                } else {
+                    // Cuenta guardada no es válida, limpiar
+                    localStorage.removeItem("activeAccountId");
+                    setActiveAccountId(null);
                 }
-
-                setAccounts(validAccounts);
-                console.log(`✅ ${validAccounts.length} cuenta(s) cargada(s):`, validAccounts);
-
-                // ================================================================
-                // RESTAURAR ÚLTIMA CUENTA USADA (si existe y es válida)
-                // ================================================================
-                const savedAccountId = localStorage.getItem("activeAccountId");
-                if (savedAccountId) {
-                    // Validar que la cuenta guardada pertenezca al usuario actual
-                    const savedAccount = validAccounts.find(
-                        (acc) => acc.id === savedAccountId && acc.userId === session.user.id
-                    );
-
-                    if (savedAccount) {
-                        setActiveAccountId(savedAccountId);
-                        console.log(`🔄 Cuenta restaurada desde localStorage: ${savedAccount.name}`);
-                    } else {
-                        // Cuenta guardada no válida, limpiar
-                        console.warn("⚠️ activeAccountId en localStorage no es válido, limpiando...");
-                        localStorage.removeItem("activeAccountId");
-                        setActiveAccountId(null);
-                    }
-                }
-
-                // Éxito: Establecer isLoading=false
-                setIsLoading(false);
-
-            } catch (error) {
-                console.error("❌ Error fetching accounts:", error);
-
-                // FALLBACK SEGURO: No romper la aplicación
-                setAccounts([]);
-
-                // Mantener isLoading=true para evitar redirecciones prematuras
-                // Después de 5 segundos, permitir que el usuario vea el mensaje de error
-                setTimeout(() => {
-                    setIsLoading(false);
-                }, 5000);
             }
+
+            setIsLoading(false);
         };
 
-        fetchAccounts();
-        // Agregamos status y session.user.id como dependencias críticas
-    }, [session?.user?.id, status]);
+        initAccounts();
+    }, [session?.user?.id, status, loadAccounts]);
 
     // ================================================================
-    // EFECTO 2: Auto-limpieza al cerrar sesión
+    // Limpieza al cerrar sesión
     // ================================================================
     useEffect(() => {
         if (status === "unauthenticated") {
@@ -147,6 +152,9 @@ export function AccountProvider({ children }: AccountProviderProps) {
         }
     }, [status]);
 
+    // ================================================================
+    // Seleccionar cuenta activa
+    // ================================================================
     const setActiveAccount = useCallback(
         (accountId: string) => {
             const account = accounts.find(
@@ -154,28 +162,75 @@ export function AccountProvider({ children }: AccountProviderProps) {
             );
 
             if (!account) {
-                console.error("Intento de seleccionar cuenta inválida:", accountId);
+                console.error("❌ Intento de seleccionar cuenta inválida:", accountId);
                 return;
             }
 
             localStorage.setItem("activeAccountId", accountId);
             setActiveAccountId(accountId);
-            console.log(`✅ Cuenta activa establecida: ${account.name} (${account.role})`);
         },
         [accounts, session?.user?.id]
     );
 
+    // ================================================================
+    // Limpiar cuenta activa
+    // ================================================================
     const clearActiveAccount = useCallback(() => {
         localStorage.removeItem("activeAccountId");
         setActiveAccountId(null);
-        console.log("🗑️ Cuenta activa limpiada");
     }, []);
 
+    // ================================================================
+    // Crear nueva cajita
+    // ================================================================
+    const createAccount = useCallback(
+        async (name: string): Promise<Account | null> => {
+            try {
+                const response = await fetch("/api/accounts", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name }),
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || "Error creando cuenta");
+                }
+
+                const newAccount: Account = await response.json();
+
+                // Agregar la nueva cuenta al estado local
+                setAccounts((prev) => [...prev, newAccount]);
+
+                return newAccount;
+            } catch (error) {
+                console.error("❌ Error creando cajita:", error);
+                throw error; // Propagar para que el componente muestre el error
+            }
+        },
+        []
+    );
+
+    // ================================================================
+    // Recargar cuentas desde el servidor
+    // ================================================================
+    const refreshAccounts = useCallback(async () => {
+        if (session?.user?.id) {
+            await loadAccounts(session.user.id);
+        }
+    }, [session?.user?.id, loadAccounts]);
+
+    // ================================================================
+    // Derivar cuenta activa desde el ID
+    // ================================================================
     const activeAccount = useMemo(() => {
         if (!activeAccountId) return null;
         return accounts.find((acc) => acc.id === activeAccountId) || null;
     }, [activeAccountId, accounts]);
 
+    // ================================================================
+    // Valor del contexto (memoizado para evitar renders innecesarios)
+    // ================================================================
     const value = useMemo(
         () => ({
             accounts,
@@ -183,8 +238,10 @@ export function AccountProvider({ children }: AccountProviderProps) {
             isLoading,
             setActiveAccount,
             clearActiveAccount,
+            createAccount,
+            refreshAccounts,
         }),
-        [accounts, activeAccount, isLoading, setActiveAccount, clearActiveAccount]
+        [accounts, activeAccount, isLoading, setActiveAccount, clearActiveAccount, createAccount, refreshAccounts]
     );
 
     return (
@@ -193,6 +250,10 @@ export function AccountProvider({ children }: AccountProviderProps) {
         </AccountContext.Provider>
     );
 }
+
+// ============================================================================
+// HOOK DE ACCESO AL CONTEXTO
+// ============================================================================
 
 export function useAccount() {
     const context = useContext(AccountContext);

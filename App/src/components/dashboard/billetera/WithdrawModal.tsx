@@ -20,6 +20,7 @@ interface WithdrawModalProps {
   isOpen: boolean;
   onClose: () => void;
   availableBalance: number;
+  accountId: string;
   onSuccess?: () => void;
 }
 
@@ -78,6 +79,7 @@ function WithdrawModalInner({
   isOpen,
   onClose,
   availableBalance,
+  accountId,
   onSuccess,
 }: WithdrawModalProps) {
   const { formatAmount } = useCurrency();
@@ -178,6 +180,7 @@ function WithdrawModalInner({
         body: JSON.stringify({
           amount: numericAmount,
           bankAccountId: selectedAccountId,
+          accountId,
         }),
       });
 

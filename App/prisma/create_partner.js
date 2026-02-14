@@ -63,11 +63,21 @@ async function main() {
         maternalSurname,
         email,
         password: hashedPassword,
-        role: "SOCIO", // Rol específico para socios
+        role: "SOCIO",
         country: country || null,
         baseCurrency: baseCurrency,
         totpEnabled: false,
-        mustChangePassword: true, // Obligar a cambiar contraseña y configurar TOTP
+        mustChangePassword: true,
+      },
+    });
+
+    // Crear cuenta por defecto para el socio
+    const account = await prisma.account.create({
+      data: {
+        userId: user.id,
+        name: "Mi Cuenta Socio",
+        role: "SOCIO",
+        investedCapital: 0,
       },
     });
 
@@ -78,6 +88,7 @@ async function main() {
     console.log(`   - Rol: ${user.role}`);
     console.log(`   - País: ${user.country || 'N/A'}`);
     console.log(`   - Moneda Base: ${user.baseCurrency}`);
+    console.log(`   - Cuenta: "${account.name}" (${account.id})`);
 
   } catch (error) {
     if (error.code === 'P2002') {

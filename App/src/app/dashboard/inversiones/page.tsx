@@ -1,9 +1,16 @@
 "use client";
 
+import { PageHeader } from "@/components/PageHeader";
+
 export default function InversionesPage() {
   return (
-    <div
-      style={{
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      <PageHeader
+        title="Inversiones"
+        subtitle="Portafolio de Inversiones (En desarrollo)."
+      />
+      <div
+        style={{
         padding: "40px",
         textAlign: "center",
         color: "rgba(255,255,255,0.2)",
@@ -12,6 +19,7 @@ export default function InversionesPage() {
       }}
     >
       <p>Sección de Inversiones en desarrollo...</p>
+      </div>
     </div>
   );
 }

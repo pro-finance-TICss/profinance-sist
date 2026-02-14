@@ -10,6 +10,7 @@ import {
   checkAndSendWithdrawalNotification,
 } from "@/lib/actions/wallet-checks";
 import { PageHeader } from "@/components/PageHeader";
+import { useAccount } from "@/contexts/AccountContext";
 
 // Tipos
 interface BalanceData {
@@ -26,6 +27,9 @@ interface WithdrawalRequest {
 }
 
 export function WalletView() {
+  // Obtener cuenta activa del contexto
+  const { activeAccount } = useAccount();
+
   // Estados de datos
   const [balance, setBalance] = useState<BalanceData>({
     investedCapital: 0,
@@ -41,13 +45,15 @@ export function WalletView() {
     reason?: string;
   }>({ isOpen: true });
 
-  // Cargar datos
+  // Cargar datos (scoped por accountId)
   const fetchData = useCallback(async () => {
+    if (!activeAccount) return;
+
     try {
       setIsLoading(true);
 
       const [balanceRes, withdrawalsRes] = await Promise.all([
-        fetch("/api/wallet/balance"),
+        fetch(`/api/wallet/balance?accountId=${activeAccount.id}`),
         fetch("/api/wallet/withdrawals"),
       ]);
 
@@ -65,7 +71,7 @@ export function WalletView() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [activeAccount]);
 
   // Verificar estado de ventana de retiros y notificaciones
   useEffect(() => {
@@ -305,6 +311,7 @@ export function WalletView() {
         isOpen={isWithdrawModalOpen}
         onClose={() => setIsWithdrawModalOpen(false)}
         availableBalance={balance.investedCapital}
+        accountId={activeAccount?.id || ""}
         onSuccess={fetchData}
       />
 

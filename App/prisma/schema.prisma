@@ -84,15 +84,11 @@ model User {
   tokenVersion      Int       @default(0)
 
   // ================================================================
-  // CAMPOS FINANCIEROS (WALLET)
-  // ================================================================
-  
-  /// Balance total de la cuenta (capital invertido)
-  investedCapital   Decimal   @default(0)
-
-  // ================================================================
   // RELACIONES
   // ================================================================
+
+  /// Cuentas financieras del usuario ("cajitas") — cada una con su propio balance
+  accounts          Account[]
   
   /// Transacciones del usuario (depósitos y retiros)
   transactions      Transaction[]
@@ -139,6 +135,51 @@ model User {
 
   /// Sesiones activas del usuario (para revocación individual)
   sessions               Session[]
+}
+
+// ============================================================================
+// MODELO DE CUENTAS FINANCIERAS ("CAJITAS")
+// ============================================================================
+/// Cada usuario puede tener múltiples cuentas ("cajitas"), cada una con
+/// su propio balance y rol. El nombre es definido por el usuario.
+/// Solo SUPER_ADMIN puede cambiar el rol de una cuenta (USER ↔ SOCIO).
+model Account {
+  /// Identificador único de la cuenta
+  id                  String   @id @default(cuid())
+
+  /// ID del usuario propietario
+  userId              String
+
+  /// Relación con el usuario
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Nombre personalizado de la cuenta (definido por el usuario)
+  name                String
+
+  /// Rol de la cuenta: USER | SOCIO
+  /// Solo SUPER_ADMIN puede modificar este campo
+  role                String   @default("USER")
+
+  /// Capital invertido en esta cuenta (balance principal)
+  investedCapital     Decimal  @default(0)
+
+  /// Límite de retiro por fecha (null = sin límite especial)
+  withdrawalLimitByDate Decimal?
+
+  /// Fecha de creación
+  createdAt           DateTime @default(now())
+
+  /// Fecha de última actualización
+  updatedAt           DateTime @updatedAt
+
+  /// Transacciones asociadas a esta cuenta
+  transactions        Transaction[]
+
+  /// Solicitudes de retiro desde esta cuenta
+  withdrawalRequests  WithdrawalRequest[]
+
+  /// Índice para búsquedas eficientes por usuario
+  @@index([userId])
 }
 
 // ============================================================================
@@ -268,6 +309,12 @@ model Transaction {
   
   /// Relación con el usuario
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// ID de la cuenta (cajita) asociada (opcional para registros legacy)
+  accountId       String?
+
+  /// Relación con la cuenta
+  account         Account? @relation(fields: [accountId], references: [id])
   
   /// Tipo de transacción (DEPOSIT o WITHDRAWAL)
   type            String   // DEPOSIT | WITHDRAWAL
@@ -289,6 +336,7 @@ model Transaction {
   
   /// Índices para búsquedas eficientes
   @@index([userId])
+  @@index([accountId])
   @@index([type])
   @@index([status])
   @@index([createdAt])
@@ -307,11 +355,16 @@ model WithdrawalRequest {
   
   /// Relación con el usuario
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// ID de la cuenta (cajita) desde la cual se solicita el retiro
+  accountId     String?
+
+  /// Relación con la cuenta
+  account       Account?  @relation(fields: [accountId], references: [id])
   
   /// Monto solicitado para retiro
   amount        Decimal
   
-  /// Estado de la solicitud (PENDING, APPROVED, REJECTED)
   /// Estado de la solicitud (PENDING, APPROVED, REJECTED)
   status        String    @default("PENDING")
   
@@ -335,6 +388,7 @@ model WithdrawalRequest {
   
   /// Índices para búsquedas eficientes
   @@index([userId])
+  @@index([accountId])
   @@index([status])
   @@index([requestedAt])
   @@index([bankAccountId])

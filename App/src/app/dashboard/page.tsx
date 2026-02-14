@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-// Imports de Setup-Rama10 (Semana 3)
 import { PageHeader } from "@/components/PageHeader";
 import { Plus } from "lucide-react";
 
 import { useDashboard } from "@/contexts/DashboardContext";
+import { useAccount } from "@/contexts/AccountContext";
 import { BalanceSection } from "../../components/dashboard/BalanceSection";
 import { ActivitySection } from "../../components/dashboard/ActivitySection";
 import { QuickActions } from "../../components/dashboard/QuickActions";
@@ -18,6 +18,7 @@ import { checkWithdrawalWindowStatus } from "@/lib/actions/wallet-checks";
 
 export default function DashboardPage() {
   const { isMobile } = useDashboard();
+  const { activeAccount } = useAccount();
 
   // --- ESTADOS PARA MODALES Y LOGICA DE NEGOCIO ---
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,7 +30,7 @@ export default function DashboardPage() {
     reason?: string;
   }>({ isOpen: true });
 
-  // Verificar estado de ventana de retiros (Rama10)
+  // Verificar estado de ventana de retiros
   useEffect(() => {
     const checkStatus = async () => {
       const status = await checkWithdrawalWindowStatus();
@@ -38,21 +39,22 @@ export default function DashboardPage() {
     checkStatus();
   }, []);
 
-  // Sincronización de Balance con API (Rama10)
+  // Sincronizar balance con la cuenta activa
   useEffect(() => {
+    if (!activeAccount) return;
     const fetchBalance = async () => {
       try {
-        const res = await fetch("/api/wallet/balance");
+        const res = await fetch(`/api/wallet/balance?accountId=${activeAccount.id}`);
         if (res.ok) {
           const data = await res.json();
           setBalance(data.balance?.investedCapital || 0);
         }
       } catch (error) {
-        console.error("Error fetching balance:", error);
+        console.error("Error cargando balance:", error);
       }
     };
     fetchBalance();
-  }, []);
+  }, [activeAccount]);
 
   const handleOpenModal = (title: string, type: string) => {
     if (type === "withdraw") {
@@ -66,14 +68,15 @@ export default function DashboardPage() {
   };
 
   const handleWithdrawSuccess = async () => {
+    if (!activeAccount) return;
     try {
-      const res = await fetch("/api/wallet/balance");
+      const res = await fetch(`/api/wallet/balance?accountId=${activeAccount.id}`);
       if (res.ok) {
         const data = await res.json();
         setBalance(data.balance?.investedCapital || 0);
       }
     } catch (error) {
-      console.error("Error reloading balance:", error);
+      console.error("Error recargando balance:", error);
     }
   };
 
@@ -133,6 +136,7 @@ export default function DashboardPage() {
         isOpen={isWithdrawModalOpen}
         onClose={() => setIsWithdrawModalOpen(false)}
         availableBalance={balance}
+        accountId={activeAccount?.id || ""}
         onSuccess={handleWithdrawSuccess}
       />
     </>

@@ -130,11 +130,24 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ status: "ok" });
         }
 
-        // 4. Actualizar balance y crear transacción
-        // Asumimos que transactionAmount viene en la moneda correcta del balance (ej. USD)
+        // 4. Actualizar balance de la primera cuenta del usuario y crear transacción
+        // Nota: MercadoPago no envía accountId, así que usamos la primera cuenta por defecto
         await prisma.$transaction(async (tx) => {
-          await tx.user.update({
-            where: { id: userId },
+          // Buscar primera cuenta del usuario
+          const account = await tx.account.findFirst({
+            where: { userId },
+            orderBy: { createdAt: "asc" },
+            select: { id: true },
+          });
+
+          if (!account) {
+            console.error("❌ No se encontró cuenta para el usuario:", userId);
+            throw new Error("Cuenta no encontrada");
+          }
+
+          // Incrementar balance de la cuenta
+          await tx.account.update({
+            where: { id: account.id },
             data: {
               investedCapital: { increment: transactionAmount },
             },
@@ -143,10 +156,11 @@ export async function POST(req: NextRequest) {
           await tx.transaction.create({
             data: {
               userId,
+              accountId: account.id,
               type: "DEPOSIT",
               amount: transactionAmount || 0,
               status: "COMPLETED",
-              paymentId: String(id), // Guardamos el ID de MP
+              paymentId: String(id),
             },
           });
         });

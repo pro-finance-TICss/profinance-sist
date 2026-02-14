@@ -1,7 +1,8 @@
 // ============================================================================
-// API ROUTE: GET WALLET BALANCE - PRO-FINANCE
+// API ROUTE: OBTENER BALANCE DE BILLETERA - PRO-FINANCE
 // ============================================================================
-// Obtiene el balance actual del usuario autenticado.
+// Obtiene el balance actual de una cuenta ("cajita") del usuario autenticado.
+// Recibe accountId como query param para saber qué cuenta consultar.
 // ============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -10,8 +11,9 @@ import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/utils/currency";
 
 /**
- * GET /api/wallet/balance
- * Retorna el balance del usuario (investedCapital).
+ * GET /api/wallet/balance?accountId=xxx
+ * Retorna el balance de una cuenta específica del usuario.
+ * Si no se proporciona accountId, usa la primera cuenta del usuario.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -21,35 +23,52 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
-    // 2. Obtener datos del usuario
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        investedCapital: true,
-      },
-    });
+    // 2. Obtener accountId del query string
+    const { searchParams } = new URL(req.url);
+    const accountId = searchParams.get("accountId");
 
-    if (!user) {
+    // 3. Buscar la cuenta (por id o la primera del usuario)
+    let account;
+    if (accountId) {
+      account = await prisma.account.findFirst({
+        where: {
+          id: accountId,
+          userId: session.user.id, // Seguridad: solo cuentas propias
+        },
+        select: { id: true, investedCapital: true },
+      });
+    } else {
+      // Fallback: primera cuenta del usuario
+      account = await prisma.account.findFirst({
+        where: { userId: session.user.id },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, investedCapital: true },
+      });
+    }
+
+    if (!account) {
       return NextResponse.json(
-        { error: "Usuario no encontrado" },
+        { error: "Cuenta no encontrada" },
         { status: 404 }
       );
     }
 
-    // 3. Obtener retiros pendientes (SUMA)
+    // 4. Obtener retiros pendientes para esta cuenta
     const pendingWithdrawalsSum = await prisma.withdrawalRequest.aggregate({
-      _sum: {
-        amount: true,
-      },
+      _sum: { amount: true },
       where: {
         userId: session.user.id,
+        accountId: account.id,
         status: "PENDING",
       },
     });
 
-    // 4. Obtener resumen de transacciones recientes (últimas 5)
+    // 5. Obtener transacciones recientes de esta cuenta (últimas 5)
     const recentTransactions = await prisma.transaction.findMany({
-      where: { userId: session.user.id },
+      where: {
+        userId: session.user.id,
+        accountId: account.id,
+      },
       orderBy: { createdAt: "desc" },
       take: 5,
       select: {
@@ -61,13 +80,13 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const pendingWithdrawals = pendingWithdrawalsSum._sum.amount 
-      ? decimalToNumber(pendingWithdrawalsSum._sum.amount) 
+    const pendingWithdrawals = pendingWithdrawalsSum._sum.amount
+      ? decimalToNumber(pendingWithdrawalsSum._sum.amount)
       : 0;
 
-    // 5. Convertir Decimals a números
+    // 6. Convertir Decimals a números para el frontend
     const balance = {
-      investedCapital: decimalToNumber(user.investedCapital),
+      investedCapital: decimalToNumber(account.investedCapital),
       pendingWithdrawals,
     };
 

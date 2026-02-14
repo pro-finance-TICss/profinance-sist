@@ -7,8 +7,8 @@ import { DashboardHeader } from "../../components/layout/DashboardHeader";
 import { Footer } from "../../components/layout/Footer";
 import { useSessionValidator } from "@/hooks/useSessionValidator";
 import { DashboardProvider, useDashboard } from "@/contexts/DashboardContext";
-import { useAccount } from "@/contexts/AccountContext"; // Rama10: Crucial para multicuenta
-import { CurrencyProvider } from "@/contexts/CurrencyContext"; // Main: Soporte de divisas
+import { useAccount } from "@/contexts/AccountContext"; // Sistema multicuenta
+import { CurrencyProvider } from "@/contexts/CurrencyContext"; // Soporte de divisas
 import { Z_INDEX } from "@/constants/zIndex";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -29,20 +29,20 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   useSessionValidator(30000);
 
-  // 🛡️ GUARD (Rama10): Redirigir si no hay cuenta activa
+  // Redirigir si no hay cuenta activa seleccionada
   React.useEffect(() => {
     if (!isLoadingAccount && !activeAccount) {
       router.replace("/select-account");
     }
   }, [activeAccount, isLoadingAccount, router]);
 
-  // 🛡️ CARGA (Rama10): Spinner preventivo
+  // Spinner mientras se cargan las cuentas
   if (isLoadingAccount || !activeAccount) {
     return (
       <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "1rem", backgroundColor: "#000" }}>
         <div style={{ width: "50px", height: "50px", border: "4px solid rgba(189, 142, 72, 0.2)", borderTop: "4px solid var(--color-gold-start)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
         <p style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.9rem" }}>Cargando dashboard...</p>
-        <style jsx>{` @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } `}</style>
+        <style>{` @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } `}</style>
       </div>
     );
   }
@@ -86,16 +86,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               flex: "1 0 auto",
               minHeight: "min-content",
             }}>
-              <header>
-                <h1 style={{ fontSize: isMobile ? "1.4rem" : isTablet ? "1.6rem" : "1.8rem", color: "#fff", margin: 0 }}>
-                  {title}
-                </h1>
-                <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.8rem" }}>
-                  {title === "Resumen Financiero" ? "Monitorea tus activos en tiempo real." :
-                    title === "Ajustes" ? "Gestiona tu perfil y preferencias." :
-                      title === "Transacciones" ? "Historial de movimientos." : `Gestión de ${title}.`}
-                </p>
-              </header>
+
 
               {children}
             </div>

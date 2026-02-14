@@ -1,158 +1,176 @@
 // ============================================================================
-// API ROUTE: GET ACCOUNTS (ADAPTER PATTERN) - PRO-FINANCE
+// API ROUTE: CUENTAS FINANCIERAS ("CAJITAS") - PRO-FINANCE
 // ============================================================================
 // RESPONSABILIDAD:
-// Mapear User → Account[] virtual SIN modificar el schema de Prisma.
-// 
-// ARQUITECTURA:
-// - HOY: 1 usuario → 3 cuentas virtuales (derivada de User para simulación)
-// - FUTURO: 1 usuario → N cuentas reales (tabla Account en DB)
-// 
-// GARANTÍAS:
-// - IDs deterministas (personal_${userId}, socio_${userId}, etc.)
-// - No modifica DB
-// - No rompe scripts existentes (lee availableBalance e investedCapital)
-// - Compatible con AccountContext
+// Gestionar las cuentas financieras del usuario autenticado.
+// Cada usuario puede tener múltiples "cajitas" con su propio balance.
+//
+// ENDPOINTS:
+// - GET  /api/accounts → Lista las cuentas del usuario
+// - POST /api/accounts → Crea una nueva cuenta con nombre personalizado
+//
+// SEGURIDAD:
+// - Requiere autenticación vía sesión
+// - Cada usuario solo ve/crea sus propias cuentas
 // ============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { decimalToNumber } from "@/lib/utils/currency";
+
+// ============================================================================
+// GET /api/accounts — Listar cuentas del usuario autenticado
+// ============================================================================
 
 /**
- * Tipo de cuenta del usuario (debe coincidir con AccountContext)
- */
-type AccountRole = "USER" | "SOCIO";
-
-/**
- * Interfaz de cuenta virtual (Actualizada para soportar balances reales)
- */
-interface VirtualAccount {
-    id: string;
-    name: string;
-    userId: string;
-    role: AccountRole;
-    balance: number;          // Saldo disponible (availableBalance)
-    investedCapital: number;   // Capital invertido (investedCapital)
-    createdAt: string;
-}
-
-/**
- * GET /api/accounts
- * * Retorna las cuentas del usuario autenticado.
- * * IMPLEMENTACIÓN ACTUAL (Adapter Pattern - Prueba de Carlos):
- * - Lee datos reales del modelo User (incluyendo balances de los scripts)
- * - Crea 3 "cuentas virtuales" para simular diferentes inversiones
- * - Permite probar el selector de cuentas y los roles USER/SOCIO
+ * Retorna las cuentas financieras ("cajitas") del usuario.
+ * Cada cuenta incluye su balance real desde la DB.
  */
 export async function GET(req: NextRequest) {
-    try {
-        // ================================================================
-        // 1. VERIFICAR AUTENTICACIÓN
-        // ================================================================
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json(
-                { error: "No autenticado" },
-                { status: 401 }
-            );
-        }
-
-        // ================================================================
-        // 2. OBTENER DATOS DEL USUARIO
-        // ================================================================
-        // Incluimos los campos que el script add_balance.js modifica
-        const user = await prisma.user.findUnique({
-            where: { id: session.user.id },
-            select: {
-                id: true,
-                email: true,
-                firstName: true,
-                paternalSurname: true,
-                role: true,
-                createdAt: true,
-                availableBalance: true, // Campo real de la DB
-                investedCapital: true,  // Campo real de la DB
-            },
-        });
-
-        if (!user) {
-            return NextResponse.json(
-                { error: "Usuario no encontrado" },
-                { status: 404 }
-            );
-        }
-
-        // ================================================================
-        // 3. ADAPTER: Lógica de Transformación (Prueba Multicuenta de Carlos)
-        // ================================================================
-
-        // Convertimos los Decimal de Prisma a Number para el Frontend
-        const realAvailable = user.availableBalance ? Number(user.availableBalance.toString()) : 0;
-        const realInvested = user.investedCapital ? Number(user.investedCapital.toString()) : 0;
-
-        // MAPEO DETERMINISTA:
-        // Creamos 3 contextos de inversión para el mismo usuario humano (Carlos)
-        const virtualAccounts: VirtualAccount[] = [
-            {
-                id: `personal_a_${user.id}`,
-                name: `Cuenta Normal A`,
-                userId: user.id,
-                role: "USER",
-                balance: 10000,           // Inversión simulada de 10k
-                investedCapital: 500,
-                createdAt: user.createdAt.toISOString(),
-            },
-            {
-                id: `personal_b_${user.id}`,
-                name: `Cuenta Normal B`,
-                userId: user.id,
-                role: "USER",
-                balance: 10000,           // Inversión simulada de 10k
-                investedCapital: 500,
-                createdAt: user.createdAt.toISOString(),
-            },
-            {
-                id: `socio_${user.id}`,
-                name: `Cuenta Socio Premium`,
-                userId: user.id,
-                role: "SOCIO",
-                balance: realAvailable,   // <--- AQUÍ SE REFLEJA EL SCRIPT add_balance.js
-                investedCapital: realInvested, // <--- AQUÍ SE REFLEJA EL SCRIPT add_balance.js
-                createdAt: user.createdAt.toISOString(),
-            },
-        ];
-
-        console.log(
-            `✅ Prueba de Carlos: Cuentas generadas para ${user.email}. ` +
-            `La cuenta Socio usa datos reales de la DB (Balance: ${realAvailable}).`
-        );
-
-        return NextResponse.json(virtualAccounts);
-
-        // ================================================================
-        // MIGRACIÓN FUTURA (cuando exista tabla Account):
-        // ================================================================
-        // const accounts = await prisma.account.findMany({
-        //   where: { userId: session.user.id },
-        //   select: {
-        //     id: true,
-        //     name: true,
-        //     userId: true,
-        //     role: true,
-        //     balance: true,
-        //     investedCapital: true,
-        //     createdAt: true,
-        //   },
-        // });
-        // return NextResponse.json(accounts);
-        // ================================================================
-
-    } catch (error) {
-        console.error("❌ Error obteniendo cuentas:", error);
-        return NextResponse.json(
-            { error: "Error al obtener cuentas" },
-            { status: 500 }
-        );
+  try {
+    // 1. Verificar autenticación
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "No autenticado" },
+        { status: 401 }
+      );
     }
+
+    // 2. Obtener cuentas reales desde la DB
+    const accounts = await prisma.account.findMany({
+      where: { userId: session.user.id },
+      select: {
+        id: true,
+        name: true,
+        userId: true,
+        role: true,
+        investedCapital: true,
+        withdrawalLimitByDate: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    // 3. Transformar Decimal de Prisma a Number para el frontend
+    const serialized = accounts.map((acc) => ({
+      id: acc.id,
+      name: acc.name,
+      userId: acc.userId,
+      role: acc.role,
+      investedCapital: decimalToNumber(acc.investedCapital),
+      withdrawalLimitByDate: acc.withdrawalLimitByDate
+        ? decimalToNumber(acc.withdrawalLimitByDate)
+        : null,
+      createdAt: acc.createdAt.toISOString(),
+    }));
+
+    return NextResponse.json(serialized);
+  } catch (error) {
+    console.error("❌ Error obteniendo cuentas:", error);
+    return NextResponse.json(
+      { error: "Error al obtener cuentas" },
+      { status: 500 }
+    );
+  }
+}
+
+// ============================================================================
+// POST /api/accounts — Crear nueva cuenta ("cajita")
+// ============================================================================
+
+/**
+ * Crea una nueva cuenta financiera para el usuario autenticado.
+ * El nombre es definido por el usuario. El rol default es "USER".
+ * Solo SUPER_ADMIN puede asignar roles diferentes (vía endpoint separado).
+ *
+ * Body esperado: { name: string }
+ */
+export async function POST(req: NextRequest) {
+  try {
+    // 1. Verificar autenticación
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "No autenticado" },
+        { status: 401 }
+      );
+    }
+
+    // 2. Parsear y validar body
+    const body = await req.json();
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+
+    if (!name || name.length < 2) {
+      return NextResponse.json(
+        { error: "El nombre de la cuenta debe tener al menos 2 caracteres" },
+        { status: 400 }
+      );
+    }
+
+    if (name.length > 50) {
+      return NextResponse.json(
+        { error: "El nombre de la cuenta no puede exceder 50 caracteres" },
+        { status: 400 }
+      );
+    }
+
+    // 3. Verificar límite de cuentas por usuario (máximo 10)
+    const existingCount = await prisma.account.count({
+      where: { userId: session.user.id },
+    });
+
+    if (existingCount >= 10) {
+      return NextResponse.json(
+        { error: "Has alcanzado el límite máximo de 10 cuentas" },
+        { status: 400 }
+      );
+    }
+
+    // 4. Verificar nombre duplicado para el mismo usuario
+    const duplicate = await prisma.account.findFirst({
+      where: {
+        userId: session.user.id,
+        name: { equals: name },
+      },
+    });
+
+    if (duplicate) {
+      return NextResponse.json(
+        { error: "Ya tienes una cuenta con ese nombre" },
+        { status: 400 }
+      );
+    }
+
+    // 5. Crear la cuenta con balance inicial de 0
+    const account = await prisma.account.create({
+      data: {
+        userId: session.user.id,
+        name,
+        role: "USER", // Solo SUPER_ADMIN puede cambiar esto
+        investedCapital: 0,
+      },
+    });
+
+    console.log(
+      `✅ Nueva cajita creada: "${account.name}" para usuario ${session.user.id}`
+    );
+
+    return NextResponse.json({
+      id: account.id,
+      name: account.name,
+      userId: account.userId,
+      role: account.role,
+      investedCapital: 0,
+      withdrawalLimitByDate: null,
+      createdAt: account.createdAt.toISOString(),
+    }, { status: 201 });
+  } catch (error) {
+    console.error("❌ Error creando cuenta:", error);
+    return NextResponse.json(
+      { error: "Error al crear la cuenta" },
+      { status: 500 }
+    );
+  }
 }

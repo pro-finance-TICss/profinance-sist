@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { getDashboardPerformances } from "@/lib/actions/performance";
+import { useAccount } from "@/contexts/AccountContext";
 import * as Flags from "country-flag-icons/react/3x2";
 
 interface Performance {
@@ -34,9 +35,13 @@ const CURRENCY_TO_COUNTRY: Record<string, string> = {
 export function PerformanceTable() {
   const [data, setData] = useState<Performance[]>([]);
   const [loading, setLoading] = useState(true);
+  const { activeAccount } = useAccount();
 
+  // Re-fetch cuando cambie la cuenta activa (puede tener distinto rol)
   useEffect(() => {
-    getDashboardPerformances().then((res) => {
+    setLoading(true);
+    const accountRole = activeAccount?.role;
+    getDashboardPerformances(accountRole).then((res) => {
       const parsed = res.map((r: any) => ({
         ...r,
         date: new Date(r.date),
@@ -44,7 +49,7 @@ export function PerformanceTable() {
       setData(parsed);
       setLoading(false);
     });
-  }, []);
+  }, [activeAccount]);
 
   const getFlag = (currency: string) => {
     const countryCode = CURRENCY_TO_COUNTRY[currency];

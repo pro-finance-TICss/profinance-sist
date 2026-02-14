@@ -1,8 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Users, RefreshCw } from "lucide-react";
-import { getUsers, toggleUserSocioRole } from "@/lib/actions/admin";
+import { Users, RefreshCw, ChevronDown, ChevronRight, Box } from "lucide-react";
+import { getUsers, toggleAccountRole } from "@/lib/actions/admin";
+
+interface AccountInfo {
+  id: string;
+  name: string;
+  role: string;
+  investedCapital: any;
+  createdAt: Date;
+}
 
 interface User {
   id: string;
@@ -12,12 +20,14 @@ interface User {
   role: string;
   createdAt: Date;
   totpEnabled: boolean;
+  accounts?: AccountInfo[];
 }
 
 export default function UsersManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
 
   const loadUsers = async () => {
     setLoading(true);
@@ -28,6 +38,10 @@ export default function UsersManagementPage() {
           result.users.map((u: any) => ({
             ...u,
             createdAt: new Date(u.createdAt),
+            accounts: (u.accounts || []).map((acc: any) => ({
+              ...acc,
+              createdAt: new Date(acc.createdAt),
+            })),
           }))
         );
       }
@@ -41,20 +55,31 @@ export default function UsersManagementPage() {
     loadUsers();
   }, []);
 
-  const handleToggleRole = async (userId: string) => {
-    setProcessingId(userId);
+  const toggleExpanded = (userId: string) => {
+    setExpandedUsers((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleAccountRole = async (accountId: string) => {
+    setProcessingId(accountId);
     try {
-      const result = await toggleUserSocioRole(userId);
+      const result = await toggleAccountRole(accountId);
       if (result.success) {
-        // Reload users to reflect changes
         await loadUsers();
-        alert(result.message || `Rol actualizado exitosamente a: ${result.newRole}`);
+        alert(result.message || `Rol de cajita actualizado a: ${result.newRole}`);
       } else {
         alert(result.message || "Error al cambiar el rol");
       }
     } catch (error) {
-      console.error("Error toggling role:", error);
-      alert("Error al cambiar el rol");
+      console.error("Error toggling account role:", error);
+      alert("Error al cambiar el rol de la cajita");
     }
     setProcessingId(null);
   };
@@ -89,7 +114,7 @@ export default function UsersManagementPage() {
             Gestión de Usuarios
           </h1>
           <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.9rem" }}>
-            Administra los roles de los usuarios entre USER y SOCIO
+            Administra los roles de las cajitas de cada usuario
           </p>
         </div>
         <button
@@ -153,19 +178,20 @@ export default function UsersManagementPage() {
                     textTransform: "uppercase",
                   }}
                 >
+                  <th style={{ padding: "8px", width: "40px" }}></th>
                   <th style={{ padding: "8px" }}>Nombre</th>
                   <th style={{ padding: "8px" }}>Email</th>
-                  <th style={{ padding: "8px" }}>Rol Actual</th>
+                  <th style={{ padding: "8px" }}>Rol Global</th>
+                  <th style={{ padding: "8px" }}>Cajitas</th>
                   <th style={{ padding: "8px" }}>2FA</th>
                   <th style={{ padding: "8px" }}>Fecha Registro</th>
-                  <th style={{ padding: "8px" }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {users.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       style={{
                         textAlign: "center",
                         padding: "40px",
@@ -178,113 +204,253 @@ export default function UsersManagementPage() {
                 ) : (
                   users.map((user) => {
                     const roleColors = getRoleBadgeColor(user.role);
-                    const canToggle = user.role === "USER" || user.role === "SOCIO";
+                    const isExpanded = expandedUsers.has(user.id);
+                    const accountCount = user.accounts?.length || 0;
+                    const canExpand = accountCount > 0;
 
                     return (
-                      <tr
-                        key={user.id}
-                        style={{
-                          background: "rgba(255, 255, 255, 0.03)",
-                          borderRadius: "8px",
-                        }}
-                      >
-                        <td style={{ padding: "12px", color: "white" }}>
-                          {user.firstName} {user.paternalSurname}
-                        </td>
-                        <td
+                      <React.Fragment key={user.id}>
+                        {/* Fila principal del usuario */}
+                        <tr
                           style={{
-                            padding: "12px",
-                            color: "rgba(255,255,255,0.7)",
+                            background: isExpanded
+                              ? "rgba(189, 142, 72, 0.05)"
+                              : "rgba(255, 255, 255, 0.03)",
+                            cursor: canExpand ? "pointer" : "default",
+                            transition: "background 0.2s",
                           }}
+                          onClick={() => canExpand && toggleExpanded(user.id)}
                         >
-                          {user.email}
-                        </td>
-                        <td style={{ padding: "12px" }}>
-                          <span
+                          <td style={{ padding: "12px", textAlign: "center" }}>
+                            {canExpand && (
+                              <span
+                                style={{
+                                  color: "#bd8e48",
+                                  display: "inline-flex",
+                                  transition: "transform 0.2s",
+                                }}
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown size={18} />
+                                ) : (
+                                  <ChevronRight size={18} />
+                                )}
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: "12px", color: "white", fontWeight: 500 }}>
+                            {user.firstName} {user.paternalSurname}
+                          </td>
+                          <td
                             style={{
-                              padding: "4px 12px",
-                              borderRadius: "6px",
-                              background: roleColors.bg,
-                              color: roleColors.color,
-                              fontSize: "0.75rem",
-                              fontWeight: "bold",
-                              textTransform: "uppercase",
+                              padding: "12px",
+                              color: "rgba(255,255,255,0.7)",
                             }}
                           >
-                            {user.role}
-                          </span>
-                        </td>
-                        <td style={{ padding: "12px" }}>
-                          <span
+                            {user.email}
+                          </td>
+                          <td style={{ padding: "12px" }}>
+                            <span
+                              style={{
+                                padding: "4px 12px",
+                                borderRadius: "6px",
+                                background: roleColors.bg,
+                                color: roleColors.color,
+                                fontSize: "0.75rem",
+                                fontWeight: "bold",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              {user.role}
+                            </span>
+                          </td>
+                          <td style={{ padding: "12px" }}>
+                            <span
+                              style={{
+                                color: accountCount > 0 ? "#bd8e48" : "#666",
+                                fontSize: "0.85rem",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {accountCount} {accountCount === 1 ? "cajita" : "cajitas"}
+                            </span>
+                          </td>
+                          <td style={{ padding: "12px" }}>
+                            <span
+                              style={{
+                                color: user.totpEnabled ? "#10b981" : "#666",
+                                fontSize: "0.85rem",
+                              }}
+                            >
+                              {user.totpEnabled ? "✓ Activo" : "✗ Inactivo"}
+                            </span>
+                          </td>
+                          <td
                             style={{
-                              color: user.totpEnabled ? "#10b981" : "#666",
+                              padding: "12px",
+                              color: "rgba(255,255,255,0.6)",
                               fontSize: "0.85rem",
                             }}
                           >
-                            {user.totpEnabled ? "✓ Activo" : "✗ Inactivo"}
-                          </span>
-                        </td>
-                        <td
-                          style={{
-                            padding: "12px",
-                            color: "rgba(255,255,255,0.6)",
-                            fontSize: "0.85rem",
-                          }}
-                        >
-                          {user.createdAt.toLocaleDateString()}
-                        </td>
-                        <td style={{ padding: "12px" }}>
-                          {canToggle ? (
-                            <button
-                              onClick={() => handleToggleRole(user.id)}
-                              disabled={processingId === user.id}
+                            {user.createdAt.toLocaleDateString()}
+                          </td>
+                        </tr>
+
+                        {/* Filas expandidas: Cajitas del usuario */}
+                        {isExpanded &&
+                          user.accounts?.map((account) => {
+                            const accRoleColors = getRoleBadgeColor(account.role);
+
+                            return (
+                              <tr
+                                key={account.id}
+                                style={{
+                                  background: "rgba(189, 142, 72, 0.02)",
+                                  borderLeft: "3px solid #bd8e48",
+                                }}
+                              >
+                                <td style={{ padding: "10px 12px" }}></td>
+                                <td
+                                  colSpan={2}
+                                  style={{
+                                    padding: "10px 12px",
+                                    paddingLeft: "20px",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "10px",
+                                    }}
+                                  >
+                                    <Box
+                                      size={16}
+                                      style={{ color: "#bd8e48", flexShrink: 0 }}
+                                    />
+                                    <div>
+                                      <p
+                                        style={{
+                                          margin: 0,
+                                          color: "#fff",
+                                          fontSize: "0.9rem",
+                                          fontWeight: 500,
+                                        }}
+                                      >
+                                        {account.name}
+                                      </p>
+                                      <p
+                                        style={{
+                                          margin: 0,
+                                          color: "rgba(255,255,255,0.4)",
+                                          fontSize: "0.75rem",
+                                        }}
+                                      >
+                                        Capital: $
+                                        {Number(account.investedCapital).toLocaleString("en-US", {
+                                          minimumFractionDigits: 2,
+                                        })}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td style={{ padding: "10px 12px" }}>
+                                  <span
+                                    style={{
+                                      padding: "3px 10px",
+                                      borderRadius: "6px",
+                                      background: accRoleColors.bg,
+                                      color: accRoleColors.color,
+                                      fontSize: "0.7rem",
+                                      fontWeight: "bold",
+                                      textTransform: "uppercase",
+                                    }}
+                                  >
+                                    {account.role}
+                                  </span>
+                                </td>
+                                <td colSpan={2} style={{ padding: "10px 12px" }}>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleAccountRole(account.id);
+                                    }}
+                                    disabled={processingId === account.id}
+                                    style={{
+                                      padding: "6px 14px",
+                                      backgroundColor:
+                                        account.role === "USER"
+                                          ? "rgba(59, 130, 246, 0.1)"
+                                          : "rgba(16, 185, 129, 0.1)",
+                                      border: `1px solid ${
+                                        account.role === "USER"
+                                          ? "rgba(59, 130, 246, 0.3)"
+                                          : "rgba(16, 185, 129, 0.3)"
+                                      }`,
+                                      borderRadius: "6px",
+                                      color:
+                                        account.role === "USER"
+                                          ? "#3b82f6"
+                                          : "#10b981",
+                                      cursor:
+                                        processingId === account.id
+                                          ? "not-allowed"
+                                          : "pointer",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "6px",
+                                      transition: "all 0.3s",
+                                      fontSize: "0.8rem",
+                                      fontWeight: "600",
+                                      opacity:
+                                        processingId === account.id ? 0.5 : 1,
+                                    }}
+                                  >
+                                    <RefreshCw size={12} />
+                                    {processingId === account.id
+                                      ? "Procesando..."
+                                      : `Cambiar a ${
+                                          account.role === "USER"
+                                            ? "SOCIO"
+                                            : "USER"
+                                        }`}
+                                  </button>
+                                </td>
+                                <td
+                                  style={{
+                                    padding: "10px 12px",
+                                    color: "rgba(255,255,255,0.4)",
+                                    fontSize: "0.8rem",
+                                  }}
+                                >
+                                  {account.createdAt.toLocaleDateString()}
+                                </td>
+                              </tr>
+                            );
+                          })}
+
+                        {/* Si está expandido y no tiene cajitas */}
+                        {isExpanded && accountCount === 0 && (
+                          <tr
+                            style={{
+                              background: "rgba(189, 142, 72, 0.02)",
+                            }}
+                          >
+                            <td></td>
+                            <td
+                              colSpan={6}
                               style={{
-                                padding: "8px 16px",
-                                backgroundColor: "rgba(59, 130, 246, 0.1)",
-                                border: "1px solid rgba(59, 130, 246, 0.3)",
-                                borderRadius: "6px",
-                                color: "#3b82f6",
-                                cursor:
-                                  processingId === user.id
-                                    ? "not-allowed"
-                                    : "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "6px",
-                                transition: "all 0.3s",
-                                fontSize: "0.85rem",
-                                fontWeight: "600",
-                                opacity: processingId === user.id ? 0.5 : 1,
-                              }}
-                              onMouseEnter={(e) => {
-                                if (processingId !== user.id) {
-                                  e.currentTarget.style.backgroundColor =
-                                    "rgba(59, 130, 246, 0.2)";
-                                }
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor =
-                                  "rgba(59, 130, 246, 0.1)";
-                              }}
-                            >
-                              <RefreshCw size={14} />
-                              {processingId === user.id
-                                ? "Procesando..."
-                                : `Cambiar a ${user.role === "USER" ? "SOCIO" : "USER"}`}
-                            </button>
-                          ) : (
-                            <span
-                              style={{
+                                padding: "15px 20px",
                                 color: "#666",
-                                fontSize: "0.85rem",
                                 fontStyle: "italic",
+                                fontSize: "0.85rem",
                               }}
                             >
-                              No modificable
-                            </span>
-                          )}
-                        </td>
-                      </tr>
+                              Este usuario no tiene cajitas creadas.
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })
                 )}

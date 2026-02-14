@@ -1,7 +1,8 @@
 // ============================================================================
 // RUTA API: CREAR SOLICITUD DE RETIRO - PRO-FINANCE
 // ============================================================================
-// Crea una solicitud de retiro que requiere aprobación administrativa.
+// Crea una solicitud de retiro desde una cuenta específica ("cajita").
+// Descuenta el balance de la cuenta y requiere aprobación administrativa.
 // ============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -12,7 +13,9 @@ import { decimalToNumber } from "@/lib/utils/currency";
 
 /**
  * POST /api/wallet/withdraw
- * Crea una solicitud de retiro.
+ * Crea una solicitud de retiro desde una cuenta específica.
+ *
+ * Body esperado: { amount: number, bankAccountId?: string, accountId: string }
  */
 export async function POST(req: NextRequest) {
   try {
@@ -34,25 +37,51 @@ export async function POST(req: NextRequest) {
     }
 
     const { amount } = validation.data;
-    const { bankAccountId } = body;
+    const { bankAccountId, accountId } = body;
+
+    // Validar que se proporcione accountId
+    if (!accountId || typeof accountId !== "string") {
+      return NextResponse.json(
+        { error: "Se requiere el ID de la cuenta" },
+        { status: 400 }
+      );
+    }
 
     // 3. Crear solicitud y descontar balance en una transacción atómica
     const withdrawalResult = await prisma.$transaction(async (tx) => {
-      // a. Leer balance dentro de la transacción (para bloqueo/consistencia si fuera Postgres con FOR UPDATE, pero en SQLite serializa)
-      const user = await tx.user.findUnique({
-        where: { id: session.user.id },
-        select: { investedCapital: true, email: true },
+      // a. Verificar que la cuenta pertenezca al usuario y obtener balance
+      const account = await tx.account.findFirst({
+        where: {
+          id: accountId,
+          userId: session.user.id,
+        },
+        select: {
+          id: true,
+          investedCapital: true,
+          withdrawalLimitByDate: true,
+        },
       });
 
-      if (!user) throw new Error("USER_NOT_FOUND");
+      if (!account) {
+        throw new Error("ACCOUNT_NOT_FOUND");
+      }
 
-      const currentBalance = decimalToNumber(user.investedCapital);
+      const currentBalance = decimalToNumber(account.investedCapital);
 
+      // b. Verificar balance suficiente
       if (amount > currentBalance) {
         throw new Error("INSUFFICIENT_FUNDS");
       }
 
-      // b. Validar cuenta bancaria si se proporcionó
+      // c. Verificar límite de retiro si existe
+      if (account.withdrawalLimitByDate) {
+        const limit = decimalToNumber(account.withdrawalLimitByDate);
+        if (amount > limit) {
+          throw new Error("WITHDRAWAL_LIMIT_EXCEEDED");
+        }
+      }
+
+      // d. Validar cuenta bancaria si se proporcionó
       if (bankAccountId) {
         const bankAccount = await tx.bankAccount.findUnique({
           where: { id: bankAccountId },
@@ -68,71 +97,87 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // c. Descontar balance
-      await tx.user.update({
-        where: { id: session.user.id },
+      // e. Descontar balance de la cuenta
+      await tx.account.update({
+        where: { id: account.id },
         data: { investedCapital: { decrement: amount } },
       });
 
-      // d. Crear solicitud con cuenta bancaria
+      // f. Crear solicitud de retiro con referencia a la cuenta
       const request = await tx.withdrawalRequest.create({
         data: {
           userId: session.user.id,
+          accountId: account.id,
           amount,
           status: "PENDING",
           bankAccountId: bankAccountId || null,
         },
       });
 
-      // e. Crear registro de transacción (Ledger)
+      // g. Crear registro de transacción (Ledger)
       await tx.transaction.create({
         data: {
           userId: session.user.id,
+          accountId: account.id,
           type: "WITHDRAWAL",
           amount,
-          status: "COMPLETED", // El descuento de balance ha sido completado
+          status: "COMPLETED",
         },
       });
 
-      return { request, user };
+      return { request, accountId: account.id };
     });
 
-    const { request, user } = withdrawalResult;
-
     console.log(
-      `📤 Solicitud de retiro creada y balance bloqueado: $${amount} para ${user.email}`
+      `📤 Solicitud de retiro creada: $${amount} desde cuenta ${withdrawalResult.accountId}`
     );
 
-    // LOG DE AUDITORÍA
-    // Nota: Importamos dynamicamente o usamos fetch interno si logAudit es server-only.
-    // Pero logAudit usa auth(), que funciona aqui.
-    // Sin embargo, logAudit escribe en DB. Podemos llamarlo despues de la tx.
-
-    // 5. TODO: Enviar notificación por email al departamento de finanzas
+    // 4. Enviar notificación simulada al departamento de finanzas
     const financeEmail = process.env.FINANCE_DEPARTMENT_EMAIL;
     console.log(
       `📧 [SIMULADO] Email enviado a ${financeEmail}:`,
-      `Usuario ${user.email} solicita retiro de $${amount}`
+      `Usuario ${session.user.id} solicita retiro de $${amount}`
     );
 
-    // 6. Retornar confirmación
+    // 5. Retornar confirmación
     return NextResponse.json({
       success: true,
       message: "Solicitud de retiro enviada exitosamente",
       withdrawal: {
-        id: request.id,
-        amount: decimalToNumber(request.amount),
-        status: request.status,
-        requestedAt: request.requestedAt,
+        id: withdrawalResult.request.id,
+        amount: decimalToNumber(withdrawalResult.request.amount),
+        status: withdrawalResult.request.status,
+        requestedAt: withdrawalResult.request.requestedAt,
       },
     });
-  } catch (error: any) {
-    if (error.message === "INSUFFICIENT_FUNDS") {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "";
+
+    if (message === "ACCOUNT_NOT_FOUND") {
+      return NextResponse.json(
+        { error: "Cuenta no encontrada" },
+        { status: 404 }
+      );
+    }
+    if (message === "INSUFFICIENT_FUNDS") {
       return NextResponse.json(
         { error: "Balance insuficiente" },
         { status: 400 }
       );
     }
+    if (message === "WITHDRAWAL_LIMIT_EXCEEDED") {
+      return NextResponse.json(
+        { error: "El monto excede el límite de retiro" },
+        { status: 400 }
+      );
+    }
+    if (message === "INVALID_BANK_ACCOUNT") {
+      return NextResponse.json(
+        { error: "Cuenta bancaria inválida" },
+        { status: 400 }
+      );
+    }
+
     console.error("❌ Error creando solicitud de retiro:", error);
     return NextResponse.json(
       { error: "Error al procesar solicitud" },

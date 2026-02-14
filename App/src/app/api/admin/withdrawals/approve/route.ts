@@ -1,7 +1,9 @@
 // ============================================================================
-// API ROUTE: APPROVE/REJECT WITHDRAWAL - PRO-FINANCE (ADMIN)
+// API ROUTE: APROBAR/RECHAZAR RETIRO - PRO-FINANCE (ADMIN)
 // ============================================================================
 // Permite a administradores aprobar o rechazar solicitudes de retiro.
+// Cuando aprueba, ya NO descuenta del balance (el descuento se hizo al
+// crear la solicitud en wallet/withdraw). Si rechaza, devuelve el balance.
 // ============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -23,7 +25,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
-    if (session.user.role !== "ADMIN") {
+    if (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN") {
       return NextResponse.json(
         { error: "No autorizado. Se requiere rol de administrador." },
         { status: 403 }
@@ -43,16 +45,15 @@ export async function POST(req: NextRequest) {
 
     const { withdrawalId, action, notes } = validation.data;
 
-    // 3. Obtener la solicitud de retiro
+    // 3. Obtener la solicitud de retiro con datos de la cuenta
     const withdrawal = await prisma.withdrawalRequest.findUnique({
       where: { id: withdrawalId },
       include: {
         user: {
-          select: {
-            id: true,
-            email: true,
-            investedCapital: true,
-          },
+          select: { id: true, email: true },
+        },
+        account: {
+          select: { id: true, name: true, investedCapital: true },
         },
       },
     });
@@ -71,57 +72,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const withdrawalAmount = decimalToNumber(withdrawal.amount);
+
     // 4. Procesar según la acción
     if (action === "APPROVE") {
-      // Verificar que el usuario aún tenga balance suficiente
-      const availableBalance = decimalToNumber(
-        withdrawal.user.investedCapital
-      );
-      const withdrawalAmount = decimalToNumber(withdrawal.amount);
-
-      if (withdrawalAmount > availableBalance) {
-        return NextResponse.json(
-          {
-            error: "El usuario ya no tiene balance suficiente",
-            message: `Balance actual: $${availableBalance.toFixed(2)}`,
-          },
-          { status: 400 }
-        );
-      }
-
-      // Aprobar: Descontar del balance y crear transacción
-      await prisma.$transaction(async (tx) => {
-        // Actualizar solicitud de retiro
-        await tx.withdrawalRequest.update({
-          where: { id: withdrawalId },
-          data: {
-            status: "APPROVED",
-            processedAt: new Date(),
-            processedBy: session.user.id,
-            notes,
-          },
-        });
-
-        // Descontar del balance disponible
-        await tx.user.update({
-          where: { id: withdrawal.userId },
-          data: {
-            investedCapital: { decrement: withdrawalAmount },
-          },
-        });
-
-        // Crear transacción de retiro
-        await tx.transaction.create({
-          data: {
-            userId: withdrawal.userId,
-            type: "WITHDRAWAL",
-            amount: withdrawalAmount,
-            status: "COMPLETED",
-          },
-        });
+      // Aprobar: El balance ya fue descontado al crear la solicitud.
+      // Solo actualizar el estado de la solicitud.
+      await prisma.withdrawalRequest.update({
+        where: { id: withdrawalId },
+        data: {
+          status: "APPROVED",
+          processedAt: new Date(),
+          processedBy: session.user.id,
+          notes,
+        },
       });
 
-      // Notify User
+      // Notificar al usuario
       await createNotification(
         withdrawal.userId,
         "Retiro Aprobado",
@@ -140,18 +107,31 @@ export async function POST(req: NextRequest) {
         message: "Retiro aprobado exitosamente",
       });
     } else {
-      // Rechazar: Solo actualizar el estado
-      await prisma.withdrawalRequest.update({
-        where: { id: withdrawalId },
-        data: {
-          status: "REJECTED",
-          processedAt: new Date(),
-          processedBy: session.user.id,
-          notes,
-        },
+      // Rechazar: Devolver el balance a la cuenta
+      await prisma.$transaction(async (tx) => {
+        // a. Actualizar estado del retiro
+        await tx.withdrawalRequest.update({
+          where: { id: withdrawalId },
+          data: {
+            status: "REJECTED",
+            processedAt: new Date(),
+            processedBy: session.user.id,
+            notes,
+          },
+        });
+
+        // b. Devolver balance a la cuenta si existe accountId
+        if (withdrawal.accountId) {
+          await tx.account.update({
+            where: { id: withdrawal.accountId },
+            data: {
+              investedCapital: { increment: withdrawalAmount },
+            },
+          });
+        }
       });
 
-      // Notify User
+      // Notificar al usuario
       await createNotification(
         withdrawal.userId,
         "Retiro Rechazado",

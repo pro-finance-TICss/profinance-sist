@@ -159,12 +159,14 @@ export async function getInvestmentAnalytics(
     // Requiere rol SUPER_ADMIN
     await requireRole(UserRole.SUPER_ADMIN);
 
-    // Obtener todos los usuarios con el rol especificado
+    // Obtener todos los usuarios con el rol especificado y sus cuentas
     const users = await prisma.user.findMany({
       where: { role },
       select: {
         id: true,
-        investedCapital: true,
+        accounts: {
+          select: { investedCapital: true },
+        },
         createdAt: true,
       },
     });
@@ -185,9 +187,9 @@ export async function getInvestmentAnalytics(
       orderBy: { createdAt: "asc" },
     });
 
-    // Calcular total actual de capital invertido
+    // Calcular total actual de capital invertido (sumando todas las cuentas de cada usuario)
     const currentTotal = users.reduce(
-      (sum, user) => sum + Number(user.investedCapital),
+      (sum, user) => sum + user.accounts.reduce((accSum, acc) => accSum + Number(acc.investedCapital), 0),
       0
     );
 
