@@ -11,9 +11,9 @@ export const DashboardHeader = ({ title }: { title: string }) => {
 
   // Get user display name and role
   const userName = session?.user?.name || "Usuario";
-  
+
   const userRole = session?.user?.role || "USER";
-  
+
   // Map role to display text
   const getRoleDisplay = (role: string) => {
     switch (role) {
@@ -34,19 +34,9 @@ export const DashboardHeader = ({ title }: { title: string }) => {
 
   return (
     <header
+      className="header"
       style={{
-        height: isMobile ? "60px" : "80px",
         padding: isMobile ? "0 15px" : "0 30px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        backdropFilter: "blur(10px)",
-        borderBottom: "1px solid rgba(189, 142, 72, 0.2)",
-        position: "sticky",
-        top: 0,
-        zIndex: 50,
-        width: "100%",
       }}
     >
 
@@ -105,26 +95,27 @@ export const DashboardHeader = ({ title }: { title: string }) => {
         }}
       >
         {/* BOTÓN HAMBURGUESA: Extremo izquierdo en móvil */}
-        {isMobile && (
-          <button
-            onClick={toggleSidebar}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#bd8e48",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "8px",
-              borderRadius: "8px",
-              backgroundColor: "rgba(189, 142, 72, 0.05)",
-              zIndex: 60
-            }}
-          >
-            <Menu size={24} />
-          </button>
-        )}
+
+        <button
+          onClick={toggleSidebar}
+          className="mobile-menu-button"
+          style={{
+            background: "none",
+            border: "none",
+            color: "#bd8e48",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "8px",
+            borderRadius: "8px",
+            backgroundColor: "rgba(189, 142, 72, 0.05)",
+            zIndex: 60
+          }}
+        >
+          <Menu size={24} />
+        </button>
+
 
         {/* CONTENEDOR DERECHO: Divisa + Campana + Perfil */}
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? "10px" : "25px" }}>
@@ -224,11 +215,22 @@ function NotificationBell() {
     setUnreadCount(c);
   };
 
+  // Polling inicial para obtener el contador de no leídas
   useEffect(() => {
     loadNotifications();
-    const interval = setInterval(loadNotifications, 30000);
-    return () => clearInterval(interval);
   }, []);
+
+  // Polling condicional: solo cuando el dropdown está abierto
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Cargar inmediatamente al abrir
+    loadNotifications();
+
+    // Polling cada 10 segundos mientras esté abierto
+    const interval = setInterval(loadNotifications, 10000);
+    return () => clearInterval(interval);
+  }, [isOpen]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

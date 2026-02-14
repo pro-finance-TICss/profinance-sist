@@ -25,21 +25,15 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     isSidebarOpen,
     isMobile,
     isTablet,
+    isDesktop,
     isCollapsed,
     toggleCollapse // <- Esta es la pieza clave que nos faltaba
   } = useDashboard();
   const pathname = usePathname();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
-  // Determinar el ancho del sidebar según el estado
-  // Móvil/Tablet con drawer: 260px (cuando está abierto)
-  // Tablet/Desktop colapsado: 80px
-  // Desktop expandido: 260px
-  const sidebarWidth = isCollapsed && !isMobile ? "80px" : "260px";
-
-  // En móvil/tablet, el sidebar es un drawer que se muestra/oculta
-  // En desktop, el sidebar siempre está visible pero puede estar colapsado
-  const isDrawerMode = isMobile;
+  // Nota: width, position, left, zIndex ahora controlados por CSS vía clases
+  // JS solo maneja estados de interacción (isCollapsed, isMobile, etc.)
 
   const menuItems = [
     {
@@ -84,24 +78,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   };
 
   return (
-    <aside
-      style={{
-        width: sidebarWidth,
-        height: "100vh",
-        backgroundColor: "#000",
-        borderRight: "1px solid rgba(189, 142, 72, 0.2)",
-        padding: "40px 0",
-        display: "flex",
-        flexDirection: "column",
-        // CAMBIO: Solo en móvil es fixed. En Tablet (800px) debe ser relative 
-        // para que el contenido de la derecha sepa dónde empezar.
-        position: isMobile ? "fixed" : "relative",
-        left: isMobile ? (isSidebarOpen ? "0" : "-260px") : "0",
-        opacity: 1,
-        zIndex: 200,
-        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-      }}
-    >
+    <aside className={`sidebar ${isCollapsed ? "is-sidebar-collapsed" : ""} ${isSidebarOpen ? "open" : ""}`}>
       {/* HEADER DEL SIDEBAR: LOGO */}
       <div style={{ marginTop: "35px", marginBottom: "40px", padding: "0 20px" }}>
         <div
@@ -131,15 +108,15 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             }}
           />
 
-          <div
-            style={{
-              width: "100%",
-              maxWidth: isCollapsed && !isMobile ? "55px" : "180px",
-              position: "relative",
-              zIndex: 1,
-              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-            }}
-          >
+          <div style={{
+            width: "100%",
+            maxWidth: isCollapsed && !isMobile ? "40px" : "180px",
+            margin: "0 auto",
+            transition: "max-width 0.3s ease",
+            overflow: "hidden", // <--- ESTA COMA ES LA QUE FALTABA
+            flexShrink: 0       // Ahora el compilador lo aceptará correctamenteNo permite que el contenido interno empuje el ancho */
+          }}>
+
             <img
               src="/logo-unificado.png"
               alt="PRO-FINANCE"
@@ -157,50 +134,50 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         </h1>
       </div>
 
-      {/* BOTÓN DE COLAPSO - TAMAÑO GRANDE PROFESIONAL */}
-      {!isMobile && (
-        <button
-          onClick={toggleCollapse}
+      {/* BOTÓN DE COLAPSO - Visible solo en Tablet (bloqueado en Desktop) */}
+      <button
+        onClick={toggleCollapse}
+        className="collapse-button"
+        style={{
+          position: "absolute",
+          right: "12px",
+          top: "12px",
+          zIndex: 101,
+          // Escalamos a 42px para una presencia fuerte
+          width: "42px",
+          height: "42px",
+          backgroundColor: "rgba(189, 142, 72, 0.12)",
+          border: "1px solid rgba(189, 142, 72, 0.4)",
+          borderRadius: "12px", // Aumentamos radio para suavizar el tamaño grande
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          color: "#bd8e48",
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)", // Añadimos una sombra sutil
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = "rgba(189, 142, 72, 0.2)";
+          e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.8)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = "rgba(189, 142, 72, 0.12)";
+          e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.4)";
+        }}
+      >
+        <svg
+          // Icono más grande y definido
+          width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8"
           style={{
-            position: "absolute",
-            right: "12px",
-            top: "12px",
-            zIndex: 101,
-            // Escalamos a 42px para una presencia fuerte
-            width: "42px",
-            height: "42px",
-            backgroundColor: "rgba(189, 142, 72, 0.12)",
-            border: "1px solid rgba(189, 142, 72, 0.4)",
-            borderRadius: "12px", // Aumentamos radio para suavizar el tamaño grande
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            color: "#bd8e48",
-            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)", // Añadimos una sombra sutil
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "rgba(189, 142, 72, 0.2)";
-            e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.8)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "rgba(189, 142, 72, 0.12)";
-            e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.4)";
+            transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
           }}
         >
-          <svg
-            // Icono más grande y definido
-            width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8"
-            style={{
-              transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)",
-              transition: "transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
-            }}
-          >
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-      )}
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </button>
+
 
       {/* MENÚ DE NAVEGACIÓN */}
       <nav style={{ flex: 1 }}>
@@ -220,154 +197,83 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                 style={{ marginBottom: "8px", padding: "0 15px", position: "relative" }}
               >
                 <Link
-
                   href={item.href}
-
                   onClick={handleNavigation}
-
                   onMouseEnter={() => setHoveredItem(item.label)}
-
                   onMouseLeave={() => setHoveredItem(null)}
+                  /* El título (tooltip nativo) es lo único que mantenemos condicional por accesibilidad */
                   title={isCollapsed && !isMobile ? item.label : ""}
-
                   style={{
-
                     display: "flex",
-
                     alignItems: "center",
 
-                    justifyContent: isCollapsed && !isMobile ? "center" : "flex-start",
-
+                    /* ESTADO BASE (Desktop): El CSS sobreescribirá esto en Tablet/Mobile */
+                    justifyContent: "flex-start",
                     gap: "15px",
+                    padding: "12px 20px",
 
                     width: "100%",
-
-                    padding: isCollapsed && !isMobile ? "12px" : "12px 20px",
+                    minWidth: "0",
+                    flexShrink: 0,
+                    overflow: "hidden",
 
                     cursor: "pointer",
-
                     borderRadius: "12px",
-
                     textAlign: "left",
-
                     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-
                     position: "relative",
-
+                    zIndex: 1,
                     outline: "none",
                     WebkitTapHighlightColor: "transparent",
                     textDecoration: "none",
 
+                    /* Estilos visuales de la marca PROFINANCE */
+                    border: isActive || isHovered ? "1px solid #bd8e48" : "1px solid transparent",
+                    backgroundColor: isActive ? "#bd8e48" : isHovered ? "rgba(189, 142, 72, 0.05)" : "transparent",
+                    boxShadow: isHovered && !isActive
+                      ? "0 0 15px rgba(189, 142, 72, 0.3)"
+                      : isActive
+                        ? "0 4px 20px rgba(189, 142, 72, 0.4)"
+                        : "none",
+                    color: isActive ? "#000" : isHovered ? "#fff" : "rgba(255,255,255,0.4)",
 
-
-                    border:
-
-                      isActive || isHovered
-
-                        ? "1px solid #bd8e48"
-
-                        : "1px solid transparent",
-
-
-
-                    backgroundColor: isActive
-
-                      ? "#bd8e48"
-
-                      : isHovered
-
-                        ? "rgba(189, 142, 72, 0.05)"
-
-                        : "transparent",
-
-
-
-                    boxShadow:
-
-                      isHovered && !isActive
-
-                        ? "0 0 15px rgba(189, 142, 72, 0.3), inset 0 0 10px rgba(189, 142, 72, 0.1)"
-
-                        : isActive
-
-                          ? "0 4px 20px rgba(189, 142, 72, 0.4)"
-
-                          : "none",
-
-
-
-                    color: isActive
-
-                      ? "#000"
-
-                      : isHovered
-
-                        ? "#fff"
-
-                        : "rgba(255,255,255,0.4)",
-
-                    transform:
-
-                      !isActive && isHovered && !isCollapsed
-
-                        ? "translateX(8px)"
-
-                        : "translateX(0)",
-
+                    /* Efecto de desplazamiento: solo si el sidebar no está colapsado */
+                    transform: !isActive && isHovered && !isCollapsed ? "translateX(8px)" : "translateX(0)",
                   }}
-
                 >
 
+                  {/* 1. Contenedor del Icono */}
                   <span
-
+                    className="sidebar-icon-container"
                     style={{
-
                       display: "flex",
-
                       color: isActive ? "#000" : "#bd8e48",
-
-                      filter:
-
-                        isHovered && !isActive
-
-                          ? "drop-shadow(0 0 5px #bd8e48)"
-
-                          : "none",
-
+                      filter: isHovered && !isActive ? "drop-shadow(0 0 5px #bd8e48)" : "none",
                       transition: "all 0.3s",
-
+                      /* Aseguramos que el icono sea el centro del recuadro dorado */
+                      flexShrink: 0,
+                      width: isCollapsed && !isMobile ? "100%" : "auto",
+                      justifyContent: "center",
                     }}
-
                   >
-
                     {item.icon}
-
                   </span>
 
-
-
-                  {/* Texto del menú (oculto en modo colapsado) */}
-
+                  {/* 2. Texto del menú (Condicional de React + Clase para CSS) */}
                   {(!isCollapsed || isMobile) && (
-
                     <span
-
+                      className="sidebar-text-label"
                       style={{
-
                         fontSize: "0.95rem",
-
                         fontWeight: isActive ? "700" : "500",
-
                         transition: "all 0.3s",
-
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                       }}
-
                     >
-
                       {item.label}
-
                     </span>
-
                   )}
 
                 </Link>
@@ -423,8 +329,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             display: "flex",
             alignItems: "center",
             justifyContent: isCollapsed && !isMobile ? "center" : "flex-start",
-            gap: "15px",
+            gap: isCollapsed && !isMobile ? "0" : "15px", // Gap 0 en colapsado
             width: "100%",
+            minWidth: "0px", // CRÍTICO
+            overflow: "hidden", // CRÍTICO
             padding: isCollapsed && !isMobile ? "12px" : "12px 20px",
             backgroundColor: "transparent",
             border: "none",

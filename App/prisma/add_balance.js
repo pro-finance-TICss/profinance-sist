@@ -1,19 +1,15 @@
 /**
  * SCRIPT: AGREGAR SALDO DE PRUEBA
- *
- * DESCRIPCIÓN:
- * Busca un usuario de prueba específico y le asigna
- * capital invertido y saldo disponible para pruebas de interfaz.
- *
- * USO:
- * (EN CD APP) node prisma/add_balance.js <correo>
+ * * DESCRIPCIÓN:
+ * Busca un usuario por email y le asigna capital e inversión.
+ * Integración Híbrida: Flexibilidad de Main + Integridad de Datos de Rama10.
  */
 
 const { PrismaClient } = require("@prisma/client");
-
 const prisma = new PrismaClient();
 
 async function main() {
+  // Captura de email desde terminal (Arquitectura de Main)
   const email = process.argv[2];
 
   if (!email) {
@@ -23,10 +19,9 @@ async function main() {
   }
 
   console.log(`Buscando usuario con correo "${email}"...`);
+
   const user = await prisma.user.findUnique({
-    where: {
-      email: email,
-    },
+    where: { email: email },
   });
 
   if (!user) {
@@ -36,17 +31,20 @@ async function main() {
 
   console.log(`Usuario encontrado: ${user.firstName} ${user.paternalSurname} (${user.id})`);
 
-  // Actualizar el balance total en la base de datos
+  // Actualización de Balance: Garantizamos consistencia de la Fase 4
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: {
+      // Usamos el monto de Main pero mantenemos la estructura completa de Rama10
       investedCapital: 50000,
+      availableBalance: 15000,
     },
   });
 
   console.log(`✅ Balance actualizado para el usuario ${user.email}:`);
   const currency = updated.baseCurrency || "COP";
-  console.log(`   - Balance Total: $${updated.investedCapital} ${currency}`);
+  console.log(`   - Capital Invertido: $${updated.investedCapital} ${currency}`);
+  console.log(`   - Saldo Disponible: $${updated.availableBalance} ${currency}`);
 }
 
 main()

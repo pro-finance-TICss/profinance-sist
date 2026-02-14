@@ -25,14 +25,36 @@
   --font-primary: "Faster Stroker", sans-serif;
   --font-secondary: "Candara", sans-serif;
 
+
   /* Helper para gradiente */
-  --bg-gradient-gold: linear-gradient(
-    90deg,
-    rgba(189, 142, 72, 1) 0%,
-    rgba(248, 223, 143, 1) 40%,
-    rgba(189, 142, 72, 1) 100%
-  );
+  --bg-gradient-gold: linear-gradient(90deg,
+      rgba(189, 142, 72, 1) 0%,
+      rgba(248, 223, 143, 1) 40%,
+      rgba(189, 142, 72, 1) 100%);
+
+  /* ========================================
+     FASE 1: VARIABLES DE LAYOUT (CSS-FIRST)
+     ======================================== */
+
+  /* VARIABLES DE LAYOUT - ÚNICA FUENTE DE VERDAD */
+  --sidebar-width-expanded: 260px;
+  --sidebar-width-collapsed: 80px;
+  --header-height-desktop: 80px;
+  --header-height-mobile: 60px;
+
+  /* Esta variable será actualizada por React, pero nace con un valor estable */
+  --sidebar-width: var(--sidebar-width-expanded);
 }
+
+/* Añadir esto justo después del :root para evitar saltos bruscos */
+.sidebar,
+.header,
+.main-content-wrapper {
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    margin 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
 
 * {
   margin: 0;
@@ -47,8 +69,10 @@ body {
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  align-items: center; /* Centrado vertical */
-  padding: 0; /* Padding equilibrado - ELIMINADO en dashboard, cuidado si afecta login */
+  align-items: center;
+  /* Centrado vertical */
+  padding: 0;
+  /* Padding equilibrado - ELIMINADO en dashboard, cuidado si afecta login */
   overflow-x: hidden;
 }
 
@@ -85,6 +109,7 @@ body {
   align-items: center;
   background-color: var(--color-black);
 }
+
 /* ... background dots ... */
 .background-container::before {
   content: "";
@@ -93,11 +118,9 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: radial-gradient(
-      circle at 50% 50%,
+  background-image: radial-gradient(circle at 50% 50%,
       rgba(189, 142, 72, 0.08) 0%,
-      transparent 70%
-    ),
+      transparent 70%),
     radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 100% 100%, 30px 30px;
 }
@@ -110,8 +133,10 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  opacity: 0.35; /* Aumentado para ver mejor el efecto */
-  filter: grayscale(0.2) brightness(1.1); /* Un poco más de brillo */
+  opacity: 0.35;
+  /* Aumentado para ver mejor el efecto */
+  filter: grayscale(0.2) brightness(1.1);
+  /* Un poco más de brillo */
 
   padding: 15%;
   background-image: url("/Background-recortado.png");
@@ -126,7 +151,8 @@ body {
   position: relative;
   z-index: 10;
   width: 100%;
-  max-width: 450px; /* Ajustado para dar espacio a los inputs de apellidos */
+  max-width: 450px;
+  /* Ajustado para dar espacio a los inputs de apellidos */
   padding: 0;
 }
 
@@ -158,12 +184,10 @@ body {
   font-size: 3rem;
   letter-spacing: 2px;
   text-transform: uppercase;
-  background: linear-gradient(
-    90deg,
-    rgba(189, 142, 72, 1) 0%,
-    rgba(248, 223, 143, 1) 40%,
-    rgba(189, 142, 72, 1) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(189, 142, 72, 1) 0%,
+      rgba(248, 223, 143, 1) 40%,
+      rgba(189, 142, 72, 1) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -175,7 +199,8 @@ body {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1.2rem; /* Reducido de 1.5rem */
+  gap: 1.2rem;
+  /* Reducido de 1.5rem */
 }
 
 .input-group {
@@ -187,7 +212,8 @@ body {
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 0.8rem 1rem; /* Reducido de 1.2rem */
+  padding: 0.8rem 1rem;
+  /* Reducido de 1.2rem */
   color: var(--color-white);
   font-family: var(--font-secondary);
   font-size: 0.95rem;
@@ -254,12 +280,10 @@ body {
 /* Button */
 .btn-primary {
   margin-top: 1.5rem;
-  background: linear-gradient(
-    90deg,
-    rgba(189, 142, 72, 1) 0%,
-    rgba(248, 223, 143, 1) 40%,
-    rgba(189, 142, 72, 1) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(189, 142, 72, 1) 0%,
+      rgba(248, 223, 143, 1) 40%,
+      rgba(189, 142, 72, 1) 100%);
   border: none;
   padding: 1rem;
   cursor: pointer;
@@ -286,12 +310,10 @@ body {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.4),
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.4),
+      transparent);
   transition: 0.5s;
   z-index: 1;
 }
@@ -336,6 +358,40 @@ body {
   letter-spacing: 2px;
 }
 
+/* ===================================================
+   SISTEMA DE CENTRADO (RESOLUCIÓN DE CONTEXTO)
+   =================================================== */
+
+.selector-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Centrado horizontal */
+  justify-content: center;
+  /* Centrado vertical */
+  min-height: 100vh;
+  /* Ocupa todo el alto de pantalla */
+  width: 100%;
+  padding: 2rem;
+  position: relative;
+  z-index: 10;
+  margin: 0 auto;
+}
+
+.account-grid {
+  display: grid;
+  /* Define el ancho de las cards de forma determinista */
+  grid-template-columns: repeat(auto-fit, minmax(300px, 420px));
+  justify-content: center;
+  /* Centra las columnas resultantes */
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 1000px;
+  /* Límite para que no se peguen a los bordes en 4K */
+  margin-top: 2rem;
+}
+
+
 /* Responsive */
 @media (max-width: 480px) {
   .bg-logo-placeholder {
@@ -371,7 +427,8 @@ body {
   left: 50%;
   transform: translateX(-50%);
   width: 90%;
-  max-width: 1600px; /* Igual que en Landing */
+  max-width: 1600px;
+  /* Igual que en Landing */
   padding: 0.8rem 2.5rem;
   display: flex;
   justify-content: space-between;
@@ -381,7 +438,8 @@ body {
   background: transparent;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.2); /* Borde sutil gris igual que Landing */
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  /* Borde sutil gris igual que Landing */
   border-radius: 12px;
 }
 
@@ -409,7 +467,8 @@ body {
 
 .header-brand {
   font-family: var(--font-primary);
-  font-size: 1.5rem; /* Reducido de 2rem para igualar Landing */
+  font-size: 1.5rem;
+  /* Reducido de 2rem para igualar Landing */
   background: var(--bg-gradient-gold);
   -webkit-background-clip: text;
   background-clip: text;
@@ -451,7 +510,8 @@ body {
 
 @media (max-width: 992px) {
   .header-nav {
-    display: none; /* Ocultar nav en tablets/móvil para evitar colapso de diseño en estos forms */
+    display: none;
+    /* Ocultar nav en tablets/móvil para evitar colapso de diseño en estos forms */
   }
 }
 
@@ -462,7 +522,8 @@ body {
   }
 
   .header-slogan {
-    display: none; /* Ocultar slogan en móvil */
+    display: none;
+    /* Ocultar slogan en móvil */
   }
 }
 
@@ -472,8 +533,223 @@ body {
     opacity: 0;
     transform: translateY(-50%) translateX(-5px);
   }
+
   to {
     opacity: 1;
     transform: translateY(-50%) translateX(0);
+  }
+}
+
+/* ========================================
+   FASE 1: CLASES BASE Y MEDIA QUERIES
+   ======================================== */
+
+/* ==================
+   SIDEBAR BASE
+   ================== */
+.sidebar {
+  width: var(--sidebar-width-expanded);
+  height: 100vh;
+  background-color: #000;
+  border-right: 1px solid rgba(189, 142, 72, 0.2);
+  padding: 40px 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  left: 0;
+  z-index: var(--z-content);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+/* ==================
+   HEADER BASE
+   ================== */
+.header {
+  height: var(--header-height-desktop);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(189, 142, 72, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  width: 100%;
+}
+
+/* ==================
+   OVERLAY BASE
+   ================== */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  z-index: var(--z-overlay);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ===================================================
+   MEDIA QUERIES: RECONSTRUCCIÓN FASE 1
+   =================================================== */
+
+/* ===================================================
+   JERARQUÍA DE CAPAS GLOBAL (Z-INDEX) - FASE 1 FINAL
+   =================================================== */
+
+.dashboard-layout-root {
+  contain: layout;
+}
+
+.main-content-wrapper {
+  position: relative;
+  z-index: 1;
+  /* Nivel base */
+}
+
+.header {
+  z-index: 30 !important;
+}
+
+.sidebar {
+  z-index: 40 !important;
+}
+
+.sidebar-overlay {
+  z-index: 35 !important;
+}
+
+/* Blindaje para Modales (Prioridad Absoluta) */
+[role="dialog"],
+.modal-container,
+.fixed.inset-0.z-50 {
+  z-index: 1000 !important;
+}
+
+/* ===================================================
+   MEDIA QUERIES: RECONSTRUCCIÓN DETERMINISTA (FASE 1)
+   =================================================== */
+
+/* 1. MÓVIL (0px - 767px) - REGLAS ESTRICTAS */
+@media (max-width: 767px) {
+  :root {
+    --sidebar-width: 0px !important;
+  }
+
+  .mobile-menu-button {
+    display: flex !important;
+  }
+
+  .collapse-button {
+    display: none !important;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100vh !important;
+    width: 260px !important;
+    transform: translateX(-100%);
+    z-index: 1000 !important;
+    transition: transform 0.3s ease-in-out !important;
+  }
+
+  .sidebar.open {
+    transform: translateX(0) !important;
+  }
+
+  .header {
+    width: 100% !important;
+    left: 0 !important;
+  }
+}
+
+/* 2. TABLET (768px - 1023px) - REGLAS ESTRICTAS */
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root {
+    --sidebar-width: 80px;
+    /* Estado base colapsado */
+  }
+
+  .mobile-menu-button {
+    display: none !important;
+  }
+
+  .collapse-button {
+    display: flex !important;
+  }
+
+  /* Expansión solicitada por el usuario via JS */
+  html.user-wants-tablet-expanded :root {
+    --sidebar-width: 260px !important;
+  }
+
+  .sidebar {
+    width: var(--sidebar-width) !important;
+    min-width: var(--sidebar-width) !important;
+    display: block !important;
+    position: sticky !important;
+    z-index: 10 !important;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ESTILOS INTERNOS: Forzamos el aspecto visual solo cuando NO está expandida */
+  html:not(.user-wants-tablet-expanded) .sidebar a {
+    justify-content: center !important;
+    padding: 12px 0 !important;
+    gap: 0 !important;
+  }
+
+  html:not(.user-wants-tablet-expanded) .sidebar .sidebar-text-label {
+    display: none !important;
+  }
+
+  /* Centrado del icono en modo colapsado */
+  html:not(.user-wants-tablet-expanded) .sidebar .sidebar-icon-container {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+}
+
+/* 3. DESKTOP (1024px+) - BLINDAJE INFRANQUEABLE (FUNCIONANDO) */
+@media (min-width: 1024px) {
+  :root {
+    --sidebar-width: var(--sidebar-width-expanded) !important;
+  }
+
+  /* Eliminamos botones de control innecesarios en Desktop */
+  .collapse-button,
+  .mobile-menu-button {
+    display: none !important;
+  }
+
+  .sidebar {
+    width: var(--sidebar-width-expanded) !important;
+    min-width: var(--sidebar-width-expanded) !important;
+    position: sticky !important;
+    display: block !important;
+  }
+
+  /* Blindaje visual: Los items SIEMPRE expandidos en Desktop */
+  .sidebar a {
+    justify-content: flex-start !important;
+    padding: 12px 20px !important;
+    gap: 15px !important;
+  }
+
+  .sidebar .sidebar-text-label {
+    display: block !important;
   }
 }

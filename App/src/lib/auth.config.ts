@@ -57,18 +57,13 @@ export const authConfig: NextAuthConfig = {
   // CALLBACKS DE AUTORIZACIÓN
   // ================================================================
   callbacks: {
-    /**
-     * Callback authorized: Determina si el usuario puede acceder a una ruta.
-     * Se ejecuta en Edge Runtime (middleware).
-     */
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
       const pathname = nextUrl.pathname;
 
-      // Ruta de configuración de seguridad obligatoria
       const isSetupSecurityRoute = pathname === "/setup-security";
 
-      // Rutas protegidas que requieren autenticación
+      // Rutas protegidas (Rama 10 incluye select-account)
       const protectedRoutes = [
         "/dashboard",
         "/home",
@@ -76,48 +71,43 @@ export const authConfig: NextAuthConfig = {
         "/profile",
         "/admin",
         "/superadmin",
+        "/select-account",
       ];
+
       const isProtectedRoute = protectedRoutes.some(
         (route) => pathname === route || pathname.startsWith(`${route}/`)
       );
 
-      // Rutas de invitado (solo para usuarios no autenticados)
       const guestRoutes = ["/login", "/register"];
       const isGuestRoute = guestRoutes.some(
         (route) => pathname === route || pathname.startsWith(`${route}/`)
       );
 
-      // Si intenta acceder a ruta protegida sin autenticación
+      // 1. Bloqueo de no autenticados
       if (isProtectedRoute && !isLoggedIn) {
-        return false; // Redirige a signIn page
+        return false;
       }
 
-      // Si está autenticado e intenta acceder a ruta de invitado
+      // 2. Lógica para usuarios autenticados en rutas de invitados (Login/Register)
       if (isGuestRoute && isLoggedIn) {
-        // Verificar si el usuario necesita completar configuración de seguridad
-        // @ts-ignore - El campo existe en el token pero TypeScript no lo reconoce aquí
+        // @ts-ignore
         if (auth?.user?.requiresSecuritySetup) {
           return Response.redirect(new URL("/setup-security", nextUrl));
         }
-        return Response.redirect(new URL("/dashboard", nextUrl));
+
+        // 🛡️ DECISIÓN ARQUITECTÓNICA RAMA 10: 
+        // Obligamos a pasar por el selector de cuenta para inicializar el contexto financiero
+        return Response.redirect(new URL("/select-account", nextUrl));
       }
 
-      // Si el usuario necesita configuración de seguridad y NO está en esa página
+      // 3. Verificación de seguridad obligatoria
       if (isLoggedIn && !isSetupSecurityRoute) {
-        // @ts-ignore - El campo existe en el token pero TypeScript no lo reconoce aquí
+        // @ts-ignore
         if (auth?.user?.requiresSecuritySetup) {
-          // Permitir acceso a rutas API (para que funcione el flujo de configuración)
-          if (pathname.startsWith("/api/")) {
-            return true;
-          }
-          // Redirigir a configuración de seguridad
+          if (pathname.startsWith("/api/")) return true;
           return Response.redirect(new URL("/setup-security", nextUrl));
         }
       }
-
-      // NOTA: No redirigimos desde /setup-security al dashboard aquí.
-      // La página /setup-security maneja su propia lógica de verificación
-      // y hace signOut para forzar re-login con un token actualizado.
 
       return true;
     },

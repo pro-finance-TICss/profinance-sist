@@ -10,6 +10,7 @@ import {
   replyTicket,
 } from "@/lib/actions/tickets";
 import { Plus, MessageSquare, ArrowLeft, Send } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 interface TicketMessage {
   id: string;
@@ -301,12 +302,18 @@ export function TicketsView() {
   // --- RENDER LIST VIEW ---
   return (
     <div>
-      {/* Header Control */}
+      {/* 🟢 Título solo para la vista principal de Soporte */}
+      <PageHeader
+        title="Centro de Soporte"
+        subtitle="Gestiona tus solicitudes de ayuda y comunícate con nuestro equipo técnico."
+      />
+
+      {/* Aquí mantenemos TU control de botones original intacto */}
       <div
         style={{
           display: "flex",
           justifyContent: "flex-end",
-          marginBottom: 20,
+          marginBottom: 0, // Ajustado para que el gap del padre haga el trabajo
         }}
       >
         <Button
@@ -356,12 +363,12 @@ export function TicketsView() {
                   cursor: "pointer",
                 }}
                 onMouseEnter={(e) =>
-                  (e.currentTarget.style.backgroundColor =
-                    "rgba(255,255,255,0.06)")
+                (e.currentTarget.style.backgroundColor =
+                  "rgba(255,255,255,0.06)")
                 }
                 onMouseLeave={(e) =>
-                  (e.currentTarget.style.backgroundColor =
-                    "rgba(255,255,255,0.03)")
+                (e.currentTarget.style.backgroundColor =
+                  "rgba(255,255,255,0.03)")
                 }
               >
                 <div>

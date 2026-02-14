@@ -1,6 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+// Imports de Setup-Rama10 (Semana 3)
+import { PageHeader } from "@/components/PageHeader";
+import { Plus } from "lucide-react";
+
 import { useDashboard } from "@/contexts/DashboardContext";
 import { BalanceSection } from "../../components/dashboard/BalanceSection";
 import { ActivitySection } from "../../components/dashboard/ActivitySection";
@@ -15,7 +19,7 @@ import { checkWithdrawalWindowStatus } from "@/lib/actions/wallet-checks";
 export default function DashboardPage() {
   const { isMobile } = useDashboard();
 
-  // --- ESTADOS PARA EL MODAL ---
+  // --- ESTADOS PARA MODALES Y LOGICA DE NEGOCIO ---
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState({ title: "", type: "" });
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
@@ -25,7 +29,7 @@ export default function DashboardPage() {
     reason?: string;
   }>({ isOpen: true });
 
-  // Verificar estado de ventana de retiros
+  // Verificar estado de ventana de retiros (Rama10)
   useEffect(() => {
     const checkStatus = async () => {
       const status = await checkWithdrawalWindowStatus();
@@ -34,7 +38,7 @@ export default function DashboardPage() {
     checkStatus();
   }, []);
 
-  // Cargar balance para el modal de retiro
+  // Sincronización de Balance con API (Rama10)
   useEffect(() => {
     const fetchBalance = async () => {
       try {
@@ -52,7 +56,6 @@ export default function DashboardPage() {
 
   const handleOpenModal = (title: string, type: string) => {
     if (type === "withdraw") {
-      // Solo abrir modal si la ventana está abierta
       if (withdrawalWindow.isOpen) {
         setIsWithdrawModalOpen(true);
       }
@@ -63,7 +66,6 @@ export default function DashboardPage() {
   };
 
   const handleWithdrawSuccess = async () => {
-    // Recargar balance después de retiro exitoso
     try {
       const res = await fetch("/api/wallet/balance");
       if (res.ok) {
@@ -74,10 +76,15 @@ export default function DashboardPage() {
       console.error("Error reloading balance:", error);
     }
   };
-  // ---------------------------------------
 
   return (
     <>
+      {/* 🟢 Implementación Senior: PageHeader centralizado */}
+      <PageHeader
+        title="Resumen Financiero"
+        subtitle="Monitorea tus activos y actividad en tiempo real."
+      />
+
       <div
         style={{
           display: "grid",
@@ -97,18 +104,17 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ gridColumn: "span 12" }}>
-          <QuickActions 
-            onActionClick={handleOpenModal} 
+          <QuickActions
+            onActionClick={handleOpenModal}
             withdrawalWindow={withdrawalWindow}
           />
         </div>
-        
+
         <div style={{ gridColumn: "span 12" }}>
           <PerformanceTable />
         </div>
       </div>
 
-      {/* --- COMPONENTE MODAL --- */}
       <ActionModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -123,7 +129,6 @@ export default function DashboardPage() {
         )}
       </ActionModal>
 
-      {/* --- MODAL DE RETIRO --- */}
       <WithdrawModal
         isOpen={isWithdrawModalOpen}
         onClose={() => setIsWithdrawModalOpen(false)}
@@ -132,4 +137,4 @@ export default function DashboardPage() {
       />
     </>
   );
-}
+} 

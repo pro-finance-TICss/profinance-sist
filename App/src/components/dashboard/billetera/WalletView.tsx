@@ -9,6 +9,7 @@ import {
   checkWithdrawalWindowStatus,
   checkAndSendWithdrawalNotification,
 } from "@/lib/actions/wallet-checks";
+import { PageHeader } from "@/components/PageHeader";
 
 // Tipos
 interface BalanceData {
@@ -89,7 +90,15 @@ export function WalletView() {
     .reduce((acc, curr) => acc + Number(curr.amount), 0);
 
   return (
+
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+
+      {/* 🟢 PASO FINAL SEMANA 3: Cabecera unificada */}
+      <PageHeader
+        title="Mi Billetera"
+        subtitle="Visualiza tu capital invertido, gestiona tus fondos y liquida tus ganancias."
+      />
+
       {/* 1. Sección Superior: Balance y Acciones */}
       <div className="wallet-top-section">
         {/* Tarjeta de Balance */}
@@ -187,9 +196,8 @@ export function WalletView() {
                 setIsWithdrawModalOpen(true);
               }
             }}
-            className={`action-card ${
-              !withdrawalWindow.isOpen ? "disabled" : ""
-            }`}
+            className={`action-card ${!withdrawalWindow.isOpen ? "disabled" : ""
+              }`}
             style={{
               display: "flex",
               alignItems: "center",
@@ -299,6 +307,7 @@ export function WalletView() {
         availableBalance={balance.investedCapital}
         onSuccess={fetchData}
       />
+
 
       <style jsx>{`
         .wallet-top-section {
