@@ -17,6 +17,7 @@ import {
   validateTicketTransition,
 } from "@/lib/security";
 import { createNotification } from "@/lib/actions/notifications";
+import { decimalToNumber } from "@/lib/utils/currency";
 
 // ============================================================================
 // GESTIÓN DE USUARIOS (ADMIN)
@@ -52,7 +53,17 @@ export async function getUsers() {
         },
       },
     });
-    return { success: true, users };
+
+    // Serializar Decimals a números para evitar error de Next.js
+    const serializedUsers = users.map((user) => ({
+      ...user,
+      accounts: user.accounts.map((acc) => ({
+        ...acc,
+        investedCapital: decimalToNumber(acc.investedCapital),
+      })),
+    }));
+
+    return { success: true, users: serializedUsers };
   } catch (error) {
     logger.error("❌ Error al obtener usuarios:", error);
     return { success: false, message: "Error al obtener usuarios" };
@@ -178,6 +189,71 @@ export async function toggleAccountRole(accountId: string) {
   } catch (error) {
     logger.error("❌ Error al alternar rol de cuenta:", error);
     return { success: false, message: "Error al alternar rol de la cuenta" };
+  }
+}
+
+/**
+ * Agrega saldo manualmente a una cuenta ("cajita").
+ * Solo SUPER_ADMIN puede ejecutar esta acción.
+ */
+export async function addCapitalToAccount(accountId: string, amount: number) {
+  try {
+    await requireRole(UserRole.SUPER_ADMIN);
+
+    if (amount <= 0) {
+      return { success: false, message: "El monto debe ser mayor a 0" };
+    }
+
+    const account = await prisma.account.findUnique({
+      where: { id: accountId },
+      include: { user: { select: { email: true } } },
+    });
+
+    if (!account) {
+      return { success: false, message: "Cuenta no encontrada" };
+    }
+
+    // Usar transacción de Prisma para asegurar consistencia
+    await prisma.$transaction(async (tx) => {
+      // 1. Actualizar balance de la cuenta
+      await tx.account.update({
+        where: { id: accountId },
+        data: { investedCapital: { increment: amount } },
+      });
+
+      // 2. Crear registro de transacción
+      await tx.transaction.create({
+        data: {
+          userId: account.userId,
+          accountId: accountId,
+          type: "DEPOSIT", // Usamos DEPOSIT para que aparezca en el historial estándar
+          amount: amount,
+          status: "COMPLETED",
+          paymentId: `ADMIN-ADD-${Date.now()}-${Math.random().toString(36).substring(7)}`, // ID único para rastreo
+        },
+      });
+
+      // 3. Log de auditoría
+      await logAudit("ADMIN_ADDED_FUNDS", "Account", accountId, {
+        amount,
+        accountName: account.name,
+        userId: account.userId,
+      });
+    }, {
+      maxWait: 5000, // default: 2000
+      timeout: 20000, // default: 5000
+    });
+
+    revalidatePath("/superadmin/users");
+    revalidatePath("/dashboard");
+
+    return {
+      success: true,
+      message: `Se agregaron $${amount} a la cajita "${account.name}".`,
+    };
+  } catch (error) {
+    logger.error("❌ Error al agregar saldo:", error);
+    return { success: false, message: "Error al agregar saldo: " + (error instanceof Error ? error.message : "Desconocido") };
   }
 }
 

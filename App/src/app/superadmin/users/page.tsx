@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Users, RefreshCw, ChevronDown, ChevronRight, Box } from "lucide-react";
-import { getUsers, toggleAccountRole } from "@/lib/actions/admin";
+import { Users, RefreshCw, ChevronDown, ChevronRight, Box, PlusCircle, X } from "lucide-react";
+import { getUsers, toggleAccountRole, addCapitalToAccount } from "@/lib/actions/admin";
 import { logger } from "@/lib/logger";
 
 interface AccountInfo {
@@ -29,6 +29,14 @@ export default function UsersManagementPage() {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [depositConfig, setDepositConfig] = useState<{
+    accountId: string;
+    accountName: string;
+  } | null>(null);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositing, setDepositing] = useState(false);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -85,6 +93,43 @@ export default function UsersManagementPage() {
     setProcessingId(null);
   };
 
+  const openDepositModal = (accountId: string, accountName: string) => {
+    setDepositConfig({ accountId, accountName });
+    setDepositAmount("");
+    setIsDepositModalOpen(true);
+  };
+
+  const handleDepositSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!depositConfig || !depositAmount) return;
+
+    setDepositing(true);
+    const amount = parseFloat(depositAmount);
+
+    if (isNaN(amount) || amount <= 0) {
+      alert("Por favor ingrese un monto válido mayor a 0");
+      setDepositing(false);
+      return;
+    }
+
+    try {
+      const result = await addCapitalToAccount(depositConfig.accountId, amount);
+      if (result.success) {
+        alert(result.message);
+        setIsDepositModalOpen(false);
+        setDepositConfig(null);
+        setDepositAmount("");
+        loadUsers();
+      } else {
+        alert(result.message || "Error al agregar saldo");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error inesperado al procesar el depósito");
+    }
+    setDepositing(false);
+  };
+
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case "SUPER_ADMIN":
@@ -115,7 +160,7 @@ export default function UsersManagementPage() {
             Gestión de Usuarios
           </h1>
           <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.9rem" }}>
-            Administra los roles de las cajitas de cada usuario
+            Administra los roles de las cajitas de cada usuario y monitorea su capital.
           </p>
         </div>
         <button
@@ -350,6 +395,7 @@ export default function UsersManagementPage() {
                                         Capital: $
                                         {Number(account.investedCapital).toLocaleString("en-US", {
                                           minimumFractionDigits: 2,
+                                          maximumFractionDigits: 2,
                                         })}
                                       </p>
                                     </div>
@@ -371,51 +417,79 @@ export default function UsersManagementPage() {
                                   </span>
                                 </td>
                                 <td colSpan={2} style={{ padding: "10px 12px" }}>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleToggleAccountRole(account.id);
-                                    }}
-                                    disabled={processingId === account.id}
-                                    style={{
-                                      padding: "6px 14px",
-                                      backgroundColor:
-                                        account.role === "USER"
-                                          ? "rgba(59, 130, 246, 0.1)"
-                                          : "rgba(16, 185, 129, 0.1)",
-                                      border: `1px solid ${
-                                        account.role === "USER"
-                                          ? "rgba(59, 130, 246, 0.3)"
-                                          : "rgba(16, 185, 129, 0.3)"
-                                      }`,
-                                      borderRadius: "6px",
-                                      color:
-                                        account.role === "USER"
-                                          ? "#3b82f6"
-                                          : "#10b981",
-                                      cursor:
-                                        processingId === account.id
-                                          ? "not-allowed"
-                                          : "pointer",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "6px",
-                                      transition: "all 0.3s",
-                                      fontSize: "0.8rem",
-                                      fontWeight: "600",
-                                      opacity:
-                                        processingId === account.id ? 0.5 : 1,
-                                    }}
-                                  >
-                                    <RefreshCw size={12} />
-                                    {processingId === account.id
-                                      ? "Procesando..."
-                                      : `Cambiar a ${
+                                  <div style={{ display: "flex", gap: "10px" }}>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleToggleAccountRole(account.id);
+                                      }}
+                                      disabled={processingId === account.id}
+                                      style={{
+                                        padding: "6px 14px",
+                                        backgroundColor:
                                           account.role === "USER"
-                                            ? "SOCIO"
-                                            : "USER"
-                                        }`}
-                                  </button>
+                                            ? "rgba(59, 130, 246, 0.1)"
+                                            : "rgba(16, 185, 129, 0.1)",
+                                        border: `1px solid ${
+                                          account.role === "USER"
+                                            ? "rgba(59, 130, 246, 0.3)"
+                                            : "rgba(16, 185, 129, 0.3)"
+                                        }`,
+                                        borderRadius: "6px",
+                                        color:
+                                          account.role === "USER"
+                                            ? "#3b82f6"
+                                            : "#10b981",
+                                        cursor:
+                                          processingId === account.id
+                                            ? "not-allowed"
+                                            : "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "6px",
+                                        transition: "all 0.3s",
+                                        fontSize: "0.8rem",
+                                        fontWeight: "600",
+                                        opacity:
+                                          processingId === account.id ? 0.5 : 1,
+                                      }}
+                                    >
+                                      <RefreshCw size={12} />
+                                      {processingId === account.id
+                                        ? "..."
+                                        : `${
+                                            account.role === "USER"
+                                              ? "A SOCIO"
+                                              : "A USER"
+                                          }`}
+                                    </button>
+
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openDepositModal(account.id, account.name);
+                                      }}
+                                      style={{
+                                        padding: "6px 14px",
+                                        backgroundColor: "rgba(234, 179, 8, 0.1)",
+                                        border: "1px solid rgba(234, 179, 8, 0.3)",
+                                        borderRadius: "6px",
+                                        color: "#eab308",
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "6px",
+                                        transition: "all 0.3s",
+                                        fontSize: "0.8rem",
+                                        fontWeight: "600",
+                                      }}
+                                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(234, 179, 8, 0.2)"}
+                                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "rgba(234, 179, 8, 0.1)"}
+                                    >
+                                      <PlusCircle size={12} />
+                                      Saldo
+                                    </button>
+                                  </div>
                                 </td>
                                 <td
                                   style={{
@@ -460,6 +534,168 @@ export default function UsersManagementPage() {
           </div>
         )}
       </div>
+
+      {/* Modal para Agregar Saldo */}
+      {isDepositModalOpen && depositConfig && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0, 0, 0, 0.8)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => {
+             if (!depositing) {
+                setIsDepositModalOpen(false);
+                setDepositConfig(null);
+             }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#111",
+              border: "1px solid #333",
+              borderRadius: "12px",
+              padding: "24px",
+              width: "400px",
+              maxWidth: "90%",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "20px",
+              }}
+            >
+              <h3 style={{ margin: 0, color: "#fff", fontSize: "1.2rem" }}>
+                Agregar Saldo
+              </h3>
+              <button
+                onClick={() => {
+                  if (!depositing) {
+                     setIsDepositModalOpen(false);
+                     setDepositConfig(null);
+                  }
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#666",
+                  cursor: "pointer",
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleDepositSubmit}>
+              <div style={{ marginBottom: "20px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    color: "rgba(255,255,255,0.6)",
+                    fontSize: "0.9rem",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Cajita Destino
+                </label>
+                <div
+                  style={{
+                    padding: "10px",
+                    backgroundColor: "rgba(255,255,255,0.05)",
+                    borderRadius: "6px",
+                    color: "#fff",
+                    fontSize: "0.95rem",
+                  }}
+                >
+                  {depositConfig.accountName}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: "24px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    color: "rgba(255,255,255,0.6)",
+                    fontSize: "0.9rem",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Monto a Agregar ($)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  placeholder="0.00"
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    backgroundColor: "#000",
+                    border: "1px solid #333",
+                    borderRadius: "6px",
+                    color: "#fff",
+                    fontSize: "1rem",
+                    outline: "none",
+                  }}
+                  autoFocus
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => setIsDepositModalOpen(false)}
+                  disabled={depositing}
+                  style={{
+                    padding: "10px 20px",
+                    backgroundColor: "transparent",
+                    border: "1px solid #333",
+                    color: "#ccc",
+                    borderRadius: "6px",
+                    cursor: depositing ? "not-allowed" : "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={depositing}
+                  style={{
+                    padding: "10px 20px",
+                    backgroundColor: "#eab308",
+                    border: "none",
+                    color: "#000",
+                    borderRadius: "6px",
+                    cursor: depositing ? "not-allowed" : "pointer",
+                    fontWeight: 600,
+                    opacity: depositing ? 0.7 : 1,
+                    display: "flex",
+                    alignItems: "center", 
+                    gap: "8px"
+                  }}
+                >
+                  {depositing ? "Procesando..." : "Confirmar Depósito"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

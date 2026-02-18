@@ -148,8 +148,8 @@ function calculateMonthlyTotals(data: ChartDataPoint[]): MonthlyTotal[] {
 // ============================================================================
 
 /**
- * Obtiene análisis de inversiones para un rol específico.
- * Agrega el capital invertido de todos los usuarios del rol a lo largo del tiempo.
+ * Obtiene análisis de inversiones para un rol de CUENTA específico (USER/SOCIO).
+ * Agrega el capital invertido de todas las cuentas con ese rol a lo largo del tiempo.
  * Solo accesible por SUPER_ADMIN.
  */
 export async function getInvestmentAnalytics(
@@ -160,27 +160,31 @@ export async function getInvestmentAnalytics(
     // Requiere rol SUPER_ADMIN
     await requireRole(UserRole.SUPER_ADMIN);
 
-    // Obtener todos los usuarios con el rol especificado y sus cuentas
-    const users = await prisma.user.findMany({
+    // 1. Obtener todas las cuentas (cajitas) con el rol especificado
+    const accounts = await prisma.account.findMany({
       where: { role },
       select: {
         id: true,
-        accounts: {
-          select: { investedCapital: true },
-        },
+        investedCapital: true,
         createdAt: true,
       },
     });
 
-    // Obtener todas las transacciones de estos usuarios
-    const userIds = users.map((u) => u.id);
+    // 2. Calcular total actual de capital invertido en estas cuentas
+    const currentTotal = accounts.reduce(
+      (sum, acc) => sum + Number(acc.investedCapital),
+      0
+    );
+
+    // 3. Obtener todas las transacciones asociadas a estas cuentas específicas
+    const accountIds = accounts.map((acc) => acc.id);
     const transactions = await prisma.transaction.findMany({
       where: {
-        userId: { in: userIds },
+        accountId: { in: accountIds },
         status: "COMPLETED",
       },
       select: {
-        userId: true,
+        accountId: true,
         type: true,
         amount: true,
         createdAt: true,
@@ -188,69 +192,71 @@ export async function getInvestmentAnalytics(
       orderBy: { createdAt: "asc" },
     });
 
-    // Calcular total actual de capital invertido (sumando todas las cuentas de cada usuario)
-    const currentTotal = users.reduce(
-      (sum, user) => sum + user.accounts.reduce((accSum, acc) => accSum + Number(acc.investedCapital), 0),
-      0
-    );
-
-    // Construir línea temporal agregada
+    // 4. Construir línea temporal agregada
     const aggregatedTimeline: ChartDataPoint[] = [];
-    const userBalances = new Map<string, number>();
+    const accountBalances = new Map<string, number>();
 
-    // Inicializar todos los usuarios con balance 0
-    users.forEach((user) => {
-      userBalances.set(user.id, 0);
+    // Inicializar todas las cuentas con balance 0
+    accounts.forEach((acc) => {
+      accountBalances.set(acc.id, 0);
     });
 
     // Procesar transacciones cronológicamente
-    transactions.forEach((tx) => {
-      const currentBalance = userBalances.get(tx.userId) || 0;
-      let newBalance = currentBalance;
+    let runningTotal = 0;
 
+    transactions.forEach((tx) => {
+      if (!tx.accountId) return;
+
+      const currentBalance = accountBalances.get(tx.accountId) || 0;
+      let newBalance = currentBalance;
+      const amount = Number(tx.amount);
+
+      // Actualizar balance de la cuenta individual
       if (tx.type === "DEPOSIT" || tx.type === "REFUND") {
-        newBalance = currentBalance + Number(tx.amount);
+        newBalance = currentBalance + amount;
+        runningTotal += amount;
       } else if (tx.type === "WITHDRAWAL") {
-        newBalance = currentBalance - Number(tx.amount);
+        newBalance = currentBalance - amount;
+        runningTotal -= amount;
       }
 
-      userBalances.set(tx.userId, newBalance);
+      accountBalances.set(tx.accountId, newBalance);
 
-      // Calcular total agregado en este punto temporal
-      const aggregateTotal = Array.from(userBalances.values()).reduce(
-        (sum, balance) => sum + balance,
-        0
-      );
-
+      // Registrar punto en la línea de tiempo global
       aggregatedTimeline.push({
         date: tx.createdAt.toISOString(),
-        total: aggregateTotal,
+        total: runningTotal,
       });
     });
 
-    // Si no hay transacciones, crear línea plana al total actual
+    // Si no hay transacciones pero hay capital actual (e.g. migración inicial o datos manuales),
+    // crear una línea plana.
     if (aggregatedTimeline.length === 0) {
       const now = new Date();
-      aggregatedTimeline.push({
-        date: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-        total: currentTotal,
-      });
+      if (currentTotal > 0) {
+        // Asumimos que el capital ha estado ahí al menos el último mes si no hay historial
+        aggregatedTimeline.push({
+          date: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+          total: currentTotal,
+        });
+      }
       aggregatedTimeline.push({
         date: now.toISOString(),
         total: currentTotal,
       });
     } else {
-      // Agregar punto actual al final de la línea temporal
+      // Agregar punto actual al final para asegurar que la gráfica llegue hasta "ahora"
       aggregatedTimeline.push({
         date: new Date().toISOString(),
-        total: currentTotal,
+        total: currentTotal, // Debería coincidir con runningTotal si las transacciones están completas
       });
     }
 
-    // Filtrar por rango de tiempo seleccionado
+    // 5. Filtrar por rango de tiempo seleccionado
     const filteredData = filterByTimeRange(aggregatedTimeline, timeRange);
 
-    // Calcular resúmenes mensuales (usar datos completos, no filtrados)
+    // 6. Calcular resúmenes mensuales (usando la línea de tiempo agregada completa)
+    // Nota: calculateMonthlyTotals necesita lógica para agrupar por mes
     const monthlyTotals = calculateMonthlyTotals(aggregatedTimeline);
 
     return {
