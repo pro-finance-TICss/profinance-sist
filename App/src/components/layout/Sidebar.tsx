@@ -91,7 +91,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   };
 
   return (
-    <aside className={`sidebar ${isCollapsed ? "is-sidebar-collapsed" : ""} ${isSidebarOpen ? "open" : ""}`}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", overflow: "hidden" }}>
       {/* HEADER DEL SIDEBAR: LOGO */}
       <div style={{ marginTop: "5px", marginBottom: "15px", padding: "0 20px" }}>
         <div
@@ -404,6 +404,6 @@ export function Sidebar({ onNavigate }: SidebarProps) {
           {(!isCollapsed || isMobile) && <span>Cerrar Sesión</span>}
         </button>
       </div>
-    </aside>
+    </div>
   );
 }

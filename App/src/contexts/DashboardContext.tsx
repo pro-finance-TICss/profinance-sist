@@ -42,6 +42,17 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
         setIsCollapsed((prev) => {
             const newState = !prev;
             localStorage.setItem("sidebar-collapsed", String(newState));
+
+            // FASE 1 - Puente CSS↔JS: sincronizar la clase que gobierna el ancho en Tablet.
+            // newState=true → colapsado → quitar clase de expansión
+            // newState=false → expandido → añadir clase de expansión
+            const root = window.document.documentElement;
+            if (newState) {
+                root.classList.remove('user-wants-tablet-expanded');
+            } else {
+                root.classList.add('user-wants-tablet-expanded');
+            }
+
             return newState;
         });
     }, []);
