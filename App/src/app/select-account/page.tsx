@@ -12,6 +12,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useAccount } from "@/contexts/AccountContext";
+import { formatCurrency, decimalToNumber } from "@/lib/utils/currency";
+import { Wallet, ShieldCheck, Briefcase, ArrowRight, History, TrendingUp } from "lucide-react";
 
 export default function SelectAccountPage() {
     const { accounts, activeAccount, setActiveAccount, clearActiveAccount, createAccount, isLoading } = useAccount();
@@ -106,13 +108,13 @@ export default function SelectAccountPage() {
         <main className="selector-container">
             {/* Encabezado */}
             <header className="auth-header">
-                <h1 className="company-name">
-                    {accounts.length === 0 ? "BIENVENIDO" : "SELECCIONA TU CUENTA"}
+                <h1 className="company-name" style={{ fontSize: "2.5rem" }}>
+                    {accounts.length === 0 ? "BIENVENIDO" : "TUS CUENTAS"}
                 </h1>
-                <p className="auth-footer" style={{ marginTop: "0.5rem" }}>
+                <p className="auth-footer" style={{ marginTop: "0.5rem", fontSize: "1rem" }}>
                     {accounts.length === 0
                         ? "Aún no tienes cuentas configuradas"
-                        : "Elige la cuenta con la que deseas operar"}
+                        : "Selecciona una cuenta para operar"}
                 </p>
             </header>
 
@@ -135,38 +137,115 @@ export default function SelectAccountPage() {
                 ) : (
                     /* Múltiples cuentas */
                     <>
-                        {accounts.map((account) => (
-                            <button
-                                key={account.id}
-                                className="auth-card"
-                                onClick={() => handleSelectAccount(account.id)}
-                                style={accountButtonStyle}
-                            >
-                                <div style={{ textAlign: "left" }}>
-                                    <h3 style={{ fontSize: "1.2rem", color: "var(--color-white)", marginBottom: "0.2rem" }}>
-                                        {account.name}
-                                    </h3>
-                                    <span style={{ fontSize: "0.8rem", color: "var(--color-gold-start)", opacity: 0.8 }}>
-                                        {account.role === "SOCIO" ? "CUENTA SOCIO" : "CUENTA PERSONAL"}
-                                    </span>
+                        {accounts.map((account) => {
+                            const isSocio = account.role === "SOCIO";
+                            const balance = decimalToNumber(account.investedCapital);
+                            
+                            return (
+                                <div
+                                    key={account.id}
+                                    className="auth-card"
+                                    style={accountCardStyle}
+                                >
+                                    {/* CABECERA TARJETA */}
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                            <div style={{
+                                                padding: "8px",
+                                                borderRadius: "10px",
+                                                backgroundColor: isSocio ? "rgba(59, 130, 246, 0.1)" : "rgba(16, 185, 129, 0.1)",
+                                                color: isSocio ? "#3b82f6" : "#10b981",
+                                            }}>
+                                                {isSocio ? <Briefcase size={20} /> : <Wallet size={20} />}
+                                            </div>
+                                            <div>
+                                                <h3 style={{ fontSize: "1.1rem", color: "var(--color-white)", margin: 0, fontWeight: 600 }}>
+                                                    {account.name}
+                                                </h3>
+                                                <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", marginTop: "2px" }}>
+                                                    <History size={12} />
+                                                    <span>01-24</span> {/* Placeholder fecha o ID corto */}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <span style={{ 
+                                            padding: "4px 8px", 
+                                            borderRadius: "6px", 
+                                            fontSize: "0.7rem", 
+                                            fontWeight: "bold",
+                                            textTransform: "uppercase",
+                                            backgroundColor: isSocio ? "rgba(59, 130, 246, 0.2)" : "rgba(189, 142, 72, 0.2)",
+                                            color: isSocio ? "#60a5fa" : "#bd8e48",
+                                            border: `1px solid ${isSocio ? "rgba(59, 130, 246, 0.3)" : "rgba(189, 142, 72, 0.3)"}`
+                                        }}>
+                                            {isSocio ? "SOCIO" : "USUARIO"}
+                                        </span>
+                                    </div>
+
+                                    {/* BALANCE */}
+                                    <div style={{ marginBottom: "1.5rem" }}>
+                                        <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(255,255,255,0.5)", marginBottom: "4px" }}>
+                                            Balance Total
+                                        </p>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                            <h2 style={{ margin: 0, fontSize: "1.8rem", color: "#fff", fontWeight: 700, letterSpacing: "-0.5px" }}>
+                                                {formatCurrency(balance)}
+                                            </h2>
+                                            {isSocio && (
+                                                <div style={{ padding: "2px 6px", borderRadius: "4px", backgroundColor: "rgba(16, 185, 129, 0.2)", color: "#10b981", fontSize: "0.75rem", fontWeight: "bold" }}>
+                                                    <TrendingUp size={12} style={{ display: "inline", marginRight: "2px" }}/>
+                                                    +5.2%
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* ACCIONES */}
+                                    <div style={{ marginTop: "auto", display: "flex", gap: "10px" }}>
+                                        <button
+                                            onClick={() => handleSelectAccount(account.id)}
+                                            className="btn-primary"
+                                            style={{ margin: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", fontSize: "0.95rem" }}
+                                        >
+                                            Seleccionar
+                                            <ArrowRight size={16} color="#000" strokeWidth={3} />
+                                        </button>
+                                        
+                                        {/* Botón secundario decorativo (deshabilitado en este contexto) */}
+                                        <div 
+                                            style={{ 
+                                                padding: "0 15px", 
+                                                display: "flex", 
+                                                alignItems: "center", 
+                                                borderRadius: "8px", 
+                                                border: "1px solid rgba(255,255,255,0.1)",
+                                                cursor: "not-allowed",
+                                                opacity: 0.5
+                                            }}
+                                            title="Detalles (Próximamente)"
+                                        >
+                                            <ShieldCheck size={18} color="rgba(255,255,255,0.5)" />
+                                        </div>
+                                    </div>
                                 </div>
-                                <span style={{ fontSize: "1.5rem", color: "var(--color-gold-start)" }}>→</span>
-                            </button>
-                        ))}
+                            );
+                        })}
 
                         {/* Botón para crear nueva cajita */}
                         {!showCreateForm ? (
                             <button
                                 className="auth-card"
                                 onClick={() => setShowCreateForm(true)}
-                                style={createButtonStyle}
+                                style={createCardStyle}
                             >
-                                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                                    <span style={plusIconStyle}>+</span>
-                                    <span style={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "1rem" }}>
-                                        Crear nueva cajita
-                                    </span>
-                                </div>
+                                <div style={plusIconCircleStyle}>+</div>
+                                <span style={{ color: "rgba(255, 255, 255, 0.9)", fontSize: "1.1rem", fontWeight: "600" }}>
+                                    Nueva Cajita
+                                </span>
+                                <span style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "0.85rem" }}>
+                                    Agrega una nueva cuenta de inversión
+                                </span>
                             </button>
                         ) : (
                             <div className="auth-card" style={emptyCardStyle}>
@@ -259,7 +338,7 @@ function CreateAccountForm({ name, setName, onCreate, isCreating, error, onCance
 }
 
 // ============================================================================
-// ESTILOS ESTÁTICOS (fuera del componente para evitar recreación en cada render)
+// ESTILOS ESTÁTICOS
 // ============================================================================
 
 const KEYFRAMES_CSS = `
@@ -278,35 +357,50 @@ const spinnerStyle: React.CSSProperties = {
 const emptyCardStyle: React.CSSProperties = {
     width: "100%",
     padding: "2rem",
+    minHeight: "220px", 
+    justifyContent: "center",
 };
 
-const accountButtonStyle: React.CSSProperties = {
-    cursor: "pointer",
+// Nuevo estilo para las tarjetas de cuenta
+const accountCardStyle: React.CSSProperties = {
     width: "100%",
-    flexDirection: "row",
+    minHeight: "220px",
+    display: "flex",
+    flexDirection: "column",
+    padding: "1.8rem",
+    cursor: "default", // El botón interno maneja la acción
     justifyContent: "space-between",
-    padding: "1.5rem 2rem",
+    alignItems: "stretch", // Importante para que el contenido llene el ancho
+    textAlign: "left", // Reset del align-center de .auth-card
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
 };
 
-const createButtonStyle: React.CSSProperties = {
-    cursor: "pointer",
+const createCardStyle: React.CSSProperties = {
     width: "100%",
-    padding: "1.2rem 2rem",
-    border: "1px dashed rgba(189, 142, 72, 0.4)",
-    background: "rgba(189, 142, 72, 0.05)",
+    minHeight: "220px",
+    cursor: "pointer",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "15px",
+    border: "2px dashed rgba(189, 142, 72, 0.3)",
+    background: "rgba(189, 142, 72, 0.03)",
+    transition: "all 0.3s ease",
 };
 
-const plusIconStyle: React.CSSProperties = {
-    fontSize: "1.5rem",
+const plusIconCircleStyle: React.CSSProperties = {
+    fontSize: "2rem",
     color: "var(--color-gold-start)",
-    fontWeight: "bold",
-    width: "32px",
-    height: "32px",
+    width: "60px",
+    height: "60px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     borderRadius: "50%",
-    background: "rgba(189, 142, 72, 0.15)",
+    background: "rgba(189, 142, 72, 0.1)",
+    border: "1px solid rgba(189, 142, 72, 0.3)",
 };
 
 const inputStyle: React.CSSProperties = {

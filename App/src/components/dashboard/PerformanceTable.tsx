@@ -179,8 +179,7 @@ export function PerformanceTable() {
               }}
             >
               <th style={{ padding: "8px" }}>Par</th>
-              <th style={{ padding: "8px" }}>Divisa 1</th>
-              <th style={{ padding: "8px" }}>Divisa 2</th>
+              <th style={{ padding: "8px" }}>Divisas</th>
               <th style={{ padding: "8px" }}>Tipo</th>
               <th style={{ padding: "8px" }}>%</th>
             </tr>
@@ -189,7 +188,7 @@ export function PerformanceTable() {
             {data.length === 0 ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={4}
                   style={{
                     textAlign: "center",
                     padding: "20px",
@@ -219,11 +218,8 @@ export function PerformanceTable() {
                     {getFlag(item.currency1)}
                     {getFlag(item.currency2)}
                   </td>
-                  <td style={{ padding: "12px", color: "white" }}>
-                    {item.currency1}
-                  </td>
-                  <td style={{ padding: "12px", color: "white" }}>
-                    {item.currency2}
+                  <td style={{ padding: "12px", color: "white", fontWeight: 500 }}>
+                    {item.currency1} <span style={{ color: "rgba(255,255,255,0.4)", margin: "0 4px" }}>/</span> {item.currency2}
                   </td>
                   <td style={{ padding: "12px" }}>
                     <span

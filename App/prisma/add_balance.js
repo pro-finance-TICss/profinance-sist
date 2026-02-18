@@ -11,11 +11,12 @@ const prisma = new PrismaClient();
 async function main() {
   const email = process.argv[2];
   const amount = parseFloat(process.argv[3]) || 50000;
+  const accountIndex = parseInt(process.argv[4]) || 0; // Índice de la cuenta (opcional, default 0)
 
   if (!email) {
     console.error("❌ Error: Debes proporcionar un correo electrónico.");
-    console.log("Uso: node prisma/add_balance.js <correo> [monto]");
-    console.log("Ejemplo: node prisma/add_balance.js user@test.com 50000");
+    console.log("Uso: node prisma/add_balance.js <correo> [monto] [indice_cuenta]");
+    console.log("Ejemplo: node prisma/add_balance.js user@test.com 50000 1");
     process.exit(1);
   }
 
@@ -23,7 +24,11 @@ async function main() {
 
   const user = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, firstName: true, paternalSurname: true, baseCurrency: true },
+    include: {
+      accounts: {
+        orderBy: { createdAt: "asc" },
+      },
+    },
   });
 
   if (!user) {
@@ -32,28 +37,36 @@ async function main() {
   }
 
   console.log(`Usuario encontrado: ${user.firstName} ${user.paternalSurname} (${user.id})`);
+  console.log(`Cuentas encontradas: ${user.accounts.length}`);
 
-  // Buscar primera cuenta del usuario
-  let account = await prisma.account.findFirst({
-    where: { userId: user.id },
-    orderBy: { createdAt: "asc" },
-  });
-
-  // Si no tiene cuentas, crear una por defecto
-  if (!account) {
+  if (user.accounts.length === 0) {
     console.log("⚠️ No se encontraron cuentas, creando cuenta por defecto...");
-    account = await prisma.account.create({
+    const newAccount = await prisma.account.create({
       data: {
         userId: user.id,
         name: "Mi Cuenta",
         role: "USER",
-        investedCapital: 0,
+        investedCapital: amount,
       },
     });
-    console.log(`✅ Cuenta "${account.name}" creada con ID: ${account.id}`);
+    console.log(`✅ Cuenta "${newAccount.name}" creada con ID: ${newAccount.id} y saldo: ${amount}`);
+    return;
   }
 
-  // Actualizar balance de la cuenta
+  // Listar cuentas disponibles
+  user.accounts.forEach((acc, idx) => {
+    console.log(`[${idx}] ${acc.name} - Rol: ${acc.role} - ID: ${acc.id}`);
+  });
+
+  if (accountIndex < 0 || accountIndex >= user.accounts.length) {
+    console.error(`❌ Índice de cuenta inválido: ${accountIndex}. Seleccione entre 0 y ${user.accounts.length - 1}`);
+    return;
+  }
+
+  const account = user.accounts[accountIndex];
+  console.log(`\nSeleccionando cuenta [${accountIndex}]: ${account.name} (${account.id})...`);
+
+  // Actualizar balance de la cuenta seleccionada
   const updated = await prisma.account.update({
     where: { id: account.id },
     data: { investedCapital: amount },
