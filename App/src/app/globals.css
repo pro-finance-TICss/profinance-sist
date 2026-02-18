@@ -607,9 +607,7 @@ body {
    JERARQUÍA DE CAPAS GLOBAL (Z-INDEX) - FASE 1 FINAL
    =================================================== */
 
-.dashboard-layout-root {
-  contain: layout;
-}
+/* .dashboard-layout-root: contain:layout eliminado — rompe position:sticky y el cálculo flex del sidebar */
 
 .main-content-wrapper {
   position: relative;
@@ -691,7 +689,9 @@ body {
   }
 
   /* Expansión solicitada por el usuario via JS */
-  html.user-wants-tablet-expanded :root {
+  /* CORRECCIÓN: el selector correcto es html.user-wants-tablet-expanded, no html.user-wants-tablet-expanded :root */
+  /* El descendant combinator (:root descendiente de html) es inválido — son el mismo elemento */
+  html.user-wants-tablet-expanded {
     --sidebar-width: 260px !important;
   }
 
