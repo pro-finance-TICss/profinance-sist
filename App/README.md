@@ -1,3 +1,26 @@
+# PRO-FINANCE System
+
+> [!IMPORTANT]
+>
+> ## ⚠️ CONTROL DE CARACTERÍSTICAS (FEATURE FLAGS)
+>
+> Actualmente algunas funciones están deshabilitadas por defecto para controlar el acceso.
+> Para reactivarlas, modifica las constantes `true`/`false` en los siguientes archivos:
+>
+> **1. Registro de Usuarios**
+>
+> - Archivo: `App/src/app/register/page.tsx`
+> - Constante: `REGISTRATIONS_OPEN`
+> - Estado actual: `false` (Muestra mensaje "Registro cerrado")
+>
+> **2. Depósitos en App** _(cambiar en ambos archivos)_
+>
+> - `App/src/components/dashboard/billetera/DepositModal.tsx` → constante `DEPOSITS_ENABLED`
+> - `App/src/components/dashboard/DepositForm.tsx` → constante `DEPOSITS_ENABLED`
+> - Estado actual: `false` (Muestra mensaje "Contactar administrador")
+
+---
+
 # ProFinance - Sistema de Gestión de Activos
 
 ## Descripción
@@ -13,7 +36,6 @@ ProFinance es una plataforma web avanzada para la gestión de activos financiero
 - **Panel de Administración**: Gestión de usuarios, aprobación de retiros, configuración global del sistema.
 - **Panel de Super Administrador**: Analíticas de inversión, gestión de rendimientos, control total del sistema.
 - **Roles de Usuario**: USER, SOCIO, ADMIN y SUPER_ADMIN con permisos granulares (RBAC).
-- **Soporte Multi-Moneda**: Tasas de cambio en tiempo real (USD, COP, EUR, MXN, GBP).
 - **Multi-Cuenta ("Cajitas")**: Los usuarios pueden gestionar múltiples cuentas financieras con roles independientes.
 - **Responsive Design**: Interfaz adaptable a móvil, tablet y escritorio con contexto de dashboard centralizado.
 

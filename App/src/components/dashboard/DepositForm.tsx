@@ -1,7 +1,14 @@
 "use client";
 import React, { useState } from "react";
-import { DollarSign, CreditCard, ArrowRight } from "lucide-react";
+import { DollarSign, CreditCard, ArrowRight, AlertCircle } from "lucide-react";
 import { logger } from "@/lib/logger";
+
+// ============================================================================
+// FLAG: Controla si el depósito a través de la app está habilitado.
+// Cambiar a `true` para reactivar la función de depósito.
+// (Mismo flag lógico que en DepositModal.tsx)
+// ============================================================================
+const DEPOSITS_ENABLED = false;
 
 export function DepositForm() {
   const [amount, setAmount] = useState("");
@@ -32,6 +39,55 @@ export function DepositForm() {
     }
   };
 
+  // ============================================================================
+  // DEPÓSITO DESHABILITADO: Mostrar mensaje amigable
+  // ============================================================================
+  if (!DEPOSITS_ENABLED) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "16px",
+          padding: "24px 16px",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            width: "56px",
+            height: "56px",
+            borderRadius: "50%",
+            background: "rgba(189, 142, 72, 0.1)",
+            border: "1px solid rgba(189, 142, 72, 0.3)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <AlertCircle size={26} color="rgba(189, 142, 72, 0.8)" />
+        </div>
+        <p
+          style={{
+            color: "rgba(255, 255, 255, 0.7)",
+            fontSize: "0.9rem",
+            lineHeight: 1.6,
+            margin: 0,
+          }}
+        >
+          Función de depósito a través de la app deshabilitada por el momento.
+          Ponte en contacto con el administrador para agregar balance a tu
+          cuenta.
+        </p>
+      </div>
+    );
+  }
+
+  // ============================================================================
+  // DEPÓSITO HABILITADO: Formulario normal
+  // ============================================================================
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "25px" }}>
       {/* Campo de Monto */}

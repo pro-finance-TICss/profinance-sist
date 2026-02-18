@@ -34,10 +34,55 @@ interface TotpSetupData {
 // COMPONENTE PRINCIPAL DE REGISTRO
 // ============================================================================
 
+// ============================================================================
+// FLAG: Controla si el registro de nuevos usuarios está habilitado.
+// Cambiar a `true` para reabrir el registro.
+// ============================================================================
+const REGISTRATIONS_OPEN = false;
+
 export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const referralCode = searchParams.get("ref") ?? undefined;
+
+  // Si el registro está cerrado, mostrar mensaje amigable
+  if (!REGISTRATIONS_OPEN) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.brandingSection}>
+          <div className={styles.brandingContent}>
+            <h1 className={styles.brandingTitle}>PRO-FINANCE</h1>
+            <img
+              src="/Background-recortado.png"
+              alt="ProFinance Logo"
+              className={styles.logo}
+              style={{ borderRadius: "20%" }}
+            />
+            <p className={styles.brandingTagline}>
+              Empoderando tu futuro financiero
+            </p>
+          </div>
+        </div>
+        <div className={styles.formSection}>
+          <div className={styles.formContainer} style={{ maxWidth: "550px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ textAlign: "center", padding: "2.5rem 2rem" }}>
+              <div style={{ fontSize: "3.5rem", marginBottom: "1.5rem" }}>🔒</div>
+              <h2 style={{ fontSize: "1.6rem", fontWeight: 700, color: "#333", marginBottom: "1rem" }}>
+                Registro cerrado
+              </h2>
+              <p style={{ color: "rgba(0,0,0,0.6)", fontSize: "1rem", lineHeight: 1.6, marginBottom: "2rem" }}>
+                No se aceptan nuevos registros por el momento.<br />
+                ¡Estate al tanto de nuestras redes sociales!
+              </p>
+              <Link href="/login" className={styles.link} style={{ fontWeight: 600, fontSize: "1rem" }}>
+                ← Iniciar Sesión
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Estados del flujo
   const [step, setStep] = useState<RegisterStep | "recovery">("personal-info");
