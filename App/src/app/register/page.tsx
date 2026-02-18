@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 import { registerSchema } from "@/lib/validations/auth";
@@ -36,6 +36,8 @@ interface TotpSetupData {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const referralCode = searchParams.get("ref") ?? undefined;
 
   // Estados del flujo
   const [step, setStep] = useState<RegisterStep | "recovery">("personal-info");
@@ -120,7 +122,7 @@ export default function RegisterPage() {
     setServerError(null);
 
     try {
-      const result = await registerUser(data);
+      const result = await registerUser(data, referralCode);
 
       if (!result.success) {
         if (result.errors) {
@@ -286,14 +288,14 @@ export default function RegisterPage() {
                     </div>
 
                     <div className={styles.inputWrapper}>
-                      <label 
-                        htmlFor="country" 
-                        style={{ 
-                          display: 'block', 
-                          marginBottom: '0.5rem', 
-                          fontSize: '0.9rem', 
-                          fontWeight: 500, 
-                          color: '#333' 
+                      <label
+                        htmlFor="country"
+                        style={{
+                          display: 'block',
+                          marginBottom: '0.5rem',
+                          fontSize: '0.9rem',
+                          fontWeight: 500,
+                          color: '#333'
                         }}
                       >
                         País de Residencia

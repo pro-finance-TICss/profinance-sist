@@ -11,7 +11,9 @@ import {
   Package,
   LifeBuoy,
   ArrowLeftRight,
+  Users,
 } from "lucide-react";
+
 import { signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -50,11 +52,12 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       label: "Productos",
       href: "/dashboard/productos",
     },
-    {
+    /* {
       icon: <BarChart3 size={22} />,
       label: "Inversiones",
-      href: "/dashboard/inversiones",
-    },
+      href: "/dashboard/inversiones",  fuera de produccion por ahora.
+    }, 
+    */
     {
       icon: <Wallet size={22} />,
       label: "Mi Billetera",
@@ -64,6 +67,11 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       icon: <History size={22} />,
       label: "Transacciones",
       href: "/dashboard/transacciones",
+    },
+    {
+      icon: <Users size={22} />,
+      label: "Referidos",
+      href: "/dashboard/referidos",
     },
     {
       icon: <Settings2 size={22} />,
@@ -76,6 +84,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       href: "/dashboard/soporte",
     },
   ];
+
 
   const handleNavigation = () => {
     if (onNavigate) onNavigate();

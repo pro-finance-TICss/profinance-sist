@@ -129,6 +129,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 3.5. Restricción de referidos: para crear una segunda cajita,
+    //      el usuario debe haber realizado al menos una inversión válida.
+    //      Esto previene la creación de cuentas fantasma antes de invertir.
+    if (existingCount >= 1) {
+      const hasValidInvestment = await prisma.transaction.findFirst({
+        where: {
+          userId: session.user.id,
+          type: "DEPOSIT",
+          status: "COMPLETED",
+        },
+        select: { id: true },
+      });
+
+      if (!hasValidInvestment) {
+        return NextResponse.json(
+          {
+            error:
+              "Debes realizar tu primera inversión antes de crear más cajitas",
+            code: "FIRST_INVESTMENT_REQUIRED",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     // 4. Verificar nombre duplicado para el mismo usuario
     const duplicate = await prisma.account.findFirst({
       where: {

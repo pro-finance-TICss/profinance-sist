@@ -17,6 +17,9 @@ import {
   generateQrDataUrl,
   verifyTotpToken,
 } from "@/lib/totp";
+import { generateUniqueReferralCode } from "@/lib/services/referral.service";
+import { logger } from "@/lib/logger";
+
 
 // ============================================================================
 // TIPOS DE RESPUESTA
@@ -80,7 +83,8 @@ const BCRYPT_SALT_ROUNDS = 12;
  * @returns Resultado con datos para configurar TOTP
  */
 export async function registerUser(
-  formData: RegisterFormData
+  formData: RegisterFormData,
+  referralCode?: string
 ): Promise<RegisterResponse> {
   try {
     // ================================================================
@@ -89,7 +93,6 @@ export async function registerUser(
     const validatedFields = registerSchema.safeParse(formData);
 
     if (!validatedFields.success) {
-      // Extraer errores de validación por campo
       const fieldErrors: Record<string, string[]> = {};
       validatedFields.error.errors.forEach((error) => {
         const field = error.path[0] as string;
@@ -139,38 +142,83 @@ export async function registerUser(
     // ================================================================
     // PASO 4.5: Determinar moneda base
     // ================================================================
-    // Si se proporciona moneda base explícita, usarla.
-    // Si no, inferir del país. Si no hay país, default "COP".
     let finalBaseCurrency = baseCurrency || "COP";
-    
+
     if (!baseCurrency && country) {
-      // Import dinámico para evitar ciclos o problemas en build time si fuera necesario
       const { getCurrencyForCountry } = await import("@/lib/utils/country-currency-map");
       finalBaseCurrency = getCurrencyForCountry(country);
     }
 
     // ================================================================
-    // PASO 5: Crear usuario en la base de datos
+    // PASO 5: Validar código de referido (si existe)
     // ================================================================
-    const newUser = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        firstName,
-        paternalSurname,
-        maternalSurname,
-        country: country || null,
-        baseCurrency: finalBaseCurrency,
-        totpSecret, // Guardar secreto (aún no habilitado)
-        totpEnabled: false, // Se habilitará al verificar primer código
-      },
+    let referrer: { id: string; email: string } | null = null;
+
+    if (referralCode && referralCode.trim().length > 0) {
+      const normalizedCode = referralCode.trim().toUpperCase();
+
+      const foundReferrer = await prisma.user.findUnique({
+        where: { referralCode: normalizedCode },
+        select: { id: true, email: true },
+      });
+
+      if (foundReferrer && foundReferrer.email !== email) {
+        // Código válido y no es autoreferido
+        referrer = foundReferrer;
+        logger.debug(`✅ Código de referido válido: ${normalizedCode} → referrer ${foundReferrer.id}`);
+      } else if (foundReferrer && foundReferrer.email === email) {
+        // Autoreferido: ignorar silenciosamente (no bloquear el registro)
+        logger.debug(`⚠️ Autoreferido detectado para ${email}, ignorando código`);
+      } else {
+        // Código no encontrado: ignorar silenciosamente
+        logger.debug(`⚠️ Código de referido no encontrado: ${normalizedCode}`);
+      }
+    }
+
+    // ================================================================
+    // PASO 6: Crear usuario + referido de forma atómica
+    // ================================================================
+    const newUser = await prisma.$transaction(async (tx) => {
+      // Generar código de referido único para el nuevo usuario
+      const newUserReferralCode = await generateUniqueReferralCode(tx);
+
+      // Crear el usuario
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          firstName,
+          paternalSurname,
+          maternalSurname,
+          country: country || null,
+          baseCurrency: finalBaseCurrency,
+          totpSecret,
+          totpEnabled: false,
+          referralCode: newUserReferralCode,
+        },
+      });
+
+      // Si hay referrer válido, crear la relación de referido
+      if (referrer) {
+        await tx.referral.create({
+          data: {
+            referrerId: referrer.id,
+            referredId: user.id,
+            referralCodeUsed: referralCode!.trim().toUpperCase(),
+            status: "PENDING",
+          },
+        });
+        logger.debug(`✅ Relación de referido creada: ${referrer.id} → ${user.id}`);
+      }
+
+      return user;
     });
 
     logger.debug("✅ Usuario registrado exitosamente:", email);
     logger.debug("🔐 Esperando configuración de TOTP...");
 
     // ================================================================
-    // PASO 6: Generar QR para configuración de autenticador
+    // PASO 7: Generar QR para configuración de autenticador
     // ================================================================
     const uri = generateTotpUri(email, totpSecret);
     const qrCode = await generateQrDataUrl(uri);
@@ -194,6 +242,7 @@ export async function registerUser(
     };
   }
 }
+
 
 // ============================================================================
 // ACCIÓN: CONFIRMAR CONFIGURACIÓN TOTP
@@ -362,7 +411,7 @@ export async function regenerateTotpSetup(
 // ============================================================================
 
 import { auth } from "@/lib/auth";
-import { logger } from "@/lib/logger";
+
 
 /**
  * Genera o recupera la configuración TOTP para el usuario autenticado.

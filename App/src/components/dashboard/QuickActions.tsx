@@ -5,8 +5,10 @@ import {
     Wallet,
     Banknote,
     ArrowLeftRight,
-    Gem
+    Gem,
+    Users // Se añade Users para el nuevo botón
 } from 'lucide-react';
+import { useRouter } from 'next/navigation'; // Importación necesaria para navegación SPA
 
 interface QuickActionsProps {
     onActionClick?: (title: string, type: string) => void;
@@ -17,6 +19,8 @@ interface QuickActionsProps {
 }
 
 export function QuickActions({ onActionClick, withdrawalWindow }: QuickActionsProps) {
+    const router = useRouter(); // Hook para navegación fluida
+
     const actions = [
         {
             id: 'deposit',
@@ -30,7 +34,7 @@ export function QuickActions({ onActionClick, withdrawalWindow }: QuickActionsPr
             id: 'withdraw',
             title: 'Retirar',
             desc: 'Liquidar a banco',
-            info: withdrawalWindow?.isOpen 
+            info: withdrawalWindow?.isOpen
                 ? 'Solicita la liquidación de tus rendimientos a tu cuenta preferida.'
                 : (withdrawalWindow?.reason || 'Periodo cerrado'),
             icon: <Banknote size={32} strokeWidth={1.2} />,
@@ -45,11 +49,11 @@ export function QuickActions({ onActionClick, withdrawalWindow }: QuickActionsPr
             disabled: false,
         },
         {
-            id: 'invest',
-            title: 'Nueva Inversión',
-            desc: 'Activos de lujo',
-            info: 'Explora nuevos portafolios y diversifica tu capital hoy mismo.',
-            icon: <Gem size={32} strokeWidth={1.2} />,
+            id: 'referrals', // ID actualizado
+            title: 'Referidos', // Título actualizado
+            desc: 'Red y comisiones', // Descripción actualizada
+            info: 'Gestiona tu red de invitados y revisa tus comisiones acumuladas.', // Info actualizada
+            icon: <Users size={32} strokeWidth={1.2} />, // Icono actualizado
             disabled: false,
         },
     ];
@@ -88,8 +92,8 @@ export function QuickActions({ onActionClick, withdrawalWindow }: QuickActionsPr
                         max-height: 0;
                         opacity: 0;
                         transition: all 0.4s ease;
-                        font-size: 0.95rem; /* Letra más grande */
-                        color: #FFFFFF;    /* Blanco Puro */
+                        font-size: 0.95rem;
+                        color: #FFFFFF;
                         margin-top: 0;
                         line-height: 1.5;
                         font-weight: 300;
@@ -100,7 +104,7 @@ export function QuickActions({ onActionClick, withdrawalWindow }: QuickActionsPr
                         margin-top: 15px;
                     }
                     .quick-action-item:hover .base-desc {
-                        display: none; /* Ocultamos el desc corto al hacer hover para dar espacio */
+                        display: none;
                     }
                     .particles-quick {
                         position: absolute;
@@ -111,7 +115,6 @@ export function QuickActions({ onActionClick, withdrawalWindow }: QuickActionsPr
                         animation: floatStarsQuick 120s linear infinite;
                     }
                     
-                    /* Media Query para asegurar Responsividad en móviles pequeños */
                     @media (max-width: 640px) {
                         .quick-action-item {
                             min-height: 200px;
@@ -124,7 +127,7 @@ export function QuickActions({ onActionClick, withdrawalWindow }: QuickActionsPr
             <Card title="Acciones Rápidas">
                 <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', /* Columnas más anchas para mejor lectura */
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
                     gap: '24px',
                     marginTop: '10px'
                 }}>
@@ -132,11 +135,19 @@ export function QuickActions({ onActionClick, withdrawalWindow }: QuickActionsPr
                         <div
                             key={action.id}
                             className="quick-action-item"
-                            onClick={() => !action.disabled && onActionClick?.(action.title, action.id)}
+                            onClick={() => {
+                                if (action.disabled) return;
+                                // Redirección directa para Referidos, el resto sigue su flujo original
+                                if (action.id === 'referrals') {
+                                    router.push('/dashboard/referidos');
+                                } else {
+                                    onActionClick?.(action.title, action.id);
+                                }
+                            }}
                             style={{
                                 opacity: action.disabled ? 0.5 : 1,
                                 cursor: action.disabled ? 'not-allowed' : 'pointer',
-                                pointerEvents: action.disabled ? 'auto' : 'auto',
+                                pointerEvents: 'auto',
                             }}
                             title={action.disabled ? action.info : undefined}
                         >
@@ -146,7 +157,7 @@ export function QuickActions({ onActionClick, withdrawalWindow }: QuickActionsPr
                                 width: '70px',
                                 height: '70px',
                                 borderRadius: '50%',
-                                background: action.disabled 
+                                background: action.disabled
                                     ? 'radial-gradient(circle, rgba(150, 150, 150, 0.2) 0%, rgba(0,0,0,0) 70%)'
                                     : 'radial-gradient(circle, rgba(189, 142, 72, 0.2) 0%, rgba(0,0,0,0) 70%)',
                                 display: 'flex',
@@ -154,7 +165,7 @@ export function QuickActions({ onActionClick, withdrawalWindow }: QuickActionsPr
                                 justifyContent: 'center',
                                 marginBottom: '20px',
                                 color: action.disabled ? '#888' : '#bd8e48',
-                                border: action.disabled 
+                                border: action.disabled
                                     ? '1px solid rgba(150, 150, 150, 0.4)'
                                     : '1px solid rgba(189, 142, 72, 0.4)',
                                 position: 'relative',

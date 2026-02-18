@@ -84,6 +84,14 @@ model User {
   tokenVersion      Int       @default(0)
 
   // ================================================================
+  // REFERIDOS
+  // ================================================================
+
+  /// Código de referido único de este usuario (generado al registrarse)
+  /// Formato: 4 letras + 4 dígitos, ej: "ABCD1234"
+  referralCode      String?   @unique
+
+  // ================================================================
   // RELACIONES
   // ================================================================
 
@@ -95,6 +103,12 @@ model User {
   
   /// Solicitudes de retiro del usuario
   withdrawalRequests WithdrawalRequest[]
+
+  /// Usuarios que este usuario ha referido
+  referrals         Referral[] @relation("ReferredBy")
+
+  /// Relación de referido si este usuario fue referido por alguien
+  referredBy        Referral?  @relation("Referrals")
 
   // Índice para búsquedas rápidas por email
   @@index([email])
@@ -172,14 +186,22 @@ model Account {
   /// Fecha de última actualización
   updatedAt           DateTime @updatedAt
 
+  /// Indica si esta cuenta es la predeterminada para recibir comisiones de referidos
+  /// Solo UNA cuenta por usuario puede tener isDefaultReward = true
+  isDefaultReward     Boolean  @default(false)
+
   /// Transacciones asociadas a esta cuenta
   transactions        Transaction[]
 
   /// Solicitudes de retiro desde esta cuenta
   withdrawalRequests  WithdrawalRequest[]
 
+  /// Comisiones de referidos acreditadas en esta cuenta
+  referralRewards     ReferralReward[]
+
   /// Índice para búsquedas eficientes por usuario
   @@index([userId])
+  @@index([isDefaultReward])
 }
 
 // ============================================================================
@@ -333,6 +355,12 @@ model Transaction {
   
   /// Fecha de última actualización
   updatedAt       DateTime @updatedAt
+
+  /// Si esta transacción fue la fuente que generó una comisión de referido
+  generatedReward  ReferralReward? @relation("SourceTransaction")
+
+  /// Si esta transacción ES una comisión de referido acreditada
+  rewardFor        ReferralReward? @relation("RewardTransaction")
   
   /// Índices para búsquedas eficientes
   @@index([userId])
@@ -341,6 +369,7 @@ model Transaction {
   @@index([status])
   @@index([createdAt])
 }
+
 
 // ============================================================================
 // MODELO DE SOLICITUDES DE RETIRO
@@ -548,4 +577,90 @@ model Performance {
   
   @@index([targetRole])
   @@index([date])
+}
+
+// ============================================================================
+// SISTEMA DE REFERIDOS
+// ============================================================================
+
+/// Relación de referido entre dos usuarios.
+/// Un usuario solo puede ser referido UNA VEZ (referredId @unique).
+/// La relación pertenece al User, no a la Account.
+model Referral {
+  /// Identificador único
+  id               String    @id @default(cuid())
+
+  /// ID del usuario que refirió (referrer = Usuario A)
+  referrerId       String
+  referrer         User      @relation("ReferredBy", fields: [referrerId], references: [id], onDelete: Cascade)
+
+  /// ID del usuario referido (referee = Usuario B)
+  /// @unique garantiza que un usuario solo puede ser referido una vez
+  referredId       String    @unique
+  referred         User      @relation("Referrals", fields: [referredId], references: [id], onDelete: Cascade)
+
+  /// Código de referido que usó el referido al registrarse (auditoría)
+  referralCodeUsed String
+
+  /// Estado del referido
+  /// PENDING: registrado pero sin inversión válida aún
+  /// ACTIVE:  realizó su primera inversión COMPLETED
+  status           String    @default("PENDING")
+
+  /// Fecha de creación (= fecha de registro del referido)
+  createdAt        DateTime  @default(now())
+
+  /// Fecha de activación (primera inversión COMPLETED)
+  activatedAt      DateTime?
+
+  /// Comisiones generadas por este referido
+  rewards          ReferralReward[]
+
+  @@index([referrerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// Registro de cada comisión generada por un referido.
+/// Idempotencia garantizada por sourceTransactionId @unique.
+model ReferralReward {
+  /// Identificador único
+  id                  String    @id @default(cuid())
+
+  /// Relación de referido que originó esta comisión
+  referralId          String
+  referral            Referral  @relation(fields: [referralId], references: [id], onDelete: Cascade)
+
+  /// Transacción del referido que generó la comisión
+  /// @unique: una transacción solo puede generar UNA comisión (idempotencia)
+  sourceTransactionId String    @unique
+  sourceTransaction   Transaction @relation("SourceTransaction", fields: [sourceTransactionId], references: [id])
+
+  /// Cuenta del referrer donde se acreditó la comisión
+  creditedAccountId   String
+  creditedAccount     Account   @relation(fields: [creditedAccountId], references: [id])
+
+  /// Transacción COMMISSION creada para trazabilidad en el historial
+  rewardTransactionId String?   @unique
+  rewardTransaction   Transaction? @relation("RewardTransaction", fields: [rewardTransactionId], references: [id])
+
+  /// Monto de la comisión acreditada
+  amount              Decimal
+
+  /// Porcentaje aplicado (para auditoría histórica)
+  percentageApplied   Decimal
+
+  /// Moneda de la comisión (igual a la baseCurrency del referrer)
+  currency            String
+
+  /// Estado: CREDITED (acreditada) | REVERSED (revertida)
+  status              String    @default("CREDITED")
+
+  /// Fecha de creación
+  createdAt           DateTime  @default(now())
+
+  @@index([referralId])
+  @@index([creditedAccountId])
+  @@index([status])
+  @@index([createdAt])
 }

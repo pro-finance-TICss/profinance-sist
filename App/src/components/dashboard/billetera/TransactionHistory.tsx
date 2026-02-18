@@ -74,7 +74,7 @@ export function TransactionHistory({
   };
 
   const getTypeIcon = (type: string) => {
-    return type === "DEPOSIT" || type === "REFUND" ? (
+    return type === "DEPOSIT" || type === "REFUND" || type === "COMMISSION" ? (
       <ArrowDownLeft size={20} color="#4caf50" />
     ) : (
       <ArrowUpRight size={20} color="#f44336" />
@@ -87,6 +87,8 @@ export function TransactionHistory({
         return "Depósito";
       case "REFUND":
         return "Reembolso";
+      case "COMMISSION":
+        return "Comisión de Referido";
       default:
         return "Retiro";
     }
@@ -169,11 +171,11 @@ export function TransactionHistory({
                     height: "44px",
                     borderRadius: "12px",
                     background:
-                      tx.type === "DEPOSIT" || tx.type === "REFUND"
+                      tx.type === "DEPOSIT" || tx.type === "REFUND" || tx.type === "COMMISSION"
                         ? "rgba(76, 175, 80, 0.1)"
                         : "rgba(244, 67, 54, 0.1)",
                     border:
-                      tx.type === "DEPOSIT" || tx.type === "REFUND"
+                      tx.type === "DEPOSIT" || tx.type === "REFUND" || tx.type === "COMMISSION"
                         ? "1px solid rgba(76, 175, 80, 0.3)"
                         : "1px solid rgba(244, 67, 54, 0.3)",
                     display: "flex",
@@ -218,7 +220,7 @@ export function TransactionHistory({
                 <p
                   style={{
                     color:
-                      tx.type === "DEPOSIT" || tx.type === "REFUND"
+                      tx.type === "DEPOSIT" || tx.type === "REFUND" || tx.type === "COMMISSION"
                         ? "#4caf50"
                         : "#f44336",
                     fontSize: "1.1rem",
@@ -226,7 +228,7 @@ export function TransactionHistory({
                     margin: 0,
                   }}
                 >
-                  {tx.type === "DEPOSIT" || tx.type === "REFUND" ? "+" : "-"}
+                  {tx.type === "DEPOSIT" || tx.type === "REFUND" || tx.type === "COMMISSION" ? "+" : "-"}
                   {formatCurrency(tx.amount)}
                 </p>
               </div>
@@ -242,8 +244,8 @@ export function TransactionHistory({
                     tx.status === "COMPLETED"
                       ? "rgba(76, 175, 80, 0.1)"
                       : tx.status === "PENDING"
-                      ? "rgba(255, 152, 0, 0.1)"
-                      : "rgba(244, 67, 54, 0.1)",
+                        ? "rgba(255, 152, 0, 0.1)"
+                        : "rgba(244, 67, 54, 0.1)",
                   borderRadius: "8px",
                 }}
               >
@@ -254,8 +256,8 @@ export function TransactionHistory({
                       tx.status === "COMPLETED"
                         ? "#4caf50"
                         : tx.status === "PENDING"
-                        ? "#ff9800"
-                        : "#f44336",
+                          ? "#ff9800"
+                          : "#f44336",
                     fontSize: "0.75rem",
                     fontWeight: "600",
                   }}

@@ -44,3 +44,101 @@ La arquitectura es impenetrable en su flujo de navegación y flexible en su fluj
 ### Próximos pasos:
 - Notificar al equipo sobre el "Contrato de Datos" requerido para la tabla Account.
 - Refactorizar componentes visuales (BalanceCard) para desacoplarlos de la sesión global de Next-Auth.
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+## Resumen de Cambios Arquitectónicos (Sesión 2026-02-18)
+1. Evolución del Modelo de Datos (Prisma)
+Se transformó el esquema de base de datos para soportar relaciones de red sin romper la compatibilidad con los Adapters existentes:
+
+Identidad Atómica: Se añadió referralCode a cada usuario (generado al registro).
+
+Trazabilidad: Implementación de relación autoperfecta en User (referredById) para conectar invitados con anfitriones.
+
+Entidades de Recompensa: Creación de tablas Referral y ReferralReward para auditar cada comisión, evitando que el capital aparezca sin un origen trazable.
+
+2. Motor de Comisiones e Idempotencia
+Se desarrolló un "Core" de procesamiento (simulate_referral.js) que respeta reglas de negocio Enterprise:
+
+Validación Cruzada: El sistema no paga por registro; busca en Transaction un type: DEPOSIT y status: COMPLETED.
+
+Protección contra Duplicados: Implementación de check de seguridad que impide que una misma inversión genere múltiples comisiones (Idempotencia).
+
+3. Integración con el Flujo de Inversión
+Se creó create_test_investment.js para simular el flujo completo de entrada de capital (Transaction + Account Balance).
+
+Esto garantiza que el AccountContext y los Hooks de Balance reflejen la comisión como un ingreso legítimo.
+
+4. Refactorización de UX y Rutas (Fase 1 CSS-First)
+Desactivación de Rutas Legacy: Se renombró la ruta de inversiones a _inversiones (Private Folder en Next.js).
+
+Reasignación de QuickActions: El componente QuickActions.tsx ahora vincula el slot de "Nueva Inversión" a "Referidos".
+
+Navegación SPA: Integración de useRouter para transiciones instantáneas entre el Home y la página de Referidos.
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Sesión 18/02/2026 — Sistema de Referidos
+
+Todo lo implementado y lo que tú añadiste queda documentado en el walkthrough. Resumen de la sesión completa:
+
+Por el agente:
+
+Schema + migración add_referral_system
+referral.service.ts
+ (motor de comisiones)
+auth.ts
+ con captura atómica del código de referido
+api/referrals/route.ts
+ + restricción en 
+api/accounts/route.ts
+dashboard/referidos/page.tsx
+, 
+Sidebar.tsx
+, 
+register/page.tsx
+, 
+TransactionHistory.tsx
+simulate_referral.js
+Por ti:
+
+create_test_investment.js
+ — script para crear la transacción de prueba
+QuickActions.tsx
+ — slot "Nueva Inversión" → "Referidos" con navegación SPA
+Sidebar.tsx
+ — "Inversiones" comentado (fuera de producción)
+active_context.md
+ — roadmap documentado
+Para probar el flujo completo:
+
+bash
+# 1. Crear inversión para el usuario referido
+node prisma/create_test_investment.js <email_usuario_b> 100000
+# 2. Disparar la comisión
+node prisma/simulate_referral.js <email_usuario_b>
+
+
+
+🚀 Próximos Pasos (Roadmap Inmediato)
+Para las siguientes sesiones, se recomienda priorizar:
+
+Automatización del Motor (Webhooks/Triggers):
+
+Actualmente el motor se dispara vía script manual (simulate_referral.js). El siguiente paso es integrarlo como un trigger automático en el backend cada vez que una transacción de depósito cambie a estado COMPLETED.
+
+Sistema de Notificaciones en Tiempo Real:
+
+Implementar un aviso (Toast o Notification Bell) para el Usuario A en el instante exacto en que un referido activa su cuenta o genera una comisión.
+
+Ofuscación y Privacidad:
+
+Refinar la tabla de referidos para mostrar nombres parciales (ej: Sam***l) y proteger los datos sensibles de los invitados.
+
+Sistema de Retiros de Comisión:
+
+Definir si las comisiones van a una "Caja de Comisiones" separada o se mezclan con el capital disponible, y establecer reglas de retiro específicas para este rubro.
