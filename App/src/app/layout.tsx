@@ -1,10 +1,8 @@
-import type { Metadata } from "next";
-import "./globals.css";
+"use client";
 
-export const metadata: Metadata = {
-  title: "ProFinance - App",
-  description: "App financiera - ProFinance",
-};
+import { SessionProvider } from "next-auth/react";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { AccountProvider } from "@/contexts/AccountContext";
 
 export default function RootLayout({
   children,
@@ -14,7 +12,13 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
-        {children}
+        <SessionProvider>
+          <AuthProvider>
+            <AccountProvider>
+              {children}
+            </AccountProvider>
+          </AuthProvider>
+        </SessionProvider>
       </body>
     </html>
   );
