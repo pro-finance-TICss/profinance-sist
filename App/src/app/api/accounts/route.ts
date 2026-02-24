@@ -1,46 +1,39 @@
 // ============================================================================
 // API ROUTE: CUENTAS FINANCIERAS ("CAJITAS") - PRO-FINANCE
 // ============================================================================
-// RESPONSABILIDAD:
-// Gestionar las cuentas financieras del usuario autenticado.
-// Cada usuario puede tener múltiples "cajitas" con su propio balance.
-//
-// ENDPOINTS:
-// - GET  /api/accounts → Lista las cuentas del usuario
-// - POST /api/accounts → Crea una nueva cuenta con nombre personalizado
-//
-// SEGURIDAD:
-// - Requiere autenticación vía sesión
-// - Cada usuario solo ve/crea sus propias cuentas
-// ============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/utils/currency";
 import { logger } from "@/lib/logger";
+import { Prisma } from "@prisma/client";
+
+// 🔥 Tipo fuerte basado en el select que estamos usando
+type Account = Prisma.AccountGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    userId: true;
+    role: true;
+    investedCapital: true;
+    withdrawalLimitByDate: true;
+    createdAt: true;
+  };
+}>;
 
 // ============================================================================
 // GET /api/accounts — Listar cuentas del usuario autenticado
 // ============================================================================
 
-/**
- * Retorna las cuentas financieras ("cajitas") del usuario.
- * Cada cuenta incluye su balance real desde la DB.
- */
 export async function GET(req: NextRequest) {
   try {
-    // 1. Verificar autenticación
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json(
-        { error: "No autenticado" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
-    // 2. Obtener cuentas reales desde la DB
-    const accounts = await prisma.account.findMany({
+    const accounts: Account[] = await prisma.account.findMany({
       where: { userId: session.user.id },
       select: {
         id: true,
@@ -54,7 +47,6 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "asc" },
     });
 
-    // 3. Transformar Decimal de Prisma a Number para el frontend
     const serialized = accounts.map((acc) => ({
       id: acc.id,
       name: acc.name,
@@ -81,25 +73,13 @@ export async function GET(req: NextRequest) {
 // POST /api/accounts — Crear nueva cuenta ("cajita")
 // ============================================================================
 
-/**
- * Crea una nueva cuenta financiera para el usuario autenticado.
- * El nombre es definido por el usuario. El rol default es "USER".
- * Solo SUPER_ADMIN puede asignar roles diferentes (vía endpoint separado).
- *
- * Body esperado: { name: string }
- */
 export async function POST(req: NextRequest) {
   try {
-    // 1. Verificar autenticación
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json(
-        { error: "No autenticado" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
-    // 2. Parsear y validar body
     const body = await req.json();
     const name = typeof body.name === "string" ? body.name.trim() : "";
 
@@ -117,7 +97,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Verificar límite de cuentas por usuario (máximo 10)
     const existingCount = await prisma.account.count({
       where: { userId: session.user.id },
     });
@@ -129,9 +108,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3.5. Restricción de referidos: para crear una segunda cajita,
-    //      el usuario debe haber realizado al menos una inversión válida.
-    //      Esto previene la creación de cuentas fantasma antes de invertir.
     if (existingCount >= 1) {
       const hasValidInvestment = await prisma.transaction.findFirst({
         where: {
@@ -154,7 +130,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Verificar nombre duplicado para el mismo usuario
     const duplicate = await prisma.account.findFirst({
       where: {
         userId: session.user.id,
@@ -169,12 +144,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5. Crear la cuenta con balance inicial de 0
     const account = await prisma.account.create({
       data: {
         userId: session.user.id,
         name,
-        role: "USER", // Solo SUPER_ADMIN puede cambiar esto
+        role: "USER",
         investedCapital: 0,
       },
     });
@@ -183,15 +157,18 @@ export async function POST(req: NextRequest) {
       `✅ Nueva cajita creada: "${account.name}" para usuario ${session.user.id}`
     );
 
-    return NextResponse.json({
-      id: account.id,
-      name: account.name,
-      userId: account.userId,
-      role: account.role,
-      investedCapital: 0,
-      withdrawalLimitByDate: null,
-      createdAt: account.createdAt.toISOString(),
-    }, { status: 201 });
+    return NextResponse.json(
+      {
+        id: account.id,
+        name: account.name,
+        userId: account.userId,
+        role: account.role,
+        investedCapital: 0,
+        withdrawalLimitByDate: null,
+        createdAt: account.createdAt.toISOString(),
+      },
+      { status: 201 }
+    );
   } catch (error) {
     logger.error("❌ Error creando cuenta:", error);
     return NextResponse.json(
