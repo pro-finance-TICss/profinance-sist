@@ -22,7 +22,7 @@ import { prisma } from "@/lib/prisma";
 // ============================================================================
 
 /** Porcentaje de comisión aplicado sobre el monto del depósito del referido */
-const COMMISSION_PERCENTAGE = new Prisma.Decimal("0.05"); // 5%
+const COMMISSION_PERCENTAGE = 0.05;
 
 /** Caracteres permitidos para el código de referido (sin I, O, 0, 1 para evitar confusión) */
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
