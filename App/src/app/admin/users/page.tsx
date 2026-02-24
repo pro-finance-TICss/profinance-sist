@@ -1,7 +1,18 @@
 import { getUsers } from "@/lib/actions/admin";
 
+interface User {
+  id: string;
+  firstName: string;
+  paternalSurname: string;
+  email: string;
+  role: string;
+  baseCurrency?: string;
+  totpEnabled: boolean;
+  createdAt: Date;
+}
+
 export default async function UsersPage() {
-  const { users } = await getUsers();
+  const { users } = (await getUsers()) as { users: User[] };
 
   return (
     <div>
@@ -32,58 +43,22 @@ export default async function UsersPage() {
                 backgroundColor: "rgba(255,255,255,0.05)",
               }}
             >
-              <th
-                style={{
-                  padding: "16px",
-                  fontWeight: "600",
-                  fontSize: "0.9rem",
-                }}
-              >
+              <th style={{ padding: "16px", fontWeight: "600", fontSize: "0.9rem" }}>
                 Usuario
               </th>
-              <th
-                style={{
-                  padding: "16px",
-                  fontWeight: "600",
-                  fontSize: "0.9rem",
-                }}
-              >
+              <th style={{ padding: "16px", fontWeight: "600", fontSize: "0.9rem" }}>
                 Email
               </th>
-              <th
-                style={{
-                  padding: "16px",
-                  fontWeight: "600",
-                  fontSize: "0.9rem",
-                }}
-              >
+              <th style={{ padding: "16px", fontWeight: "600", fontSize: "0.9rem" }}>
                 Rol
               </th>
-              <th
-                style={{
-                  padding: "16px",
-                  fontWeight: "600",
-                  fontSize: "0.9rem",
-                }}
-              >
+              <th style={{ padding: "16px", fontWeight: "600", fontSize: "0.9rem" }}>
                 Moneda
               </th>
-              <th
-                style={{
-                  padding: "16px",
-                  fontWeight: "600",
-                  fontSize: "0.9rem",
-                }}
-              >
+              <th style={{ padding: "16px", fontWeight: "600", fontSize: "0.9rem" }}>
                 Estado 2FA
               </th>
-              <th
-                style={{
-                  padding: "16px",
-                  fontWeight: "600",
-                  fontSize: "0.9rem",
-                }}
-              >
+              <th style={{ padding: "16px", fontWeight: "600", fontSize: "0.9rem" }}>
                 Fecha Registro
               </th>
             </tr>
@@ -114,11 +89,12 @@ export default async function UsersPage() {
                         fontSize: "0.8rem",
                       }}
                     >
-                      {user.firstName[0]}
+                      {user.firstName?.[0] ?? "U"}
                     </div>
                     {user.firstName} {user.paternalSurname}
                   </div>
                 </td>
+
                 <td
                   style={{
                     padding: "16px",
@@ -128,6 +104,7 @@ export default async function UsersPage() {
                 >
                   {user.email}
                 </td>
+
                 <td style={{ padding: "16px" }}>
                   <span
                     style={{
@@ -159,9 +136,11 @@ export default async function UsersPage() {
                     {user.role}
                   </span>
                 </td>
+
                 <td style={{ padding: "16px", fontWeight: "bold", color: "#ddd" }}>
-                  {(user as any).baseCurrency || "COP"}
+                  {user.baseCurrency || "COP"}
                 </td>
+
                 <td style={{ padding: "16px" }}>
                   {user.totpEnabled ? (
                     <span style={{ color: "#4ade80", fontSize: "0.8rem" }}>
@@ -173,6 +152,7 @@ export default async function UsersPage() {
                     </span>
                   )}
                 </td>
+
                 <td
                   style={{ padding: "16px", fontSize: "0.9rem", color: "#888" }}
                 >
