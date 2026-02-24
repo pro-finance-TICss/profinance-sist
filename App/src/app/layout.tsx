@@ -1,8 +1,8 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { AccountProvider } from "@/contexts/AccountContext";
+import { AuthProvider } from "../contexts/AuthContext";
+import { AccountProvider } from "../contexts/AccountContext";
 
 export default function RootLayout({
   children,
