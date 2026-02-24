@@ -23,13 +23,14 @@ type Account = Prisma.AccountGetPayload<{
 }>;
 
 // ============================================================================
-// GET /api/accounts — Listar cuentas del usuario autenticado
+// GET /api/accounts
 // ============================================================================
 
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user) {
+
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "asc" },
     });
 
-    const serialized = accounts.map((acc) => ({
+    const serialized = accounts.map((acc: Account) => ({
       id: acc.id,
       name: acc.name,
       userId: acc.userId,
@@ -70,13 +71,14 @@ export async function GET(req: NextRequest) {
 }
 
 // ============================================================================
-// POST /api/accounts — Crear nueva cuenta ("cajita")
+// POST /api/accounts
 // ============================================================================
 
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user) {
+
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
@@ -133,7 +135,7 @@ export async function POST(req: NextRequest) {
     const duplicate = await prisma.account.findFirst({
       where: {
         userId: session.user.id,
-        name: { equals: name },
+        name: name,
       },
     });
 
