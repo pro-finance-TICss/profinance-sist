@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "asc" },
     });
 
-    const serialized = accounts.map((acc) => ({
+    const serialized = accounts.map((acc: any) => ({
       id: acc.id,
       name: acc.name,
       userId: acc.userId,
