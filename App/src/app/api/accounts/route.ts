@@ -7,20 +7,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/utils/currency";
 import { logger } from "@/lib/logger";
-import { Prisma } from "@prisma/client";
-
-// 🔥 Tipo fuerte basado en el select que estamos usando
-type Account = Prisma.AccountGetPayload<{
-  select: {
-    id: true;
-    name: true;
-    userId: true;
-    role: true;
-    investedCapital: true;
-    withdrawalLimitByDate: true;
-    createdAt: true;
-  };
-}>;
+import { Account } from "@prisma/client";
 
 // ============================================================================
 // GET /api/accounts
@@ -36,15 +23,6 @@ export async function GET(req: NextRequest) {
 
     const accounts: Account[] = await prisma.account.findMany({
       where: { userId: session.user.id },
-      select: {
-        id: true,
-        name: true,
-        userId: true,
-        role: true,
-        investedCapital: true,
-        withdrawalLimitByDate: true,
-        createdAt: true,
-      },
       orderBy: { createdAt: "asc" },
     });
 
@@ -110,32 +88,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (existingCount >= 1) {
-      const hasValidInvestment = await prisma.transaction.findFirst({
-        where: {
-          userId: session.user.id,
-          type: "DEPOSIT",
-          status: "COMPLETED",
-        },
-        select: { id: true },
-      });
-
-      if (!hasValidInvestment) {
-        return NextResponse.json(
-          {
-            error:
-              "Debes realizar tu primera inversión antes de crear más cajitas",
-            code: "FIRST_INVESTMENT_REQUIRED",
-          },
-          { status: 403 }
-        );
-      }
-    }
-
     const duplicate = await prisma.account.findFirst({
       where: {
         userId: session.user.id,
-        name: name,
+        name,
       },
     });
 
