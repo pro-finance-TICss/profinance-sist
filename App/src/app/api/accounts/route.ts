@@ -7,7 +7,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/utils/currency";
 import { logger } from "@/lib/logger";
-import { Account } from "@prisma/client";
 
 // ============================================================================
 // GET /api/accounts
@@ -21,12 +20,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
-    const accounts: Account[] = await prisma.account.findMany({
+    const accounts = await prisma.account.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "asc" },
     });
 
-    const serialized = accounts.map((acc: Account) => ({
+    const serialized = accounts.map((acc) => ({
       id: acc.id,
       name: acc.name,
       userId: acc.userId,
