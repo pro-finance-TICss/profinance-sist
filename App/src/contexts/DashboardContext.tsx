@@ -106,8 +106,22 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
 
 export function useDashboard() {
     const context = useContext(DashboardContext);
+
     if (context === undefined) {
-        throw new Error("useDashboard debe ser usado dentro de un DashboardProvider.");
+        return {
+            isMobile: false,
+            isTablet: false,
+            isDesktop: true,
+            isSidebarOpen: false,
+            openSidebar: () => {},
+            closeSidebar: () => {},
+            toggleSidebar: () => {},
+            isCollapsed: false,
+            collapseSidebar: () => {},
+            expandSidebar: () => {},
+            toggleCollapse: () => {},
+        };
     }
+
     return context;
 }
