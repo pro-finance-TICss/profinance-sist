@@ -11,4 +11,16 @@ import { useAccount } from "@/contexts/AccountContext";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { Z_INDEX } from "@/constants/zIndex";
 
-// 👇 todo tu código exactamente igual desde aquí
+export default function DashboardClientLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <DashboardProvider>
+      <CurrencyProvider>
+        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      </CurrencyProvider>
+    </DashboardProvider>
+  );
+}
