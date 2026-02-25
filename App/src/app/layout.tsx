@@ -1,18 +1,15 @@
-"use client";
+import Providers from "./providers";
 
-import { SessionProvider } from "next-auth/react";
-import { AccountProvider } from "../contexts/AccountContext";
-
-export default function Providers({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <SessionProvider>
-      <AccountProvider>
-        {children}
-      </AccountProvider>
-    </SessionProvider>
+    <html lang="es">
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
   );
 }
