@@ -258,8 +258,19 @@ export function AccountProvider({ children }: AccountProviderProps) {
 
 export function useAccount() {
     const context = useContext(AccountContext);
+
     if (context === undefined) {
-        throw new Error("useAccount debe ser usado dentro de un AccountProvider.");
+        // Evita crash durante prerender (_global-error)
+        return {
+            accounts: [],
+            activeAccount: null,
+            isLoading: false,
+            setActiveAccount: () => {},
+            clearActiveAccount: () => {},
+            createAccount: async () => null,
+            refreshAccounts: async () => {},
+        };
     }
+
     return context;
 }
