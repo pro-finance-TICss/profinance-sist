@@ -10,7 +10,9 @@ export default function Providers({
 }) {
   return (
     <SessionProvider>
-      <AccountProvider>{children}</AccountProvider>
+      <AccountProvider>
+        {children}
+      </AccountProvider>
     </SessionProvider>
   );
 }
