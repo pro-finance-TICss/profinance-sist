@@ -9,7 +9,7 @@ export default function Providers({
   children: React.ReactNode;
 }) {
   return (
-    <SessionProvider refetchOnWindowFocus={false}>
+    <SessionProvider>
       <AccountProvider>{children}</AccountProvider>
     </SessionProvider>
   );
