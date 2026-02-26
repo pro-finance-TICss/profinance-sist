@@ -1,7 +1,5 @@
 export const dynamic = "force-dynamic";
 
-import Providers from "./providers";
-
 export default function RootLayout({
   children,
 }: {
@@ -9,9 +7,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body>
-        <Providers>{children}</Providers>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
