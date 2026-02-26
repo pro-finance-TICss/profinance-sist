@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import Providers from "./providers";
 
 export default function RootLayout({
