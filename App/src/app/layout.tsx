@@ -1,3 +1,5 @@
+import Providers from "./providers"; // ajusta la ruta si es necesario
+
 export const dynamic = "force-dynamic";
 
 export default function RootLayout({
@@ -7,7 +9,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+        <Providers>
+          {children}
+        </Providers>
+      </body>
     </html>
   );
 }
