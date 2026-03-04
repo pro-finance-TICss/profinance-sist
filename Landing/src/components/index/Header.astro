@@ -3,13 +3,11 @@
 <header class="header">
   <div class="header-container">
     <a href="/#hero" class="logo-container">
-      <!-- Marcador de posición rectangular del logo -->
       <img 
         src="/logo2temp.png" 
         alt="Pro-Finance logo"
         class="logo-img"
       />
-
       <span class="brand-name text-gradient-gold">PRO-FINANCE</span>
     </a>
     
@@ -22,8 +20,8 @@
     
     <div class="auth-buttons">
       <a href="https://app.profinance.com.co" class="btn btn-primary small">
-  <span class="btn-text">INGRESAR</span>
-</a>
+        <span class="btn-text">INGRESAR</span>
+      </a>
     </div>
   </div>
 </header>
@@ -31,17 +29,17 @@
 <style>
   .header {
     position: fixed;
-    top: 20px; /* Separado del top ligeramente */
+    top: 20px;
     left: 50%;
     transform: translateX(-50%);
     width: 90%;
     max-width: 1600px;
     z-index: 100;
     
-    background: transparent; /* Transparente */
-    border: 1px solid rgba(255, 255, 255, 0.2); /* Borde sutil gris */
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 12px;
-    backdrop-filter: blur(5px); /* Opcional: efecto vidrio para legibilidad */
+    backdrop-filter: blur(5px);
   }
 
   .header-container {
@@ -59,27 +57,11 @@
   }
 
   .logo-img {
-    width: 60px;        /* ancho deseado */
-    height: auto;       /* mantiene proporción */
-    max-height: 40px;   /* límite vertical */
+    width: 60px;
+    height: auto;
+    max-height: 40px;
     object-fit: contain;
     display: block;
-  }
-
-  .logo-placeholder {
-    width: 60px; /* Ajustar según necesidad rectangular */
-    height: 40px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px dashed rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .logo-text {
-    font-size: 0.6rem;
-    color: #aaa;
   }
 
   .brand-name {
@@ -87,9 +69,8 @@
     font-size: 1.5rem;
     letter-spacing: 1px;
     text-transform: uppercase;
-    -webkit-text-fill-color: transparent; /* Safari fix */
+    -webkit-text-fill-color: transparent;
   }
-
 
   .nav-links {
     display: flex;
@@ -107,16 +88,9 @@
     gap: 1rem;
   }
 
-  /* Ajustes específicos para botones del header si es necesario */
   .small {
     padding: 0.5rem 1.2rem;
     font-size: 0.9rem;
-  }
-  
-  /* Ajuste para el botón Hazte cliente para que parezca más "outline/transparente" como en el boceto */
-  .btn-secondary {
-    border-color: rgba(255, 255, 255, 0.4);
-    border-radius: 8px; /* ¿Ligeramente cuadrado redondeado según boceto? O solo píldora */
   }
   
   .btn-primary {
