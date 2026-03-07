@@ -1,0 +1,5 @@
+{
+  "installCommand": "npm install --include=optional",
+  "buildCommand": "cd Landing && npm install --include=optional && npm run build",
+  "outputDirectory": "Landing/dist"
+}
