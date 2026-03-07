@@ -2,6 +2,9 @@
   "name": "profinance-sist",
   "private": true,
   "description": "Repositorio principal de Pro-Finance - Sistema Financiero",
+  "engines": {
+    "node": "20.x"
+  },
   "workspaces": [
     "Landing",
     "App"
