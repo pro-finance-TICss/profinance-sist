@@ -1,18 +1,35 @@
-import Providers from "./providers"; // ajusta la ruta si es necesario
+import type { Metadata } from "next";
+import "./globals.css";
+import { AuthProvider } from "@/components/security/AuthProvider";
+import { AccountProvider } from "@/contexts/AccountContext";
 
 export const dynamic = "force-dynamic";
 
+export const metadata: Metadata = {
+  title: "ProFinance - App",
+  description: "App financiera - ProFinance",
+};
+
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html lang="es">
       <body>
-        <Providers>
-          {children}
-        </Providers>
+        {/* NIVEL 1: Proveedor de autenticación con detección de inactividad */}
+        <AuthProvider>
+          {/* NIVEL 2: Proveedor de gestión de cuentas */}
+          <AccountProvider>
+            <div className="background-container">
+              <div className="bg-logo-placeholder"></div>
+            </div>
+            <div style={{ position: "relative", zIndex: 1, width: "100%" }}>
+              {children}
+            </div>
+          </AccountProvider>
+        </AuthProvider>
       </body>
     </html>
   );
