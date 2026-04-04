@@ -45,13 +45,33 @@ interface AnalyticsData {
 // HELPER FUNCTIONS
 // ============================================================================
 
+/**
+ * Formatea un valor como moneda COP de forma determinista.
+ * No usa Intl.NumberFormat con `currency` para evitar que distintos
+ * entornos (servidor/cliente, Windows/Linux) muestren "$" vs "COP".
+ */
 const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
+  const abs = Math.abs(value);
+  const formatted = abs.toLocaleString("es-CO", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value);
+  });
+  return `$ ${formatted} COP`;
+};
+
+/**
+ * Formatea valores del eje Y con sufijos K/M para mayor legibilidad.
+ * Siempre muestra "COP" como sufijo para dejar claro la divisa.
+ */
+const formatAxisTick = (value: number): string => {
+  if (value === 0) return "0";
+  if (Math.abs(value) >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (Math.abs(value) >= 1_000) {
+    return `${(value / 1_000).toFixed(0)}K`;
+  }
+  return value.toLocaleString("es-CO");
 };
 
 const formatDate = (dateStr: string, range: string): string => {
@@ -300,7 +320,7 @@ export function InvestmentChart({ role, title }: InvestmentChartProps) {
                   tickLine={false}
                   tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
                   domain={["auto", "auto"]}
-                  tickFormatter={(value) => formatCurrency(value).replace("$", "").replace(",00", "")}
+                  tickFormatter={formatAxisTick}
                 />
 
                 <Tooltip

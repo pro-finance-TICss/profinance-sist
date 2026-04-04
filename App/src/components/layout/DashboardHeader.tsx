@@ -498,7 +498,7 @@ function CurrencyDisplay() {
             fontWeight: "600",
           }}
         >
-          {currency}
+          {currentCurrency.symbol} {currency}
         </span>
       )}
     </div>

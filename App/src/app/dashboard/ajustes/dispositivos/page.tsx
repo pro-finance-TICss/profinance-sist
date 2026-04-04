@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import styles from "./dispositivos.module.css";
 import { PageHeader } from "@/components/PageHeader";
 import { logger } from "@/lib/logger";
@@ -70,8 +71,11 @@ export default function DispositivosPage() {
 
       if (data.success) {
         if (data.isCurrent) {
-          // Si cerramos nuestra propia sesión, redirigir a login
-          window.location.href = "/login";
+          // La sesión actual fue revocada en la DB.
+          // Usamos signOut() para limpiar la cookie JWT ANTES de ir al login.
+          // Si usáramos window.location.href, el JWT seguiría vigente y el
+          // useSessionValidator detectaría la sesión revocada → bucle infinito.
+          await signOut({ callbackUrl: "/login" });
           return;
         }
         setMessage({ type: "success", text: "Sesión cerrada correctamente" });
@@ -111,8 +115,10 @@ export default function DispositivosPage() {
       const data = await response.json();
 
       if (data.success) {
-        // Redirigir al login después de cerrar todas las sesiones
-        window.location.href = "/login";
+        // Igual que al revocar la sesión actual: necesitamos signOut() para
+        // limpiar la cookie JWT. window.location.href dejaría el token activo
+        // y causaría un bucle de redirección en useSessionValidator.
+        await signOut({ callbackUrl: "/login" });
       } else {
         setMessage({
           type: "error",

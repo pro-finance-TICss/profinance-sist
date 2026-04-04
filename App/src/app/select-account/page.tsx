@@ -124,7 +124,7 @@ export default function SelectAccountPage() {
                     /* Sin cuentas: mostrar formulario de creación */
                     <div className="auth-card" style={emptyCardStyle}>
                         <p style={{ color: "rgba(255, 255, 255, 0.6)", textAlign: "center", marginBottom: "1.5rem" }}>
-                            Crea tu primera cajita para comenzar a operar.
+                            Crea tu primera Cuenta de Inversión para comenzar a operar.
                         </p>
                         <CreateAccountForm
                             name={newAccountName}
@@ -241,7 +241,7 @@ export default function SelectAccountPage() {
                             >
                                 <div style={plusIconCircleStyle}>+</div>
                                 <span style={{ color: "rgba(255, 255, 255, 0.9)", fontSize: "1.1rem", fontWeight: "600" }}>
-                                    Nueva Cajita
+                                    Nueva Cuenta
                                 </span>
                                 <span style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "0.85rem" }}>
                                     Agrega una nueva cuenta de inversión
@@ -298,7 +298,7 @@ function CreateAccountForm({ name, setName, onCreate, isCreating, error, onCance
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Nombre de la cajita (ej: Ahorros, Inversiones)"
+                placeholder="Nombre de la cuenta (ej: Ahorros, Inversiones)"
                 maxLength={50}
                 style={inputStyle}
                 onKeyDown={(e) => {
@@ -320,7 +320,7 @@ function CreateAccountForm({ name, setName, onCreate, isCreating, error, onCance
                     style={{ flex: 1, opacity: isCreating || !name.trim() ? 0.5 : 1 }}
                 >
                     <span className="btn-text">
-                        {isCreating ? "Creando..." : "Crear Cajita"}
+                        {isCreating ? "Creando..." : "Crear Cuenta"}
                     </span>
                 </button>
                 {onCancel && (

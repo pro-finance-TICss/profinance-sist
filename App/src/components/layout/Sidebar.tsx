@@ -334,13 +334,13 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         </ul>
       </nav>
 
-      {/* BOTÓN CAMBIAR CAJITA */}
+      {/* BOTÓN CAMBIAR CUENTA */}
       <div style={{ padding: "0 15px", marginBottom: "8px" }}>
         <button
           onClick={() => {
             window.location.href = "/select-account?switch=true";
           }}
-          title={isCollapsed && !isMobile ? "Cambiar Cajita" : ""}
+          title={isCollapsed && !isMobile ? "Cambiar Cuenta" : ""}
           style={{
             display: "flex",
             alignItems: "center",
@@ -369,7 +369,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
           }}
         >
           <ArrowLeftRight size={20} />
-          {(!isCollapsed || isMobile) && <span>Cambiar Cajita</span>}
+          {(!isCollapsed || isMobile) && <span>Cambiar Cuenta</span>}
         </button>
       </div>
 
