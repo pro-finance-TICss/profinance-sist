@@ -10,7 +10,8 @@
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "postinstall": "prisma generate",
-    "lint": "eslint"
+    "lint": "eslint",
+    "backfill-codes": "npx ts-node prisma/seed-backfill-codes.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

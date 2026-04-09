@@ -681,31 +681,46 @@ export async function createUser(data: {
     const accountName =
       data.accountRole === "SOCIO" ? "Mi Cuenta Socio" : "Mi Cuenta";
 
-    const user = await prisma.user.create({
-      data: {
-        firstName: data.firstName,
-        paternalSurname: data.paternalSurname,
-        maternalSurname: data.maternalSurname || "",
-        email: data.email.toLowerCase().trim(),
-        password: hashedPassword,
-        role: data.role,
-        country: data.country ? data.country.toUpperCase() : null,
-        baseCurrency: data.baseCurrency.toUpperCase(),
-        totpEnabled: false,
-        mustChangePassword: true,
-        accounts: {
-          create: {
-            name: accountName,
-            role: data.accountRole,
-            investedCapital: 0,
+    // ─────────────────────────────────────────────────────────────────
+    // Crear usuario + cuenta + referralCode de forma atómica
+    // generateUniqueReferralCode requiere una Prisma.TransactionClient,
+    // por lo que envolvemos toda la creación en $transaction.
+    // ─────────────────────────────────────────────────────────────────
+    const { generateUniqueReferralCode } = await import("@/lib/services/referral.service");
+
+    const user = await prisma.$transaction(async (tx) => {
+      // 1. Generar referralCode único dentro de la transacción
+      const referralCode = await generateUniqueReferralCode(tx);
+
+      // 2. Crear usuario con su referralCode
+      return tx.user.create({
+        data: {
+          firstName: data.firstName,
+          paternalSurname: data.paternalSurname,
+          maternalSurname: data.maternalSurname || "",
+          email: data.email.toLowerCase().trim(),
+          password: hashedPassword,
+          role: data.role,
+          country: data.country ? data.country.toUpperCase() : null,
+          baseCurrency: data.baseCurrency.toUpperCase(),
+          totpEnabled: false,
+          mustChangePassword: true,
+          referralCode,
+          accounts: {
+            create: {
+              name: accountName,
+              role: data.accountRole,
+              investedCapital: 0,
+            },
           },
         },
-      },
+      });
     });
 
     await logAudit("USER_CREATED_BY_ADMIN", "User", user.id, {
       role: data.role,
       email: user.email,
+      referralCode: user.referralCode,
     });
 
     revalidatePath("/superadmin/users");

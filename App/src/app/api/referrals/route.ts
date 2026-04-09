@@ -8,6 +8,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { buildReferralLink } from "@/lib/utils/site-url";
 import { logger } from "@/lib/logger";
 
 /**
@@ -77,14 +78,9 @@ export async function GET() {
             currency: r.rewards[0]?.currency ?? null,
         }));
 
-        // 6. Construir el link de referido
-        const baseUrl =
-            process.env.NEXTAUTH_URL ||
-            process.env.NEXT_PUBLIC_APP_URL ||
-            "http://localhost:3000";
-
+        // 6. Construir el link de referido usando la URL de producción correcta
         const referralLink = user.referralCode
-            ? `${baseUrl}/register?ref=${user.referralCode}`
+            ? buildReferralLink(user.referralCode)
             : null;
 
         return NextResponse.json({
