@@ -19,6 +19,8 @@ import { logger } from "@/lib/logger";
 interface InvestmentChartProps {
   role: "USER" | "SOCIO";
   title: string;
+  /** Filtra el capital por la moneda base de los usuarios (ej. "COP", "USD") */
+  currency?: string;
 }
 
 interface ChartDataPoint {
@@ -46,17 +48,15 @@ interface AnalyticsData {
 // ============================================================================
 
 /**
- * Formatea un valor como moneda COP de forma determinista.
- * No usa Intl.NumberFormat con `currency` para evitar que distintos
- * entornos (servidor/cliente, Windows/Linux) muestren "$" vs "COP".
+ * Formatea un valor como moneda de forma determinista, usando la divisa recibida.
  */
-const formatCurrency = (value: number): string => {
+const formatCurrency = (value: number, currency = "COP"): string => {
   const abs = Math.abs(value);
   const formatted = abs.toLocaleString("es-CO", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
-  return `$ ${formatted} COP`;
+  return `$ ${formatted} ${currency}`;
 };
 
 /**
@@ -98,7 +98,7 @@ const formatDate = (dateStr: string, range: string): string => {
 // COMPONENT
 // ============================================================================
 
-export function InvestmentChart({ role, title }: InvestmentChartProps) {
+export function InvestmentChart({ role, title, currency }: InvestmentChartProps) {
   const [timeRange, setTimeRange] = useState<"1D" | "1W" | "1M">("1M");
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -110,14 +110,18 @@ export function InvestmentChart({ role, title }: InvestmentChartProps) {
 
   useEffect(() => {
     fetchData();
-  }, [role, timeRange]);
+  }, [role, timeRange, currency]);
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `/api/superadmin/analytics?role=${role}&timeRange=${timeRange}`
-      );
+      // Construir URL: si hay currency la pasamos como filtro de baseCurrency
+      const params = new URLSearchParams({
+        role,
+        timeRange,
+        ...(currency ? { currency } : {}),
+      });
+      const response = await fetch(`/api/superadmin/analytics?${params.toString()}`);
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.data) {
@@ -170,7 +174,7 @@ export function InvestmentChart({ role, title }: InvestmentChartProps) {
               margin: 0,
             }}
           >
-            {formatCurrency(point.total)}
+            {formatCurrency(point.total, currency)}
           </p>
         </div>
       );
@@ -261,7 +265,7 @@ export function InvestmentChart({ role, title }: InvestmentChartProps) {
                 fontWeight: "800",
               }}
             >
-              {isLoading ? "..." : formatCurrency(data?.currentTotal || 0)}
+              {isLoading ? "..." : formatCurrency(data?.currentTotal || 0, currency)}
             </p>
           </div>
 
@@ -416,7 +420,7 @@ export function InvestmentChart({ role, title }: InvestmentChartProps) {
                         fontWeight: "600",
                       }}
                     >
-                      {formatCurrency(month.total)}
+                      {formatCurrency(month.total, currency)}
                     </span>
                     {month.changeFromPrevious !== 0 && (
                       <div

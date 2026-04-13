@@ -45,6 +45,7 @@ export async function getUsers() {
           select: {
             id: true,
             name: true,
+            type: true,
             role: true,
             investedCapital: true,
             createdAt: true,
@@ -59,6 +60,7 @@ export async function getUsers() {
       ...user,
       accounts: user.accounts.map((acc) => ({
         ...acc,
+        type: (acc as any).type ?? "INVESTMENT",
         investedCapital: decimalToNumber(acc.investedCapital),
       })),
     }));
@@ -649,9 +651,9 @@ export async function createUser(data: {
   maternalSurname: string;
   email: string;
   password: string;
-  /** Rol global: USER o ADMIN. No se crea SOCIO a nivel de usuario desde el panel. */
-  role: "USER" | "ADMIN";
-  /** Tipo de cajita inicial que se creará automáticamente. */
+  /** Rol global: USER, ADMIN o SUPER_ADMIN. */
+  role: "USER" | "ADMIN" | "SUPER_ADMIN";
+  /** Tipo de cajita inicial de inversión que se creará (solo para USER). */
   accountRole: "USER" | "SOCIO";
   country: string;
   baseCurrency: string;
@@ -678,11 +680,15 @@ export async function createUser(data: {
     const bcrypt = await import("bcryptjs");
     const hashedPassword = await bcrypt.hash(data.password, 12);
 
-    const accountName =
-      data.accountRole === "SOCIO" ? "Mi Cuenta Socio" : "Mi Cuenta";
+    /**
+     * Nombre de la cuenta de inversión que se creará automáticamente
+     * (solo aplica si accountRole es SOCIO o USER con cuenta de inversión).
+     * Los admins y superadmins solo reciben cuenta de Ahorro.
+     */
+    const isRegularUser = data.role === "USER" || data.role === "ADMIN";
 
     // ─────────────────────────────────────────────────────────────────
-    // Crear usuario + cuenta + referralCode de forma atómica
+    // Crear usuario + cuenta(s) + referralCode de forma atómica
     // generateUniqueReferralCode requiere una Prisma.TransactionClient,
     // por lo que envolvemos toda la creación en $transaction.
     // ─────────────────────────────────────────────────────────────────
@@ -707,11 +713,30 @@ export async function createUser(data: {
           mustChangePassword: true,
           referralCode,
           accounts: {
-            create: {
-              name: accountName,
-              role: data.accountRole,
-              investedCapital: 0,
-            },
+            create: [
+              // 1ª cuenta: siempre se crea una cuenta de Ahorro (SAVINGS)
+              {
+                name: "Mi Cuenta de Ahorro",
+                type: "SAVINGS",
+                role: "USER",
+                investedCapital: 0,
+              },
+              // 2ª cuenta de Inversión: solo si es usuario regular (role USER)
+              // Los admins y superadmins solo reciben la cuenta de Ahorro.
+              ...(data.role === "USER"
+                ? [
+                    {
+                      name:
+                        data.accountRole === "SOCIO"
+                          ? "Mi Cuenta Socio"
+                          : "Mi Cuenta de Inversión",
+                      type: "INVESTMENT",
+                      role: data.accountRole,
+                      investedCapital: 0,
+                    },
+                  ]
+                : []),
+            ],
           },
         },
       });

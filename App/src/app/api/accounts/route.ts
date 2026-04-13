@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
       id: acc.id,
       name: acc.name,
       userId: acc.userId,
+      type: acc.type ?? "SAVINGS",
       role: acc.role,
       investedCapital: decimalToNumber(acc.investedCapital),
       withdrawalLimitByDate: acc.withdrawalLimitByDate
@@ -101,17 +102,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Las cuentas creadas por el usuario son de Ahorro (SAVINGS) por defecto.
+    // Las cuentas de Inversión (INVESTMENT) solo las crea el superadmin.
     const account = await prisma.account.create({
       data: {
         userId: session.user.id,
         name,
+        type: "SAVINGS",
         role: "USER",
         investedCapital: 0,
       },
     });
 
     logger.debug(
-      `✅ Nueva cajita creada: "${account.name}" para usuario ${session.user.id}`
+      `✅ Nueva cuenta de Ahorro creada: "${account.name}" para usuario ${session.user.id}`
     );
 
     return NextResponse.json(
@@ -119,6 +123,7 @@ export async function POST(req: NextRequest) {
         id: account.id,
         name: account.name,
         userId: account.userId,
+        type: account.type ?? "SAVINGS",
         role: account.role,
         investedCapital: 0,
         withdrawalLimitByDate: null,

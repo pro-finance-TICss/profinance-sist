@@ -260,6 +260,15 @@ export async function registerUser(
           totpSecret,
           totpEnabled: false,
           referralCode: newUserReferralCode,
+          // Crear cuenta de Ahorro (SAVINGS) por defecto
+          accounts: {
+            create: {
+              name: "Mi Cuenta de Ahorro",
+              type: "SAVINGS",
+              role: "USER",
+              investedCapital: 0,
+            },
+          },
         },
       });
 

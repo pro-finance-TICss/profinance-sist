@@ -154,15 +154,22 @@ function calculateMonthlyTotals(data: ChartDataPoint[]): MonthlyTotal[] {
  */
 export async function getInvestmentAnalytics(
   role: "USER" | "SOCIO",
-  timeRange: "1D" | "1W" | "1M" | "ALL" = "1M"
+  timeRange: "1D" | "1W" | "1M" | "ALL" = "1M",
+  baseCurrency?: string // Filtra por la moneda base del usuario propietario
 ): Promise<{ success: boolean; data?: AnalyticsData; message?: string }> {
   try {
     // Requiere rol SUPER_ADMIN
     await requireRole(UserRole.SUPER_ADMIN);
 
-    // 1. Obtener todas las cuentas (cajitas) con el rol especificado
+    // 1. Obtener todas las cuentas (cajitas) con el rol especificado,
+    //    opcionalmente filtradas por la moneda base del usuario propietario.
     const accounts = await prisma.account.findMany({
-      where: { role },
+      where: {
+        role,
+        ...(baseCurrency
+          ? { user: { baseCurrency: baseCurrency.toUpperCase() } }
+          : {}),
+      },
       select: {
         id: true,
         investedCapital: true,

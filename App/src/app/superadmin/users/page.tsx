@@ -32,6 +32,7 @@ import { logger } from "@/lib/logger";
 interface AccountInfo {
   id: string;
   name: string;
+  type: string; // SAVINGS | INVESTMENT
   role: string;
   investedCapital: any;
   createdAt: Date;
@@ -628,7 +629,7 @@ export default function UsersManagementPage() {
                   <th style={{ padding: "6px 10px" }}>Nombre</th>
                   <th style={{ padding: "6px 10px" }}>Email</th>
                   <th style={{ padding: "6px 10px" }}>Rol</th>
-                  <th style={{ padding: "6px 10px" }}>Cuentas</th>
+                  <th style={{ padding: "6px 10px" }}>DIVISA</th>
                   <th style={{ padding: "6px 10px" }}>2FA</th>
                   <th style={{ padding: "6px 10px" }}>Registro</th>
                   <th style={{ padding: "6px 10px", textAlign: "center" }}>Acciones</th>
@@ -651,6 +652,17 @@ export default function UsersManagementPage() {
                     const accountCount = user.accounts?.length || 0;
                     const canExpand = accountCount > 0;
                     const isUserSuperAdmin = user.role === "SUPER_ADMIN";
+
+                    // Rol efectivo: si tiene al menos 1 cuenta INVESTMENT con rol SOCIO → mostrar SOCIO
+                    const hasSocioAccount = user.accounts?.some(
+                      (acc) => acc.role === "SOCIO" && acc.type === "INVESTMENT"
+                    );
+                    const effectiveRole =
+                      user.role === "USER" && hasSocioAccount ? "SOCIO" : user.role;
+                    const effectiveRoleColors = getRoleBadgeColor(effectiveRole);
+
+                    // Badge de moneda
+                    const currencyBadge = user.baseCurrency || "—";
 
                     return (
                       <React.Fragment key={user.id}>
@@ -685,29 +697,41 @@ export default function UsersManagementPage() {
                             {user.email}
                           </td>
 
-                          {/* Role */}
+                          {/* Role — shows effective role (SOCIO if has SOCIO account) */}
                           <td style={{ padding: "12px 10px" }}>
                             <span
                               style={{
                                 padding: "3px 10px",
                                 borderRadius: "6px",
-                                background: roleColors.bg,
-                                color: roleColors.color,
-                                border: `1px solid ${roleColors.border}`,
+                                background: effectiveRoleColors.bg,
+                                color: effectiveRoleColors.color,
+                                border: `1px solid ${effectiveRoleColors.border}`,
                                 fontSize: "0.7rem",
                                 fontWeight: 700,
                                 textTransform: "uppercase",
                                 letterSpacing: "0.05em",
                               }}
                             >
-                              {user.role}
+                              {effectiveRole}
                             </span>
                           </td>
 
-                          {/* Accounts count */}
+                          {/* DIVISA (replacing Cuentas) */}
                           <td style={{ padding: "12px 10px" }}>
-                            <span style={{ color: accountCount > 0 ? "#bd8e48" : "#555", fontSize: "0.85rem", fontWeight: 600 }}>
-                              {accountCount} {accountCount === 1 ? "cuenta" : "cuentas"}
+                            <span
+                              style={{
+                                padding: "2px 9px",
+                                borderRadius: "6px",
+                                background: "rgba(189,142,72,0.1)",
+                                color: "#bd8e48",
+                                border: "1px solid rgba(189,142,72,0.25)",
+                                fontSize: "0.68rem",
+                                fontWeight: 700,
+                                letterSpacing: "0.06em",
+                                fontFamily: "monospace",
+                              }}
+                            >
+                              {currencyBadge}
                             </span>
                           </td>
 
@@ -751,22 +775,45 @@ export default function UsersManagementPage() {
                         {isExpanded &&
                           user.accounts?.map((account) => {
                             const accRoleColors = getRoleBadgeColor(account.role);
+                            const isSavings = account.type === "SAVINGS";
+                            const acctTypeColor = isSavings
+                              ? { bg: "rgba(20,184,166,0.12)", color: "#14b8a6", border: "rgba(20,184,166,0.3)" }
+                              : { bg: "rgba(168,85,247,0.12)", color: "#a855f7", border: "rgba(168,85,247,0.3)" };
                             return (
                               <tr
                                 key={account.id}
                                 style={{
-                                  background: "rgba(189,142,72,0.025)",
-                                  borderLeft: "3px solid rgba(189,142,72,0.5)",
+                                  background: isSavings
+                                    ? "rgba(20,184,166,0.025)"
+                                    : "rgba(168,85,247,0.025)",
+                                  borderLeft: `3px solid ${isSavings ? "rgba(20,184,166,0.4)" : "rgba(168,85,247,0.4)"}`,
                                 }}
                               >
                                 <td style={{ padding: "10px 10px" }} />
                                 <td colSpan={2} style={{ padding: "10px 10px 10px 20px" }}>
                                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                                    <Box size={15} style={{ color: "#bd8e48", flexShrink: 0 }} />
+                                    <Box size={15} style={{ color: isSavings ? "#14b8a6" : "#a855f7", flexShrink: 0 }} />
                                     <div>
-                                      <p style={{ margin: 0, color: "#fff", fontSize: "0.88rem", fontWeight: 500 }}>
-                                        {account.name}
-                                      </p>
+                                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px" }}>
+                                        <p style={{ margin: 0, color: "#fff", fontSize: "0.88rem", fontWeight: 500 }}>
+                                          {account.name}
+                                        </p>
+                                        <span
+                                          style={{
+                                            padding: "1px 7px",
+                                            borderRadius: "4px",
+                                            background: acctTypeColor.bg,
+                                            color: acctTypeColor.color,
+                                            border: `1px solid ${acctTypeColor.border}`,
+                                            fontSize: "0.62rem",
+                                            fontWeight: 700,
+                                            textTransform: "uppercase",
+                                            letterSpacing: "0.06em",
+                                          }}
+                                        >
+                                          {isSavings ? "Ahorro" : "Inversion"}
+                                        </span>
+                                      </div>
                                       <p style={{ margin: 0, color: "rgba(255,255,255,0.38)", fontSize: "0.74rem" }}>
                                         Capital: ${Number(account.investedCapital).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                       </p>
@@ -790,35 +837,38 @@ export default function UsersManagementPage() {
                                   </span>
                                 </td>
                                 <td colSpan={3} style={{ padding: "10px" }}>
-                                  <div style={{ display: "flex", gap: "8px" }}>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleToggleAccountRole(account.id);
-                                      }}
-                                      disabled={processingId === account.id}
-                                      style={{
-                                        padding: "5px 12px",
-                                        backgroundColor:
-                                          account.role === "USER"
-                                            ? "rgba(59,130,246,0.1)"
-                                            : "rgba(16,185,129,0.1)",
-                                        border: `1px solid ${account.role === "USER" ? "rgba(59,130,246,0.3)" : "rgba(16,185,129,0.3)"}`,
-                                        borderRadius: "6px",
-                                        color: account.role === "USER" ? "#3b82f6" : "#10b981",
-                                        cursor: processingId === account.id ? "not-allowed" : "pointer",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: "5px",
-                                        fontSize: "0.78rem",
-                                        fontWeight: 600,
-                                        opacity: processingId === account.id ? 0.5 : 1,
-                                        transition: "all 0.2s",
-                                      }}
-                                    >
-                                      <RefreshCw size={11} />
-                                      {processingId === account.id ? "..." : account.role === "USER" ? "→ SOCIO" : "→ USER"}
-                                    </button>
+                                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                                    {/* Role toggle: only for INVESTMENT accounts */}
+                                    {!isSavings && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleToggleAccountRole(account.id);
+                                        }}
+                                        disabled={processingId === account.id}
+                                        style={{
+                                          padding: "5px 12px",
+                                          backgroundColor:
+                                            account.role === "USER"
+                                              ? "rgba(59,130,246,0.1)"
+                                              : "rgba(16,185,129,0.1)",
+                                          border: `1px solid ${account.role === "USER" ? "rgba(59,130,246,0.3)" : "rgba(16,185,129,0.3)"}`,
+                                          borderRadius: "6px",
+                                          color: account.role === "USER" ? "#3b82f6" : "#10b981",
+                                          cursor: processingId === account.id ? "not-allowed" : "pointer",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "5px",
+                                          fontSize: "0.78rem",
+                                          fontWeight: 600,
+                                          opacity: processingId === account.id ? 0.5 : 1,
+                                          transition: "all 0.2s",
+                                        }}
+                                      >
+                                        <RefreshCw size={11} />
+                                        {processingId === account.id ? "..." : account.role === "USER" ? "→ SOCIO" : "→ USER"}
+                                      </button>
+                                    )}
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -861,7 +911,7 @@ export default function UsersManagementPage() {
                               colSpan={7}
                               style={{ padding: "14px 20px", color: "#555", fontStyle: "italic", fontSize: "0.83rem" }}
                             >
-                              Este usuario no tiene cuentas de inversión.
+                              Este usuario no tiene cuentas registradas.
                             </td>
                           </tr>
                         )}

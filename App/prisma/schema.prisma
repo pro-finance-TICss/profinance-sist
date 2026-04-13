@@ -157,6 +157,10 @@ model User {
 /// Cada usuario puede tener múltiples cuentas ("cajitas"), cada una con
 /// su propio balance y rol. El nombre es definido por el usuario.
 /// Solo SUPER_ADMIN puede cambiar el rol de una cuenta (USER ↔ SOCIO).
+///
+/// TIPOS DE CUENTA:
+///   SAVINGS    = Cuenta de Ahorro (default para nuevos usuarios)
+///   INVESTMENT = Cuenta de Inversión (afectada por % de rendimiento del superadmin)
 model Account {
   /// Identificador único de la cuenta
   id                  String   @id @default(cuid())
@@ -169,6 +173,11 @@ model Account {
 
   /// Nombre personalizado de la cuenta (definido por el usuario)
   name                String
+
+  /// Tipo de cuenta: SAVINGS (Ahorro) | INVESTMENT (Inversión)
+  /// - SAVINGS: cuenta de ahorro, es la default al crear un usuario
+  /// - INVESTMENT: cuenta de inversión, afectada por el % de rendimiento
+  type                String   @default("SAVINGS")
 
   /// Rol de la cuenta: USER | SOCIO
   /// Solo SUPER_ADMIN puede modificar este campo
@@ -201,6 +210,7 @@ model Account {
 
   /// Índice para búsquedas eficientes por usuario
   @@index([userId])
+  @@index([type])
   @@index([isDefaultReward])
 }
 

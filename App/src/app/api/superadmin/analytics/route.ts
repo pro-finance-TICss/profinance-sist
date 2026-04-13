@@ -11,6 +11,8 @@ export async function GET(request: NextRequest) {
       | "1W"
       | "1M"
       | "ALL";
+    // Filtro opcional por moneda base del usuario (baseCurrency)
+    const currency = searchParams.get("currency") || undefined;
 
     // Validate role
     if (!role || (role !== "USER" && role !== "SOCIO")) {
@@ -21,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get analytics data (auth check is done inside the action)
-    const result = await getInvestmentAnalytics(role, timeRange);
+    const result = await getInvestmentAnalytics(role, timeRange, currency);
 
     if (!result.success) {
       return NextResponse.json(

@@ -19,11 +19,16 @@ import { logger } from "@/lib/logger";
 /// Roles válidos para una cuenta
 export type AccountRole = "USER" | "SOCIO";
 
+/// Tipos de cuenta
+export type AccountType = "SAVINGS" | "INVESTMENT";
+
 /// Estructura de una cuenta financiera ("cajita")
 export interface Account {
     id: string;
     name: string;
     userId: string;
+    /// Tipo de cuenta: SAVINGS (Ahorro, default) | INVESTMENT (Inversión)
+    type: AccountType;
     role: AccountRole;
     investedCapital: number;
     withdrawalLimitByDate: number | null;
