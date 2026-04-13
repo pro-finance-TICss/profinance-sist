@@ -610,12 +610,12 @@ export async function getUserDeletePreview(userId: string) {
       return { success: false, message: "Usuario no encontrado" };
     }
 
-    if (user.role === "SUPER_ADMIN") {
+    /* if (user.role === "SUPER_ADMIN") {
       return {
         success: false,
         message: "No se puede eliminar a otro Super Admin.",
       };
-    }
+    } */
 
     return {
       success: true,
@@ -658,10 +658,10 @@ export async function createUser(data: {
 }) {
   await requireRole(UserRole.SUPER_ADMIN);
 
-  // Bloquear creación de SUPER_ADMIN
-  if (data.role === ("SUPER_ADMIN" as string)) {
+  // Bloquear creación de SUPER_ADMIN (opcional, ahora permitido si es superadmin)
+  /* if (data.role === ("SUPER_ADMIN" as string)) {
     return { success: false, message: "No se puede crear usuarios SUPER_ADMIN desde el panel." };
-  }
+  } */
 
   // Validaciones básicas
   if (!data.firstName || !data.paternalSurname || !data.email || !data.password) {
@@ -765,12 +765,12 @@ export async function updateUser(
     if (!existing) {
       return { success: false, message: "Usuario no encontrado." };
     }
-    if (existing.role === "SUPER_ADMIN") {
+    /* if (existing.role === "SUPER_ADMIN") {
       return { success: false, message: "No se puede editar a otro Super Admin." };
     }
     if (data.role === ("SUPER_ADMIN" as string)) {
       return { success: false, message: "No se puede asignar el rol SUPER_ADMIN desde el panel." };
-    }
+    } */
     if (!data.email.includes("@")) {
       return { success: false, message: "El formato del email no es válido." };
     }

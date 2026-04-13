@@ -14,7 +14,7 @@ const bcrypt = require("bcryptjs");
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = "superadmin@prueba.com";
+  const email = "superadmin2@prueba.com";
   const passwordRaw = "TempPass123!";
 
   console.log(`Creando/Actualizando Super Admin: ${email}`);

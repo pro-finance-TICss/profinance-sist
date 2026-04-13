@@ -75,6 +75,13 @@ const CURRENCY_OPTIONS = ["COP", "USD", "MXN", "EUR", "ARS", "PEN", "CLP"];
 // HELPERS
 // ============================================================================
 
+const splitLastNames = (full: string) => {
+  const parts = full.trim().split(/\s+/);
+  const paternal = parts[0] || "";
+  const maternal = parts.slice(1).join(" ") || "";
+  return { paternal, maternal };
+};
+
 const getRoleBadgeColor = (role: string) => {
   switch (role) {
     case "SUPER_ADMIN":
@@ -239,6 +246,8 @@ export default function UsersManagementPage() {
     accountRole: "USER" as "USER" | "SOCIO",
     country: "CO",
     baseCurrency: "COP",
+    lastNames: "",
+    isSuperAdmin: false,
   });
 
   // Edit form
@@ -249,7 +258,8 @@ export default function UsersManagementPage() {
     email: "",
     country: "",
     baseCurrency: "COP",
-    role: "USER" as "USER" | "SOCIO" | "ADMIN",
+    role: "USER" as "USER" | "SOCIO" | "ADMIN" | "SUPER_ADMIN",
+    lastNames: "",
   });
 
   // Delete preview
@@ -326,6 +336,8 @@ export default function UsersManagementPage() {
       accountRole: "USER",
       country: "CO",
       baseCurrency: "COP",
+      lastNames: "",
+      isSuperAdmin: false,
     });
     setModalMode("create");
   };
@@ -340,7 +352,8 @@ export default function UsersManagementPage() {
       email: user.email,
       country: user.country || "",
       baseCurrency: user.baseCurrency || "COP",
-      role: (user.role as "USER" | "SOCIO" | "ADMIN") || "USER",
+      role: (user.role as any) || "USER",
+      lastNames: `${user.paternalSurname} ${user.maternalSurname || ""}`.trim(),
     });
     setModalMode("edit");
   };
@@ -374,16 +387,15 @@ export default function UsersManagementPage() {
     setProcessingId("create");
     const result = await createUser({
       firstName: createForm.firstName,
-      paternalSurname: createForm.paternalSurname,
-      maternalSurname: createForm.maternalSurname,
       email: createForm.email,
       password: createForm.password,
-      role: createForm.isAdmin ? "ADMIN" : "USER",
-      // Admins siempre con cajita USER (no necesitan cajita de inversión inicial)
-      accountRole: createForm.isAdmin ? "USER" : createForm.accountRole,
+      role: createForm.isSuperAdmin ? "SUPER_ADMIN" : createForm.isAdmin ? "ADMIN" : "USER",
+      accountRole: (createForm.isAdmin || createForm.isSuperAdmin) ? "USER" : createForm.accountRole,
       country: createForm.country,
       baseCurrency: createForm.baseCurrency,
-    });
+      ...splitLastNames(createForm.lastNames),
+    } as any);
+
     setProcessingId(null);
     setFeedback({ msg: result.message || "Operación completada.", ok: result.success });
     if (result.success) {
@@ -396,7 +408,10 @@ export default function UsersManagementPage() {
     e.preventDefault();
     if (!selectedUser) return;
     setProcessingId(selectedUser.id);
-    const result = await updateUser(selectedUser.id, editForm);
+    const result = await updateUser(selectedUser.id, {
+      ...editForm,
+      ...splitLastNames(editForm.lastNames),
+    } as any);
     setProcessingId(null);
     setFeedback({ msg: result.message || "Operación completada.", ok: result.success });
     if (result.success) {
@@ -635,7 +650,7 @@ export default function UsersManagementPage() {
                     const isExpanded = expandedUsers.has(user.id);
                     const accountCount = user.accounts?.length || 0;
                     const canExpand = accountCount > 0;
-                    const isSuperAdmin = user.role === "SUPER_ADMIN";
+                    const isUserSuperAdmin = user.role === "SUPER_ADMIN";
 
                     return (
                       <React.Fragment key={user.id}>
@@ -714,24 +729,20 @@ export default function UsersManagementPage() {
                               style={{ display: "flex", gap: "6px", justifyContent: "center" }}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              {!isSuperAdmin && (
-                                <>
-                                  <ActionBtn
-                                    icon={<Pencil size={13} />}
-                                    label=""
-                                    title="Editar usuario"
-                                    color="#3b82f6"
-                                    onClick={() => openEdit(user)}
-                                  />
-                                  <ActionBtn
-                                    icon={<Trash2 size={13} />}
-                                    label=""
-                                    title="Eliminar usuario"
-                                    color="#ef4444"
-                                    onClick={() => openDelete(user)}
-                                  />
-                                </>
-                              )}
+                              <ActionBtn
+                                icon={<Pencil size={13} />}
+                                label=""
+                                title="Editar usuario"
+                                color="#3b82f6"
+                                onClick={() => openEdit(user)}
+                              />
+                              <ActionBtn
+                                icon={<Trash2 size={13} />}
+                                label=""
+                                title="Eliminar usuario"
+                                color="#ef4444"
+                                onClick={() => openDelete(user)}
+                              />
                             </div>
                           </td>
                         </tr>
@@ -881,24 +892,17 @@ export default function UsersManagementPage() {
                   required
                 />
               ))}
-              {fieldGroup("Apellido Paterno *", (
+              {fieldGroup("Apellidos *", (
                 <input
                   style={inputStyle}
-                  value={createForm.paternalSurname}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, paternalSurname: e.target.value }))}
-                  placeholder="García"
+                  value={createForm.lastNames}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, lastNames: e.target.value }))}
+                  placeholder="García López"
                   required
                 />
               ))}
             </div>
-            {fieldGroup("Apellido Materno", (
-              <input
-                style={inputStyle}
-                value={createForm.maternalSurname}
-                onChange={(e) => setCreateForm((p) => ({ ...p, maternalSurname: e.target.value }))}
-                placeholder="López"
-              />
-            ))}
+
             {fieldGroup("Correo Electrónico *", (
               <input
                 style={inputStyle}
@@ -920,6 +924,75 @@ export default function UsersManagementPage() {
               />
             ))}
 
+            {/* ── ¿Es Super Administrador? ── */}
+            <div
+              style={{
+                padding: "14px 16px",
+                background: createForm.isSuperAdmin
+                  ? "rgba(239,68,68,0.08)"
+                  : "rgba(255,255,255,0.03)",
+                border: `1px solid ${
+                  createForm.isSuperAdmin ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.08)"
+                }`,
+                borderRadius: "10px",
+                marginBottom: "12px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+              onClick={() =>
+                setCreateForm((p) => ({ 
+                  ...p, 
+                  isSuperAdmin: !p.isSuperAdmin,
+                  isAdmin: !p.isSuperAdmin ? true : p.isAdmin // Si es super admin, marcamos admin también
+                }))
+              }
+            >
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  cursor: "pointer",
+                }}
+              >
+                <div
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: "5px",
+                    border: `2px solid ${
+                      createForm.isSuperAdmin ? "#ef4444" : "rgba(255,255,255,0.2)"
+                    }`,
+                    background: createForm.isSuperAdmin ? "#ef4444" : "transparent",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {createForm.isSuperAdmin && (
+                    <span style={{ color: "#fff", fontSize: "12px", fontWeight: 700 }}>✓</span>
+                  )}
+                </div>
+                <div>
+                  <p
+                    style={{
+                      margin: 0,
+                      color: createForm.isSuperAdmin ? "#ef4444" : "#fff",
+                      fontWeight: 700,
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    Es Super Administrador (SUPER_ADMIN)
+                  </p>
+                  <p style={{ margin: "2px 0 0", color: "rgba(255,255,255,0.4)", fontSize: "0.76rem" }}>
+                    Máximo nivel de acceso. Puede gestionar otros administradores.
+                  </p>
+                </div>
+              </label>
+            </div>
+
             {/* ── ¿Es Administrador? ── */}
             <div
               style={{
@@ -932,19 +1005,21 @@ export default function UsersManagementPage() {
                 }`,
                 borderRadius: "10px",
                 marginBottom: "16px",
-                cursor: "pointer",
+                cursor: createForm.isSuperAdmin ? "not-allowed" : "pointer",
                 transition: "all 0.2s",
+                opacity: createForm.isSuperAdmin ? 0.6 : 1,
               }}
-              onClick={() =>
-                setCreateForm((p) => ({ ...p, isAdmin: !p.isAdmin }))
-              }
+              onClick={() => {
+                if (createForm.isSuperAdmin) return;
+                setCreateForm((p) => ({ ...p, isAdmin: !p.isAdmin }));
+              }}
             >
               <label
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: "12px",
-                  cursor: "pointer",
+                  cursor: createForm.isSuperAdmin ? "not-allowed" : "pointer",
                 }}
               >
                 {/* Custom checkbox */}
@@ -994,7 +1069,7 @@ export default function UsersManagementPage() {
             </div>
 
             {/* ── Tipo de cuenta inicial (solo si NO es admin) ── */}
-            {!createForm.isAdmin && (
+            {(!createForm.isAdmin && !createForm.isSuperAdmin) && (
               <div style={{ marginBottom: "16px" }}>
                 <label style={labelStyle}>Tipo de cuenta inicial *</label>
                 <div style={{ display: "flex", gap: "10px" }}>
@@ -1147,22 +1222,16 @@ export default function UsersManagementPage() {
                   required
                 />
               ))}
-              {fieldGroup("Apellido Paterno *", (
+              {fieldGroup("Apellidos *", (
                 <input
                   style={inputStyle}
-                  value={editForm.paternalSurname}
-                  onChange={(e) => setEditForm((p) => ({ ...p, paternalSurname: e.target.value }))}
+                  value={editForm.lastNames}
+                  onChange={(e) => setEditForm((p) => ({ ...p, lastNames: e.target.value }))}
                   required
                 />
               ))}
             </div>
-            {fieldGroup("Apellido Materno", (
-              <input
-                style={inputStyle}
-                value={editForm.maternalSurname}
-                onChange={(e) => setEditForm((p) => ({ ...p, maternalSurname: e.target.value }))}
-              />
-            ))}
+
             {fieldGroup("Correo Electrónico *", (
               <input
                 style={inputStyle}
@@ -1183,8 +1252,10 @@ export default function UsersManagementPage() {
                     {o.label}
                   </option>
                 ))}
+                <option value="SUPER_ADMIN" style={{ background: "#111" }}>Super Administrador (SUPER_ADMIN)</option>
               </select>
             ))}
+
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
               {fieldGroup("País (ISO, ej: CO)", (
                 <input
