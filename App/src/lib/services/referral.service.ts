@@ -5,7 +5,7 @@
 // idempotentes y seguras para ejecución concurrente.
 //
 // REGLA DE COMISIÓN:
-//   5% del monto del primer depósito COMPLETED del referido.
+//   8.1% del monto del primer depósito COMPLETED del referido.
 //   Sin tope máximo. Sin mínimo de inversión.
 //
 // IDEMPOTENCIA:
@@ -22,7 +22,7 @@ import { prisma } from "@/lib/prisma";
 // ============================================================================
 
 /** Porcentaje de comisión aplicado sobre el monto del depósito del referido */
-const COMMISSION_PERCENTAGE = 0.05;
+const COMMISSION_PERCENTAGE = 0.081;
 
 /** Caracteres permitidos para el código de referido (sin I, O, 0, 1 para evitar confusión) */
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
