@@ -59,9 +59,6 @@ const COUNTRY_CURRENCY_MAP: Record<string, string> = {
   MX: "MXN",
   US: "USD",
   ES: "EUR",
-  AR: "ARS",
-  PE: "PEN",
-  CL: "CLP",
 };
 
 const ROLE_OPTIONS = [
@@ -70,7 +67,7 @@ const ROLE_OPTIONS = [
   { value: "ADMIN", label: "Administrador (ADMIN)" },
 ];
 
-const CURRENCY_OPTIONS = ["COP", "USD", "MXN", "EUR", "ARS", "PEN", "CLP"];
+const CURRENCY_OPTIONS = ["COP", "USD", "MXN", "EUR"];
 
 // ============================================================================
 // HELPERS

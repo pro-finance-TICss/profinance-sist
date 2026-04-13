@@ -344,9 +344,6 @@ export default function RegisterPage() {
                         <option value="MX">México (MXN)</option>
                         <option value="US">Estados Unidos (USD)</option>
                         <option value="ES">España (EUR)</option>
-                        <option value="DE">Alemania (EUR)</option>
-                        <option value="Gb">Reino Unido (GBP)</option>
-                        <option value="OTRO">Otro (USD)</option>
                       </select>
                       {errors.country && (
                         <p style={{ color: "#dc3545", fontSize: "0.8rem", marginTop: "0.25rem" }}>
