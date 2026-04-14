@@ -75,9 +75,9 @@ const CURRENCY_OPTIONS = ["COP", "USD", "MXN", "EUR"];
 
 const splitLastNames = (full: string) => {
   const parts = full.trim().split(/\s+/);
-  const paternal = parts[0] || "";
-  const maternal = parts.slice(1).join(" ") || "";
-  return { paternal, maternal };
+  const paternalSurname = parts[0] || "";
+  const maternalSurname = parts.slice(1).join(" ") || "";
+  return { paternalSurname, maternalSurname };
 };
 
 const getRoleBadgeColor = (role: string) => {
@@ -383,16 +383,23 @@ export default function UsersManagementPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setProcessingId("create");
+    // Derivar rol: SUPER_ADMIN > ADMIN > accountRole (SOCIO o USER)
+    const role = createForm.isSuperAdmin
+      ? "SUPER_ADMIN"
+      : createForm.isAdmin
+      ? "ADMIN"
+      : createForm.accountRole; // USER o SOCIO según lo que eligió el admin
+
     const result = await createUser({
       firstName: createForm.firstName,
       email: createForm.email,
       password: createForm.password,
-      role: createForm.isSuperAdmin ? "SUPER_ADMIN" : createForm.isAdmin ? "ADMIN" : "USER",
+      role,
       accountRole: (createForm.isAdmin || createForm.isSuperAdmin) ? "USER" : createForm.accountRole,
       country: createForm.country,
       baseCurrency: createForm.baseCurrency,
       ...splitLastNames(createForm.lastNames),
-    } as any);
+    });
 
     setProcessingId(null);
     setFeedback({ msg: result.message || "Operación completada.", ok: result.success });

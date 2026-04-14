@@ -131,14 +131,14 @@ export async function toggleUserSocioRole(userId: string) {
       oldRole: user.role,
       newRole,
     });
-    
+
     // Revalidar rutas relevantes
     revalidatePath("/admin/users");
     revalidatePath("/superadmin");
     revalidatePath("/dashboard");
-    
-    return { 
-      success: true, 
+
+    return {
+      success: true,
       newRole,
       message: `Rol actualizado. El usuario (${user.email}) debe cerrar sesión y volver a iniciar para ver los cambios.`
     };
@@ -427,18 +427,18 @@ export async function getWithdrawals() {
       },
       bankAccount: w.bankAccount
         ? {
-            id: w.bankAccount.id,
-            holderName: w.bankAccount.holderName,
-            documentType: w.bankAccount.documentType,
-            documentNumber: w.bankAccount.documentNumber,
-            bankName: w.bankAccount.bankName,
-            accountNumberLast4: w.bankAccount.accountNumberLast4,
-            fullAccountNumber: decryptAccountNumber(
-              w.bankAccount.accountNumberEncrypted
-            ),
-            accountType: w.bankAccount.accountType,
-            country: w.bankAccount.country,
-          }
+          id: w.bankAccount.id,
+          holderName: w.bankAccount.holderName,
+          documentType: w.bankAccount.documentType,
+          documentNumber: w.bankAccount.documentNumber,
+          bankName: w.bankAccount.bankName,
+          accountNumberLast4: w.bankAccount.accountNumberLast4,
+          fullAccountNumber: decryptAccountNumber(
+            w.bankAccount.accountNumberEncrypted
+          ),
+          accountType: w.bankAccount.accountType,
+          country: w.bankAccount.country,
+        }
         : null,
     }));
 
@@ -551,11 +551,9 @@ export async function processWithdrawal(
     // Notificar al usuario
     await createNotification(
       withdrawal.userId,
-      `Retiro ${
-        newStatus === WithdrawalStatus.APPROVED ? "Aprobado" : "Rechazado"
+      `Retiro ${newStatus === WithdrawalStatus.APPROVED ? "Aprobado" : "Rechazado"
       }`,
-      `Su solicitud de retiro ha sido ${
-        newStatus === WithdrawalStatus.APPROVED ? "aprobada" : "rechazada"
+      `Su solicitud de retiro ha sido ${newStatus === WithdrawalStatus.APPROVED ? "aprobada" : "rechazada"
       }.${notes ? ` Nota: ${notes}` : ""}`,
       newStatus === WithdrawalStatus.APPROVED ? "SUCCESS" : "ERROR"
     );
@@ -640,10 +638,9 @@ export async function getUserDeletePreview(userId: string) {
 }
 
 /**
- * Crea un nuevo usuario con rol USER, SOCIO o ADMIN.
+ * Crea un nuevo usuario con rol USER, SOCIO, ADMIN o SUPER_ADMIN.
  * - Todos los usuarios se crean con mustChangePassword = true y totpEnabled = false
  * - Se crea una cajita inicial automáticamente
- * - No se puede crear usuarios SUPER_ADMIN desde este endpoint
  */
 export async function createUser(data: {
   firstName: string;
@@ -651,9 +648,12 @@ export async function createUser(data: {
   maternalSurname: string;
   email: string;
   password: string;
-  /** Rol global: USER, ADMIN o SUPER_ADMIN. */
-  role: "USER" | "ADMIN" | "SUPER_ADMIN";
-  /** Tipo de cajita inicial de inversión que se creará (solo para USER). */
+
+
+  /** Rol global del usuario: USER, SOCIO, ADMIN o SUPER_ADMIN. */
+  role: "USER" | "SOCIO" | "ADMIN" | "SUPER_ADMIN";
+  /** Tipo de cajita inicial que se creará automáticamente. */
+
   accountRole: "USER" | "SOCIO";
   country: string;
   baseCurrency: string;
@@ -725,16 +725,16 @@ export async function createUser(data: {
               // Los admins y superadmins solo reciben la cuenta de Ahorro.
               ...(data.role === "USER"
                 ? [
-                    {
-                      name:
-                        data.accountRole === "SOCIO"
-                          ? "Mi Cuenta Socio"
-                          : "Mi Cuenta de Inversión",
-                      type: "INVESTMENT",
-                      role: data.accountRole,
-                      investedCapital: 0,
-                    },
-                  ]
+                  {
+                    name:
+                      data.accountRole === "SOCIO"
+                        ? "Mi Cuenta Socio"
+                        : "Mi Cuenta de Inversión",
+                    type: "INVESTMENT",
+                    role: data.accountRole,
+                    investedCapital: 0,
+                  },
+                ]
                 : []),
             ],
           },
