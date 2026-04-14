@@ -638,10 +638,9 @@ export async function getUserDeletePreview(userId: string) {
 }
 
 /**
- * Crea un nuevo usuario con rol USER, SOCIO o ADMIN.
+ * Crea un nuevo usuario con rol USER, SOCIO, ADMIN o SUPER_ADMIN.
  * - Todos los usuarios se crean con mustChangePassword = true y totpEnabled = false
  * - Se crea una cajita inicial automáticamente
- * - No se puede crear usuarios SUPER_ADMIN desde este endpoint
  */
 export async function createUser(data: {
   firstName: string;
@@ -649,8 +648,8 @@ export async function createUser(data: {
   maternalSurname: string;
   email: string;
   password: string;
-  /** Rol global: USER o ADMIN. No se crea SOCIO a nivel de usuario desde el panel. */
-  role: "USER" | "ADMIN";
+  /** Rol global del usuario. */
+  role: "USER" | "SOCIO" | "ADMIN" | "SUPER_ADMIN";
   /** Tipo de cajita inicial que se creará automáticamente. */
   accountRole: "USER" | "SOCIO";
   country: string;
