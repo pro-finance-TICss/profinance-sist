@@ -13,6 +13,7 @@ import { ActionModal } from "../../components/dashboard/ActionModal";
 import { DepositForm } from "../../components/dashboard/DepositForm";
 import { PerformanceTable } from "../../components/dashboard/PerformanceTable";
 import { WithdrawModal } from "../../components/dashboard/billetera/WithdrawModal";
+import { InternalTransferModal } from "../../components/dashboard/billetera/InternalTransferModal";
 import { checkWithdrawalWindowStatus } from "@/lib/actions/wallet-checks";
 import { logger } from "@/lib/logger";
 
@@ -24,6 +25,8 @@ export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState({ title: "", type: "" });
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [isInternalTransferOpen, setIsInternalTransferOpen] = useState(false);
+  const [internalTransferDirection, setInternalTransferDirection] = useState<"TO_INVESTMENT" | "TO_SAVINGS">("TO_INVESTMENT");
   const [balance, setBalance] = useState(0);
   const [withdrawalWindow, setWithdrawalWindow] = useState<{
     isOpen: boolean;
@@ -57,9 +60,21 @@ export default function DashboardPage() {
   }, [activeAccount]);
 
   const handleOpenModal = (title: string, type: string) => {
+    const isInvestment = activeAccount?.type === "INVESTMENT";
     if (type === "withdraw") {
-      if (withdrawalWindow.isOpen) {
-        setIsWithdrawModalOpen(true);
+      if (isInvestment) {
+         setInternalTransferDirection("TO_SAVINGS");
+         setIsInternalTransferOpen(true);
+      } else if (withdrawalWindow.isOpen) {
+         setIsWithdrawModalOpen(true);
+      }
+    } else if (type === "deposit") {
+      if (isInvestment) {
+         setInternalTransferDirection("TO_INVESTMENT");
+         setIsInternalTransferOpen(true);
+      } else {
+         setModalConfig({ title, type });
+         setIsModalOpen(true);
       }
     } else {
       setModalConfig({ title, type });
@@ -110,6 +125,7 @@ export default function DashboardPage() {
           <QuickActions
             onActionClick={handleOpenModal}
             withdrawalWindow={withdrawalWindow}
+            isInvestment={activeAccount?.type === "INVESTMENT"}
           />
         </div>
 
@@ -137,6 +153,14 @@ export default function DashboardPage() {
         onClose={() => setIsWithdrawModalOpen(false)}
         availableBalance={balance}
         accountId={activeAccount?.id || ""}
+        onSuccess={handleWithdrawSuccess}
+      />
+
+      <InternalTransferModal
+        isOpen={isInternalTransferOpen}
+        onClose={() => setIsInternalTransferOpen(false)}
+        direction={internalTransferDirection}
+        isBlocked={!withdrawalWindow.isOpen}
         onSuccess={handleWithdrawSuccess}
       />
     </>

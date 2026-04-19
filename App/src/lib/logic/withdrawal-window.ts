@@ -6,12 +6,10 @@ export const WITHDRAWAL_END_DAY = 16;
 export const WITHDRAWAL_GLOBAL_SETTING_KEY = "withdrawals_enabled";
 
 /**
- * Verifica si la ventana de retiros está abierta actualmente.
- * Cumple dos condiciones:
- * 1. La fecha actual está dentro del rango permitido (1-16).
- * 2. La configuración global "withdrawals_enabled" es true (o no existe, defaulting to true).
+ * Verifica si las cuentas de inversión están bloqueadas.
+ * 1. La configuración global "withdrawals_enabled" es true (o no existe, defaulting to true).
  */
-export async function isWithdrawalWindowOpen(): Promise<{
+export async function isInvestmentWindowOpen(): Promise<{
   isOpen: boolean;
   reason?: string;
 }> {
@@ -26,23 +24,12 @@ export async function isWithdrawalWindowOpen(): Promise<{
     return {
       isOpen: false,
       reason:
-        "Los retiros están temporalmente deshabilitados por administración.",
+        "Las cuentas de inversión están actualmente en su periodo de bloqueo.",
     };
   }
 
-  // 2. Verificar fecha actual
-  // Usamos fecha del servidor para evitar manipulación del cliente
-  const now = new Date();
-  const day = now.getDate(); // 1-31
-
-  if (day >= WITHDRAWAL_START_DAY && day <= WITHDRAWAL_END_DAY) {
-    return { isOpen: true };
-  }
-
-  return {
-    isOpen: false,
-    reason: `Los retiros solo están habilitados del día ${WITHDRAWAL_START_DAY} al ${WITHDRAWAL_END_DAY} de cada mes.`,
-  };
+  // Si está habilitado (ON), significa que el periodo está abierto y se puede interactuar con Inversión.
+  return { isOpen: true };
 }
 
 /**

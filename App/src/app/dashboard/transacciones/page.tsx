@@ -69,7 +69,11 @@ export default function TransaccionesPage() {
       <div className="transactions-grid">
         {/* Columna 1: Solicitudes de Retiro */}
         <div>
-          <WithdrawalStatus withdrawals={withdrawals} isLoading={isLoading} />
+          <WithdrawalStatus 
+            withdrawals={withdrawals} 
+            isLoading={isLoading} 
+            onCancelSuccess={fetchData} 
+          />
         </div>
 
         {/* Columna 2: Historial de Transacciones */}

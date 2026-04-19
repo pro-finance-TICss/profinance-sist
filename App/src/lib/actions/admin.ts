@@ -259,6 +259,75 @@ export async function addCapitalToAccount(accountId: string, amount: number) {
   }
 }
 
+/**
+ * Quita saldo manualmente de una cuenta ("cajita").
+ * Solo SUPER_ADMIN puede ejecutar esta acción.
+ */
+export async function removeCapitalFromAccount(accountId: string, amount: number) {
+  try {
+    await requireRole(UserRole.SUPER_ADMIN);
+
+    if (amount <= 0) {
+      return { success: false, message: "El monto debe ser mayor a 0" };
+    }
+
+    const account = await prisma.account.findUnique({
+      where: { id: accountId },
+      include: { user: { select: { email: true } } },
+    });
+
+    if (!account) {
+      return { success: false, message: "Cuenta no encontrada" };
+    }
+
+    if (account.investedCapital < amount) {
+      return { success: false, message: "El monto a quitar excede el saldo de la cuenta" };
+    }
+
+    // Usar transacción de Prisma para asegurar consistencia
+    await prisma.$transaction(async (tx) => {
+      // 1. Actualizar balance de la cuenta
+      await tx.account.update({
+        where: { id: accountId },
+        data: { investedCapital: { decrement: amount } },
+      });
+
+      // 2. Crear registro de transacción
+      await tx.transaction.create({
+        data: {
+          userId: account.userId,
+          accountId: accountId,
+          type: "WITHDRAWAL", // Usamos WITHDRAWAL para la sustracción de retiro
+          amount: amount,
+          status: "COMPLETED",
+          paymentId: `ADMIN-REMOVE-${Date.now()}-${Math.random().toString(36).substring(7)}`, // ID único para rastreo
+        },
+      });
+
+      // 3. Log de auditoría
+      await logAudit("ADMIN_REMOVED_FUNDS", "Account", accountId, {
+        amount,
+        accountName: account.name,
+        userId: account.userId,
+      });
+    }, {
+      maxWait: 5000,
+      timeout: 20000,
+    });
+
+    revalidatePath("/superadmin/users");
+    revalidatePath("/dashboard");
+
+    return {
+      success: true,
+      message: `Se quitaron $${amount} de la cajita "${account.name}".`,
+    };
+  } catch (error) {
+    logger.error("❌ Error al quitar saldo:", error);
+    return { success: false, message: "Error al quitar saldo: " + (error instanceof Error ? error.message : "Desconocido") };
+  }
+}
+
 
 // ============================================================================
 // GESTIÓN DE TICKETS (ADMIN)
@@ -466,12 +535,128 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
       isEnabled.toString(),
       "Global withdrawal toggle controlled by Super Admin"
     );
+
+    // NUEVO LOGICA: Si se está Abriendo el periodo, procesar retiros pendientes
+    if (isEnabled) {
+      await prisma.$transaction(async (tx) => {
+        // Buscar solicitudes en cola (bankAccountId = null) desde cuentas de inversión
+        const pendingRequests = await tx.withdrawalRequest.findMany({
+          where: {
+            status: "PENDING",
+            bankAccountId: null,
+            account: {
+              type: "INVESTMENT"
+            }
+          },
+          include: {
+            account: true
+          }
+        });
+
+        for (const req of pendingRequests) {
+          // Buscar o asegurar que el usuario tenga cajita de Ahorros
+          const savingsAccount = await tx.account.findFirst({
+            where: {
+              userId: req.userId,
+              type: "SAVINGS",
+            }
+          });
+
+          if (!savingsAccount) continue; // Por seguridad
+
+          const currentInv = Number(req.account.investedCapital);
+          const requestedAmt = Number(req.amount);
+
+          // El usuario no puede sacar más del balance que actualmente tiene su cuenta (en caso de rendimiento negativo).
+          const finalExtractAmount = Math.min(requestedAmt, currentInv);
+
+          // Si por alguna razón el balance es menor o igual a cero, saltamos o sacamos 0.
+          if (finalExtractAmount <= 0) {
+            await tx.withdrawalRequest.update({
+              where: { id: req.id },
+              data: {
+                status: "REJECTED",
+                notes: "Fondos insuficientes debidos a pérdidas en el periodo",
+                processedAt: new Date(),
+              }
+            });
+            continue;
+          }
+
+          // 1. Descontar de Inversión
+          await tx.account.update({
+            where: { id: req.accountId },
+            data: { investedCapital: { decrement: finalExtractAmount } },
+          });
+
+          // 2. Sumar a Ahorros
+          await tx.account.update({
+            where: { id: savingsAccount.id },
+            data: { investedCapital: { increment: finalExtractAmount } },
+          });
+
+          // 3. Crear registros (Ledger)
+          await tx.transaction.create({
+            data: {
+              userId: req.userId,
+              accountId: req.accountId,
+              type: "WITHDRAWAL",
+              amount: finalExtractAmount,
+              status: "COMPLETED",
+            },
+          });
+
+          await tx.transaction.create({
+            data: {
+              userId: req.userId,
+              accountId: savingsAccount.id,
+              type: "DEPOSIT",
+              amount: finalExtractAmount,
+              status: "COMPLETED",
+            },
+          });
+
+          // 4. Marcar solicitud como COMPLETADA
+          await tx.withdrawalRequest.update({
+            where: { id: req.id },
+            data: {
+              amount: finalExtractAmount, // Si se ajustó, actualizamos al valor real
+              status: "COMPLETED",
+              processedAt: new Date(),
+              notes: requestedAmt > currentInv ? "Aprobado automáticamente (Ajustado por balance final topado)" : "Aprobado automáticamente al abrir periodo",
+            }
+          });
+        }
+      });
+    }
+
     await logAudit(
       "SYSTEM_SETTING_UPDATED",
       "SystemSetting",
       WITHDRAWAL_GLOBAL_SETTING_KEY,
       { isEnabled }
     );
+
+    // NUEVO LOGICA: Notificar a todos los usuarios
+    const allUsers = await prisma.user.findMany({ select: { id: true } });
+    const notificationTitle = isEnabled ? "🟢 Periodo de Inversión Abierto" : "🔒 Periodo de Inversión Iniciado (En Curso)";
+    const notificationMessage = isEnabled
+      ? "¡El periodo ha finalizado y las cuentas de inversión se han abierto! Ya puedes aportar, mover fondos y ver tus nuevos rendimientos concretados."
+      : "Se ha iniciado un nuevo bloqueo de capital. Tus fondos de inversión están operando en el mercado y las cuentas de inversión han sido congeladas temporalmente.";
+
+    // Create notifications in batch using raw prisma directly (or just execute them via map)
+    const notificationData = allUsers.map(user => ({
+      userId: user.id,
+      title: notificationTitle,
+      message: notificationMessage,
+      type: "INFO",
+      read: false
+    }));
+
+    await prisma.notification.createMany({
+      data: notificationData,
+      skipDuplicates: true
+    });
 
     // Rehabilitar rutas relevantes
     revalidatePath("/dashboard/wallet");

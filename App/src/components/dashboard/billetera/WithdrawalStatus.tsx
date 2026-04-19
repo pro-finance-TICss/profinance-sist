@@ -10,17 +10,44 @@ interface WithdrawalRequest {
   requestedAt: string;
   processedAt?: string | null;
   notes?: string | null;
+  bankAccountId?: string | null;
 }
 
 interface WithdrawalStatusProps {
   withdrawals: WithdrawalRequest[];
   isLoading?: boolean;
+  onCancelSuccess?: () => void;
 }
 
 export function WithdrawalStatus({
   withdrawals,
   isLoading,
+  onCancelSuccess,
 }: WithdrawalStatusProps) {
+  const [cancellingId, setCancellingId] = React.useState<string | null>(null);
+
+  const handleCancel = async (id: string) => {
+    if (!confirm("¿Seguro que deseas cancelar esta transferencia en cola?")) return;
+    
+    setCancellingId(id);
+    try {
+      const res = await fetch("/api/wallet/transfer-internal/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ withdrawalRequestId: id })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (onCancelSuccess) onCancelSuccess();
+      } else {
+        alert(data.error || "Error al cancelar");
+      }
+    } catch (error) {
+      alert("Error de red");
+    } finally {
+      setCancellingId(null);
+    }
+  };
   if (isLoading) {
     return (
       <div
@@ -186,6 +213,29 @@ export function WithdrawalStatus({
 
                 {getStatusBadge(withdrawal.status)}
               </div>
+
+              {/* Botón de Cancelar si es de Inversión y está en cola */}
+              {withdrawal.status === "PENDING" && withdrawal.bankAccountId === null && (
+                <button
+                  onClick={() => handleCancel(withdrawal.id)}
+                  disabled={cancellingId === withdrawal.id}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    marginTop: "12px",
+                    borderRadius: "8px",
+                    border: "1px solid rgba(244, 67, 54, 0.4)",
+                    background: "rgba(244, 67, 54, 0.1)",
+                    color: "#f87171",
+                    fontWeight: "600",
+                    cursor: cancellingId === withdrawal.id ? "wait" : "pointer",
+                    transition: "all 0.2s",
+                    opacity: cancellingId === withdrawal.id ? 0.5 : 1,
+                  }}
+                >
+                  {cancellingId === withdrawal.id ? "Cancelando..." : "Cancelar Pase a Ahorros"}
+                </button>
+              )}
 
               {withdrawal.processedAt && (
                 <p

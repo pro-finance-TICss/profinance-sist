@@ -6,6 +6,7 @@ import {
   getPerformancesByTarget,
   createPerformance,
   deletePerformance,
+  finalizePerformance,
 } from "@/lib/actions/performance";
 import * as Flags from "country-flag-icons/react/3x2";
 import { logger } from "@/lib/logger";
@@ -15,8 +16,10 @@ interface Performance {
   currency1: string;
   currency2: string;
   type: string;
-  percentage: number;
-  date: Date;
+  percentage?: number | null;
+  startDate: Date;
+  endDate?: Date | null;
+  status: string;
   targetRole: string;
 }
 
@@ -36,13 +39,24 @@ export default function PerformancePage() {
   const [performances, setPerformances] = useState<Performance[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  
+  const [finalizeId, setFinalizeId] = useState<string | null>(null);
+  const [finalizeData, setFinalizeData] = useState({
+    endDate: new Date().toISOString().split("T")[0],
+    percentage: 0,
+  });
+
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   // Form state
   const [formData, setFormData] = useState({
     currency1: "USD",
     currency2: "EUR",
     type: "COMPRA",
-    percentage: 0,
+    startDate: new Date().toISOString().split("T")[0],
   });
 
   useEffect(() => {
@@ -56,7 +70,8 @@ export default function PerformancePage() {
       setPerformances(
         data.map((p: any) => ({
           ...p,
-          date: new Date(p.date),
+          startDate: new Date(p.startDate),
+          endDate: p.endDate ? new Date(p.endDate) : null,
         }))
       );
     } catch (error) {
@@ -68,8 +83,14 @@ export default function PerformancePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const dateVal = new Date(formData.startDate);
+      dateVal.setHours(12, 0, 0, 0); // avoid strict timezone shifts
+      
       await createPerformance({
-        ...formData,
+        currency1: formData.currency1,
+        currency2: formData.currency2,
+        type: formData.type,
+        startDate: dateVal,
         targetRole: activeTab,
       });
       setShowForm(false);
@@ -77,12 +98,32 @@ export default function PerformancePage() {
         currency1: "USD",
         currency2: "EUR",
         type: "COMPRA",
-        percentage: 0,
+        startDate: new Date().toISOString().split("T")[0],
       });
       loadPerformances();
     } catch (error) {
       logger.error("Error creating performance:", error);
       alert("Error al crear el registro de rendimiento");
+    }
+  };
+
+  const handleFinalize = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!finalizeId) return;
+    try {
+      const dateVal = new Date(finalizeData.endDate);
+      dateVal.setHours(12, 0, 0, 0); // avoid strict timezone shifts
+
+      const result = await finalizePerformance(finalizeId, dateVal, finalizeData.percentage);
+      if (result.success) {
+        setFinalizeId(null);
+        loadPerformances();
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      logger.error("Error finalizing:", error);
+      alert("Error al finalizar rendimiento");
     }
   };
 
@@ -106,38 +147,27 @@ export default function PerformancePage() {
     ) : null;
   };
 
-  // Calculate total percentage for current tab
-  const totalPercentage = performances.reduce(
-    (sum, item) => sum + item.percentage,
+  const filteredPerformances = performances.filter((item) => {
+    // Filter by the selected month using startDate
+    const yyyyMm = `${item.startDate.getFullYear()}-${String(item.startDate.getMonth() + 1).padStart(2, '0')}`;
+    return yyyyMm === selectedMonth;
+  });
+
+  // Calculate total percentage for current filtered items
+  const totalPercentage = filteredPerformances.reduce(
+    (sum, item) => sum + (item.percentage || 0),
     0
   );
 
-  // Get current month date range (15th to 15th)
-  const getMonthRange = () => {
-    const now = new Date();
-    const currentDay = now.getDate();
-
-    let startDate, endDate;
-
-    if (currentDay >= 15) {
-      // From 15th of current month to 15th of next month
-      startDate = new Date(now.getFullYear(), now.getMonth(), 15);
-      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 15);
-    } else {
-      // From 15th of previous month to 15th of current month
-      startDate = new Date(now.getFullYear(), now.getMonth() - 1, 15);
-      endDate = new Date(now.getFullYear(), now.getMonth(), 15);
-    }
-
-    const formatDate = (date: Date) => {
-      const day = date.getDate().toString().padStart(2, "0");
-      const month = (date.getMonth() + 1).toString().padStart(2, "0");
-      const year = date.getFullYear();
-      return `${day}/${month}/${year}`;
-    };
-
-    return `${formatDate(startDate)} - ${formatDate(endDate)}`;
-  };
+  // Month options (last 12 months for example)
+  const monthOptions = [];
+  const currD = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(currD.getFullYear(), currD.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = d.toLocaleDateString("es-ES", { month: "long", year: "numeric" }).toUpperCase();
+    monthOptions.push({ value: val, label });
+  }
 
   return (
     <div>
@@ -227,6 +257,26 @@ export default function PerformancePage() {
         >
           Tabla SOCIO
         </button>
+
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            style={{
+              padding: "10px",
+              backgroundColor: "#111",
+              border: "1px solid rgba(189, 142, 72, 0.3)",
+              borderRadius: "8px",
+              color: "#fff",
+              fontSize: "0.9rem",
+            }}
+          >
+            <option value="all">Ver Todos</option>
+            {monthOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Form */}
@@ -374,19 +424,12 @@ export default function PerformancePage() {
                     fontSize: "0.9rem",
                   }}
                 >
-                  Porcentaje (%)
+                  Fecha de Inicio
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  value={formData.percentage || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setFormData({
-                      ...formData,
-                      percentage: value === "" ? 0 : parseFloat(value),
-                    });
-                  }}
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                   style={{
                     width: "100%",
                     padding: "10px",
@@ -455,7 +498,7 @@ export default function PerformancePage() {
               marginBottom: "8px",
             }}
           >
-            Rendimiento del mes ({getMonthRange()}) - {activeTab}
+            Historial de Operaciones
           </h3>
           <div
             style={{
@@ -511,28 +554,30 @@ export default function PerformancePage() {
                   <th style={{ padding: "8px" }}>Par</th>
                   <th style={{ padding: "8px" }}>Divisa 1</th>
                   <th style={{ padding: "8px" }}>Divisa 2</th>
-                  <th style={{ padding: "8px" }}>Tipo</th>
-                  <th style={{ padding: "8px" }}>%</th>
-                  <th style={{ padding: "8px" }}>Fecha</th>
-                  <th style={{ padding: "8px" }}>Acciones</th>
+                  <th style={{ padding: "8px", textAlign: "center" }}>Tipo</th>
+                  <th style={{ padding: "8px", textAlign: "center" }}>Inicio</th>
+                  <th style={{ padding: "8px", textAlign: "center" }}>Término</th>
+                  <th style={{ padding: "8px", textAlign: "center" }}>Estado</th>
+                  <th style={{ padding: "8px", textAlign: "center" }}>%</th>
+                  <th style={{ padding: "8px", textAlign: "center" }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {performances.length === 0 ? (
+                {filteredPerformances.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       style={{
                         textAlign: "center",
                         padding: "40px",
                         color: "#666",
                       }}
                     >
-                      No hay registros. Crea uno nuevo para comenzar.
+                      No hay registros en este periodo. Crea uno nuevo para comenzar.
                     </td>
                   </tr>
                 ) : (
-                  performances.map((item) => (
+                  filteredPerformances.map((item) => (
                     <tr
                       key={item.id}
                       style={{
@@ -557,7 +602,7 @@ export default function PerformancePage() {
                       <td style={{ padding: "12px", color: "white" }}>
                         {item.currency2}
                       </td>
-                      <td style={{ padding: "12px" }}>
+                      <td style={{ padding: "12px", textAlign: "center" }}>
                         <span
                           style={{
                             padding: "4px 8px",
@@ -575,48 +620,89 @@ export default function PerformancePage() {
                       <td
                         style={{
                           padding: "12px",
-                          fontWeight: "bold",
-                          color: item.percentage >= 0 ? "#10b981" : "#ef4444",
-                        }}
-                      >
-                        {item.percentage > 0 ? "+" : ""}
-                        {item.percentage}%
-                      </td>
-                      <td
-                        style={{
-                          padding: "12px",
+                          textAlign: "center",
                           color: "rgba(255,255,255,0.6)",
                           fontSize: "0.85rem",
                         }}
                       >
-                        {item.date.toLocaleDateString()}
+                        {item.startDate.toLocaleDateString()}
+                      </td>
+                      <td
+                        style={{
+                          padding: "12px",
+                          textAlign: "center",
+                          color: "rgba(255,255,255,0.6)",
+                          fontSize: "0.85rem",
+                        }}
+                      >
+                        {item.endDate ? item.endDate.toLocaleDateString() : "—"}
+                      </td>
+                      <td style={{ padding: "12px", textAlign: "center" }}>
+                        {item.status === 'PENDING' ? (
+                          <span style={{ 
+                            color: '#eab308', background: 'rgba(234, 179, 8, 0.15)', 
+                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' 
+                          }}>En Espera</span>
+                        ) : (
+                          <span style={{ 
+                            color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', 
+                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' 
+                          }}>Concretado</span>
+                        )}
+                      </td>
+                      <td
+                        style={{
+                          padding: "12px",
+                          textAlign: "center",
+                          fontWeight: "bold",
+                          color: item.status === 'COMPLETED' ? (item.percentage! >= 0 ? "#10b981" : "#ef4444") : "rgba(255,255,255,0.3)",
+                        }}
+                      >
+                        {item.status === 'COMPLETED' ? (
+                          <>{item.percentage! > 0 ? "+" : ""}{item.percentage}%</>
+                        ) : "-"}
                       </td>
                       <td style={{ padding: "12px" }}>
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          style={{
-                            padding: "8px",
-                            backgroundColor: "rgba(239, 68, 68, 0.1)",
-                            border: "1px solid rgba(239, 68, 68, 0.3)",
-                            borderRadius: "6px",
-                            color: "#ef4444",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            transition: "all 0.3s",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor =
-                              "rgba(239, 68, 68, 0.2)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor =
-                              "rgba(239, 68, 68, 0.1)";
-                          }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          {item.status === 'PENDING' && (
+                            <>
+                              <button
+                                onClick={() => setFinalizeId(item.id)}
+                                style={{
+                                  padding: "6px 12px",
+                                  backgroundColor: "rgba(16, 185, 129, 0.1)",
+                                  border: "1px solid rgba(16, 185, 129, 0.3)",
+                                  borderRadius: "6px",
+                                  color: "#10b981",
+                                  cursor: "pointer",
+                                  fontSize: "0.8rem",
+                                  fontWeight: "bold",
+                                  transition: "all 0.3s",
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(16, 185, 129, 0.2)"}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "rgba(16, 185, 129, 0.1)"}
+                              >
+                                Finalizar
+                              </button>
+                              <button
+                                onClick={() => handleDelete(item.id)}
+                                style={{
+                                  padding: "6px 8px",
+                                  backgroundColor: "rgba(239, 68, 68, 0.1)",
+                                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                                  borderRadius: "6px",
+                                  color: "#ef4444",
+                                  cursor: "pointer",
+                                  transition: "all 0.3s",
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.2)"}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.1)"}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -626,6 +712,54 @@ export default function PerformancePage() {
           </div>
         )}
       </div>
+
+      {finalizeId && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000
+        }}>
+          <div style={{
+            background: "#0d0d0d", borderRadius: "16px", padding: "30px", width: "100%", maxWidth: "420px",
+            border: "1px solid rgba(189, 142, 72, 0.3)"
+          }}>
+            <h3 style={{ color: "#bd8e48", margin: "0 0 20px 0" }}>Finalizar Rendimiento</h3>
+
+            <div style={{ padding: "12px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", marginBottom: "20px" }}>
+              <p style={{ margin: 0, color: "#ef4444", fontSize: "0.85rem", lineHeight: 1.5 }}>
+                <strong>ATENCIÓN:</strong> Al concretar se calculará capital compuesto directo sobre las cuentas afectadas. Su uso es sumamente cuidadoso e irreversible.
+              </p>
+            </div>
+
+            <form onSubmit={handleFinalize}>
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", color: "rgba(255,255,255,0.7)", marginBottom: "8px" }}>Fecha de Término</label>
+                <input
+                  type="date"
+                  value={finalizeData.endDate}
+                  onChange={e => setFinalizeData({ ...finalizeData, endDate: e.target.value })}
+                  style={{ width: "100%", padding: "10px", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(189,142,72,0.3)", borderRadius: "8px", color: "#fff" }}
+                  required
+                />
+              </div>
+              <div style={{ marginBottom: "24px" }}>
+                <label style={{ display: "block", color: "rgba(255,255,255,0.7)", marginBottom: "8px" }}>Porcentaje Compuesto (%)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={finalizeData.percentage || ""}
+                  onChange={e => setFinalizeData({ ...finalizeData, percentage: e.target.value === "" ? 0 : parseFloat(e.target.value) })}
+                  style={{ width: "100%", padding: "10px", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(189,142,72,0.3)", borderRadius: "8px", color: "#fff" }}
+                  required
+                />
+              </div>
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <button type="button" onClick={() => setFinalizeId(null)} style={{ padding: "10px 20px", background: "transparent", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "8px", color: "#fff", cursor: "pointer" }}>Cancelar</button>
+                <button type="submit" style={{ padding: "10px 20px", background: "#10b981", border: "none", borderRadius: "8px", color: "#fff", fontWeight: "bold", cursor: "pointer" }}>Concretar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

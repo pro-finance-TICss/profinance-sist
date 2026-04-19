@@ -53,12 +53,12 @@ export function GlobalWithdrawalToggle({
           }}
         >
           <Power size={20} color={isEnabled ? "#34d399" : "#f87171"} />
-          Control Global de Retiros
+          Control de Periodo de Inversión
         </h3>
-        <p style={{ color: "#888", margin: 0, fontSize: "0.9rem" }}>
+        <p style={{ color: "#888", margin: 0, fontSize: "0.9rem", lineHeight: "1.5" }}>
           {isEnabled
-            ? "Los retiros están habilitados (sujetos a la fecha límite mensual)."
-            : "Los retiros están completamente deshabilitados para todos los usuarios."}
+            ? "El periodo está ABIERTO. Las transferencias entre ahorros e inversión operan linealmente."
+            : "Periodo BLOQUEADO. No se admiten nuevos fondos, los retiros a ahorros se ponen en cola hasta que se abra."}
         </p>
       </div>
 
@@ -78,7 +78,7 @@ export function GlobalWithdrawalToggle({
           transition: "all 0.2s",
         }}
       >
-        {isEnabled ? "Deshabilitar Retiros" : "Habilitar Retiros"}
+        {isEnabled ? "Cerrar Periodo de Inversión (Bloquear)" : "Abrir Periodo y Procesar Colas"}
       </button>
     </div>
   );

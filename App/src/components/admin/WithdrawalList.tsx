@@ -277,51 +277,55 @@ export function WithdrawalList({
                 )}
 
                 {/* Estado */}
-                <div
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: "20px",
-                    backgroundColor:
-                      req.status === "PENDING"
-                        ? "#333"
-                        : req.status === "APPROVED"
-                        ? "#064e3b"
-                        : "#450a0a",
-                    color:
-                      req.status === "PENDING"
-                        ? "#fff"
-                        : req.status === "APPROVED"
-                        ? "#34d399"
-                        : "#f87171",
-                    fontSize: "0.9rem",
-                    fontWeight: "bold",
-                  }}
-                >
-                  {req.status}
-                </div>
+                {(!(!req.bankAccount && req.status === "PENDING")) && (
+                  <div
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: "20px",
+                      backgroundColor:
+                        req.status === "PENDING"
+                          ? "#333"
+                          : req.status === "APPROVED"
+                          ? "#064e3b"
+                          : "#450a0a",
+                      color:
+                        req.status === "PENDING"
+                          ? "#fff"
+                          : req.status === "APPROVED"
+                          ? "#34d399"
+                          : "#f87171",
+                      fontSize: "0.9rem",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {req.status}
+                  </div>
+                )}
 
                 {/* Acciones */}
                 {(req.status === "PENDING" || req.status === "REVIEWED") && (
                   <div style={{ display: "flex", gap: "10px" }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAction(req.id, WithdrawalStatus.APPROVED);
-                      }}
-                      disabled={processing === req.id}
-                      style={{
-                        padding: "10px",
-                        borderRadius: "8px",
-                        background: "#059669",
-                        border: "none",
-                        color: "white",
-                        cursor: "pointer",
-                        display: "flex",
-                        gap: "5px",
-                      }}
-                    >
-                      <Check size={18} /> Aprobar
-                    </button>
+                    {req.bankAccount && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAction(req.id, WithdrawalStatus.APPROVED);
+                        }}
+                        disabled={processing === req.id}
+                        style={{
+                          padding: "10px",
+                          borderRadius: "8px",
+                          background: "#059669",
+                          border: "none",
+                          color: "white",
+                          cursor: "pointer",
+                          display: "flex",
+                          gap: "5px",
+                        }}
+                      >
+                        <Check size={18} /> Aprobar
+                      </button>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

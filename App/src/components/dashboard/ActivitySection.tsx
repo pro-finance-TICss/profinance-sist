@@ -10,6 +10,9 @@ interface Transaction {
   amount: number;
   status: string;
   createdAt: string;
+  account?: {
+    type: string;
+  };
 }
 
 export function ActivitySection() {
@@ -87,7 +90,10 @@ export function ActivitySection() {
     });
   };
 
-  const getAmountColor = (type: string) => {
+  const getAmountColor = (type: string, amount: number) => {
+    if (type === "PROFIT") {
+      return amount >= 0 ? "#4caf50" : "#ef4444";
+    }
     return type === "DEPOSIT" || type === "REFUND" ? "#4caf50" : "#fff";
   };
 
@@ -220,9 +226,17 @@ export function ActivitySection() {
                       color: "#fff",
                       fontSize: "0.9rem",
                       fontWeight: "500",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px"
                     }}
                   >
                     {getTypeText(tx.type)}
+                    {tx.account?.type && (
+                      <span style={{ fontSize: "0.65rem", padding: "2px 6px", borderRadius: "10px", background: "rgba(189, 142, 72, 0.15)", color: "#bd8e48", textTransform: "uppercase" }}>
+                        {tx.account.type === "SAVINGS" ? "Ahorros" : "Inversión"}
+                      </span>
+                    )}
                   </span>
                   <span
                     style={{
@@ -243,15 +257,21 @@ export function ActivitySection() {
                 >
                   <span
                     style={{
-                      color: getAmountColor(tx.type),
+                      color: getAmountColor(tx.type, tx.amount),
                       fontSize: "0.95rem",
                       fontWeight: "700",
                     }}
                   >
                     {tx.type === "DEPOSIT" || tx.type === "REFUND"
                       ? "+"
+                      : tx.type === "PROFIT"
+                      ? tx.amount > 0
+                        ? "+"
+                        : "-" // Negative profit gets a minus sign
                       : "-"}
-                    {formatAmount(tx.amount, false)}
+                    {tx.type === "PROFIT" && tx.amount < 0 
+                      ? formatAmount(Math.abs(tx.amount), false) // Handle the negative amount formatting safely
+                      : formatAmount(tx.amount, false)}
                   </span>
                   <span
                     style={{

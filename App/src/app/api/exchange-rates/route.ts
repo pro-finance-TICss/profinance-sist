@@ -39,7 +39,7 @@ export async function GET() {
     // Usar ExchangeRate-API v6 (gratis, 1500 requests/mes, actualizado diariamente)
     // Esta API usa datos del ECB y otros bancos centrales
     const response = await fetch(
-      `https://v6.exchangerate-api.com/v6/latest/USD`,
+      `https://open.er-api.com/v6/latest/USD`,
       {
         headers: {
           'Accept': 'application/json',

@@ -576,8 +576,11 @@ model Performance {
   currency1 String
   currency2 String
   type      String   // COMPRA | VENTA
-  percentage Decimal
-  date      DateTime @default(now())
+  percentage Decimal?
+  
+  startDate DateTime @default(now())
+  endDate   DateTime?
+  status    String   @default("PENDING")
 
   // Target audience role (USER or SOCIO)
   targetRole String // USER | SOCIO
@@ -586,7 +589,8 @@ model Performance {
   updatedAt DateTime @updatedAt
   
   @@index([targetRole])
-  @@index([date])
+  @@index([startDate])
+  @@index([status])
 }
 
 // ============================================================================

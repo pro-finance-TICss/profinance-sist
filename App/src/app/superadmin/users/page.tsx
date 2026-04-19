@@ -13,11 +13,13 @@ import {
   Pencil,
   Trash2,
   AlertTriangle,
+  MinusCircle,
 } from "lucide-react";
 import {
   getUsers,
   toggleAccountRole,
   addCapitalToAccount,
+  removeCapitalFromAccount,
   createUser,
   updateUser,
   deleteUser,
@@ -52,7 +54,7 @@ interface UserRow {
   accounts?: AccountInfo[];
 }
 
-type ModalMode = "create" | "edit" | "delete" | "deposit" | null;
+type ModalMode = "create" | "edit" | "delete" | "deposit" | "withdraw" | null;
 
 const COUNTRY_CURRENCY_MAP: Record<string, string> = {
   CO: "COP",
@@ -269,6 +271,11 @@ export default function UsersManagementPage() {
   const [depositAmount, setDepositAmount] = useState("");
   const [depositing, setDepositing] = useState(false);
 
+  // Withdraw
+  const [withdrawConfig, setWithdrawConfig] = useState<{ accountId: string; accountName: string } | null>(null);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawing, setWithdrawing] = useState(false);
+
   // ── Feedback auto-dismiss ──
   useEffect(() => {
     if (!feedback) return;
@@ -320,6 +327,8 @@ export default function UsersManagementPage() {
     setDeletePreview(null);
     setDepositConfig(null);
     setDepositAmount("");
+    setWithdrawConfig(null);
+    setWithdrawAmount("");
   };
 
   // ── OPEN CREATE ──
@@ -376,6 +385,13 @@ export default function UsersManagementPage() {
     setDepositConfig({ accountId, accountName });
     setDepositAmount("");
     setModalMode("deposit");
+  };
+
+  // ── OPEN WITHDRAW ──
+  const openWithdraw = (accountId: string, accountName: string) => {
+    setWithdrawConfig({ accountId, accountName });
+    setWithdrawAmount("");
+    setModalMode("withdraw");
   };
 
   // ── HANDLERS ──
@@ -460,6 +476,26 @@ export default function UsersManagementPage() {
     setProcessingId(depositConfig.accountId);
     const result = await addCapitalToAccount(depositConfig.accountId, amount);
     setDepositing(false);
+    setProcessingId(null);
+    setFeedback({ msg: result.message || "Operación completada.", ok: result.success });
+    if (result.success) {
+      closeModal();
+      loadUsers();
+    }
+  };
+
+  const handleWithdrawSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!withdrawConfig || !withdrawAmount) return;
+    const amount = parseFloat(withdrawAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setFeedback({ msg: "Por favor ingrese un monto válido mayor a 0.", ok: false });
+      return;
+    }
+    setWithdrawing(true);
+    setProcessingId(withdrawConfig.accountId);
+    const result = await removeCapitalFromAccount(withdrawConfig.accountId, amount);
+    setWithdrawing(false);
     setProcessingId(null);
     setFeedback({ msg: result.message || "Operación completada.", ok: result.success });
     if (result.success) {
@@ -896,7 +932,32 @@ export default function UsersManagementPage() {
                                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "rgba(234,179,8,0.1)")}
                                     >
                                       <PlusCircle size={11} />
-                                      Saldo
+                                      SALDO
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openWithdraw(account.id, account.name);
+                                      }}
+                                      style={{
+                                        padding: "5px 12px",
+                                        backgroundColor: "rgba(234,179,8,0.1)",
+                                        border: "1px solid rgba(234,179,8,0.3)",
+                                        borderRadius: "6px",
+                                        color: "#eab308",
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "5px",
+                                        fontSize: "0.78rem",
+                                        fontWeight: 600,
+                                        transition: "all 0.2s",
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(234,179,8,0.2)")}
+                                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "rgba(234,179,8,0.1)")}
+                                    >
+                                      <MinusCircle size={11} />
+                                      - SALDO
                                     </button>
                                   </div>
                                 </td>
@@ -1633,6 +1694,79 @@ export default function UsersManagementPage() {
                 }}
               >
                 {depositing ? "Procesando..." : "Confirmar Depósito"}
+              </button>
+            </div>
+          </form>
+        </ModalOverlay>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          MODAL: QUITAR SALDO
+      ══════════════════════════════════════════════ */}
+      {modalMode === "withdraw" && withdrawConfig && (
+        <ModalOverlay onClose={withdrawing ? () => {} : closeModal} width={420}>
+          <ModalHeader title="- Quitar Saldo" onClose={withdrawing ? () => {} : closeModal} />
+          <form onSubmit={handleWithdrawSubmit}>
+            {fieldGroup("Cuenta Destino", (
+              <div
+                style={{
+                  padding: "10px 12px",
+                  backgroundColor: "rgba(255,255,255,0.05)",
+                  borderRadius: "8px",
+                  color: "#fff",
+                  fontSize: "0.9rem",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                }}
+              >
+                {withdrawConfig.accountName}
+              </div>
+            ))}
+            {fieldGroup("Monto a Quitar ($) *", (
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+                placeholder="0.00"
+                style={inputStyle}
+                autoFocus
+                required
+              />
+            ))}
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={closeModal}
+                disabled={withdrawing}
+                style={{
+                  padding: "10px 20px",
+                  background: "transparent",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  color: "#aaa",
+                  borderRadius: "8px",
+                  cursor: withdrawing ? "not-allowed" : "pointer",
+                  fontWeight: 600,
+                  fontSize: "0.88rem",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={withdrawing}
+                style={{
+                  padding: "10px 24px",
+                  background: withdrawing ? "rgba(234,179,8,0.4)" : "linear-gradient(135deg, #eab308, #ca8a04)",
+                  border: "none",
+                  color: "#000",
+                  borderRadius: "8px",
+                  cursor: withdrawing ? "not-allowed" : "pointer",
+                  fontWeight: 700,
+                  fontSize: "0.88rem",
+                }}
+              >
+                {withdrawing ? "Procesando..." : "Confirmar Retiro"}
               </button>
             </div>
           </form>
