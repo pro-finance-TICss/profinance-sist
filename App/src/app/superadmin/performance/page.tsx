@@ -160,7 +160,7 @@ export default function PerformancePage() {
   );
 
   // Month options (last 12 months for example)
-  const monthOptions = [];
+  const monthOptions: { value: string; label: string }[] = [];
   const currD = new Date();
   for (let i = 0; i < 12; i++) {
     const d = new Date(currD.getFullYear(), currD.getMonth() - i, 1);
