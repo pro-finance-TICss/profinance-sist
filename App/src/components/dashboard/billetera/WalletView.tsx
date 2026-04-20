@@ -21,6 +21,7 @@ interface BalanceData {
 
 interface WithdrawalRequest {
   id: string;
+  accountId?: string;
   amount: number;
   status: string;
   requestedAt: string;
