@@ -37,25 +37,25 @@ export async function getDashboardPerformances(accountRole?: string) {
   if (!session?.user) return [];
 
   // Priorizar el rol de la cajita activa sobre el rol global del usuario
-  let targetRole = "USER";
+  let targetRoles = ["USER"];
 
   if (accountRole === "SOCIO" || (!accountRole && session.user.role === UserRole.SOCIO)) {
-    targetRole = "SOCIO";
+    targetRoles = ["USER", "SOCIO"];
   }
 
   const perfs = await prisma.performance.findMany({
     where: { 
-      targetRole,
+      targetRole: { in: targetRoles },
       status: "COMPLETED"
     },
     orderBy: { startDate: "desc" },
     take: 50,
   });
 
-  // Convertir Prisma Decimal a número para serialización segura en el cliente
+  // Convertir Prisma Decimal a número para serialización segura en el cliente (dividir entre 2 para la vista de usuario)
   return perfs.map(p => ({
     ...p,
-    percentage: p.percentage ? p.percentage.toNumber() : 0,
+    percentage: p.percentage ? p.percentage.toNumber() / 2 : 0,
   }));
 }
 
@@ -141,19 +141,25 @@ export async function finalizePerformance(id: string, endDate: Date, percentage:
         },
       });
 
-      // 2. Obtener todas las cuentas INVESTMENT afectadas dependiendo del rol objetivo (USER o SOCIO)
+      // 2. Obtener todas las cuentas INVESTMENT afectadas. 
+      // Si el target es USER, aplicamos a USER y a SOCIO. Si es SOCIO, solo a SOCIO.
+      const rolesToAffect = performance.targetRole === "USER" ? ["USER", "SOCIO"] : ["SOCIO"];
+
       const accounts = await tx.account.findMany({
         where: {
           type: "INVESTMENT",
-          role: performance.targetRole,
+          role: { in: rolesToAffect },
         },
       });
 
       // 3. Iterar y aplicar el rendimiento a cada cuenta
+      // Los usuarios (y socios) reciben y se les refleja solo la MITAD del porcentaje total
+      const userPercentage = percentage / 2;
+
       for (const account of accounts) {
         const currentBalance = Number(account.investedCapital);
         // Profit calculation: 
-        const profit = currentBalance * (percentage / 100);
+        const profit = currentBalance * (userPercentage / 100);
         
         await tx.account.update({
           where: { id: account.id },
