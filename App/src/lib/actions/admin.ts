@@ -280,7 +280,7 @@ export async function removeCapitalFromAccount(accountId: string, amount: number
       return { success: false, message: "Cuenta no encontrada" };
     }
 
-    if (account.investedCapital < amount) {
+    if (Number(account.investedCapital) < amount) {
       return { success: false, message: "El monto a quitar excede el saldo de la cuenta" };
     }
 
@@ -564,7 +564,7 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
 
           if (!savingsAccount) continue; // Por seguridad
 
-          const currentInv = Number(req.account.investedCapital);
+          const currentInv = Number(req.account!.investedCapital);
           const requestedAmt = Number(req.amount);
 
           // El usuario no puede sacar más del balance que actualmente tiene su cuenta (en caso de rendimiento negativo).
@@ -585,7 +585,7 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
 
           // 1. Descontar de Inversión
           await tx.account.update({
-            where: { id: req.accountId },
+            where: { id: req.accountId ?? undefined },
             data: { investedCapital: { decrement: finalExtractAmount } },
           });
 
