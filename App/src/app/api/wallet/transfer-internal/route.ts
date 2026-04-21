@@ -23,17 +23,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Dirección de transferencia inválida" }, { status: 400 });
     }
 
-    // Checking block status
+    // Verificar estado del periodo de inversión
     const status = await isInvestmentWindowOpen();
 
     return await prisma.$transaction(async (tx) => {
-      // Get User Accounts
+      // Siempre buscar la cuenta de Ahorros única del usuario
       const savingsAccount = await tx.account.findFirst({
         where: { userId: session.user.id, type: "SAVINGS" },
       });
-      const investmentAccount = await tx.account.findFirst({
-        where: { userId: session.user.id, type: "INVESTMENT" },
-      });
+
+      // Si el cliente envía un accountId (cuenta de inversión activa), usarlo.
+      // Esto permite soportar múltiples cuentas de inversión por usuario.
+      const { accountId: activeAccountId } = body;
+      let investmentAccount: any = null;
+
+      if (activeAccountId && typeof activeAccountId === "string") {
+        investmentAccount = await tx.account.findFirst({
+          where: { userId: session.user.id, type: "INVESTMENT", id: activeAccountId },
+        });
+      }
+
+      // Fallback: tomar la primera cuenta de inversión (compatibilidad con cuentas legacy)
+      if (!investmentAccount) {
+        investmentAccount = await tx.account.findFirst({
+          where: { userId: session.user.id, type: "INVESTMENT" },
+        });
+      }
 
       if (!savingsAccount || !investmentAccount) {
         throw new Error("COULD_NOT_FIND_ACCOUNTS");
@@ -47,7 +62,7 @@ export async function POST(req: NextRequest) {
         const currentSavings = decimalToNumber(savingsAccount.investedCapital);
         if (amount > currentSavings) throw new Error("INSUFFICIENT_FUNDS_SAVINGS");
 
-        // Action: Deduct from Savings, Add to Investment
+        // Descontar de Ahorros → sumar a Inversión
         await tx.account.update({
           where: { id: savingsAccount.id },
           data: { investedCapital: { decrement: amount } },
@@ -57,7 +72,7 @@ export async function POST(req: NextRequest) {
           data: { investedCapital: { increment: amount } },
         });
 
-        // Ledgers
+        // Registro de transacciones (Ledger)
         await tx.transaction.create({
           data: {
             userId: session.user.id,
@@ -87,14 +102,14 @@ export async function POST(req: NextRequest) {
         if (amount > currentInvestment) throw new Error("INSUFFICIENT_FUNDS_INVESTMENT");
 
         if (!status.isOpen) {
-          // Blocked: Queue it as WithdrawalRequest
+          // Bloqueado: poner en cola como WithdrawalRequest
           await tx.withdrawalRequest.create({
             data: {
               userId: session.user.id,
               accountId: investmentAccount.id,
               amount,
               status: "PENDING",
-              bankAccountId: null, // Indicates Internal Transfer
+              bankAccountId: null, // Indica transferencia interna
               notes: "En cola para pase a Ahorros",
             },
           });
@@ -105,7 +120,7 @@ export async function POST(req: NextRequest) {
             message: "Periodo bloqueado: Tu solicitud ha sido puesta en cola.",
           });
         } else {
-          // Unblocked: Process instant transfer
+          // Desbloqueado: transferencia instantánea
           await tx.account.update({
             where: { id: investmentAccount.id },
             data: { investedCapital: { decrement: amount } },
@@ -115,7 +130,7 @@ export async function POST(req: NextRequest) {
             data: { investedCapital: { increment: amount } },
           });
 
-          // Ledgers
+          // Registro de transacciones (Ledger)
           await tx.transaction.create({
             data: {
               userId: session.user.id,
@@ -146,11 +161,11 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     logger.error("❌ Error en transferencia interna:", error);
     const message = error.message;
-    if (message === "COULD_NOT_FIND_ACCOUNTS") return NextResponse.json({ error: "Cuentas no encontradas" }, { status: 404 });
+    if (message === "COULD_NOT_FIND_ACCOUNTS") return NextResponse.json({ error: "Cuentas no encontradas. Asegúrate de tener al menos una cuenta de inversión." }, { status: 404 });
     if (message === "INVESTMENT_BLOCKED") return NextResponse.json({ error: "El periodo de Inversión está cerrado. No se puede ingresar capital nuevo." }, { status: 403 });
     if (message === "INSUFFICIENT_FUNDS_SAVINGS") return NextResponse.json({ error: "Fondos insuficientes en la cuenta de Ahorros" }, { status: 400 });
     if (message === "INSUFFICIENT_FUNDS_INVESTMENT") return NextResponse.json({ error: "Fondos insuficientes en la cuenta de Inversión" }, { status: 400 });
-    
+
     return NextResponse.json({ error: "Error al procesar solicitud" }, { status: 500 });
   }
 }

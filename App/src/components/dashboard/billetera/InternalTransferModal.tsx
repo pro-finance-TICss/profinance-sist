@@ -19,18 +19,31 @@ export function InternalTransferModal({
   isBlocked,
   onSuccess,
 }: InternalTransferModalProps) {
-  const { accounts } = useAccount();
+  const { accounts, activeAccount } = useAccount();
   const [sourceBalance, setSourceBalance] = useState(0);
   const [amount, setAmount] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Obtener la cuenta de inversión correcta:
+  // Si el activeAccount es INVESTMENT, usarla para la transferencia.
+  // Si no, tomar la primera INVESTMENT del listado (fallback).
+  const investmentAcc = activeAccount?.type === "INVESTMENT"
+    ? activeAccount
+    : accounts.find(a => a.type === "INVESTMENT");
+
   // Fetch true balance on open
   useEffect(() => {
     if (isOpen) {
       const sourceAccType = direction === "TO_INVESTMENT" ? "SAVINGS" : "INVESTMENT";
-      const sourceAcc = accounts.find(a => a.type === sourceAccType);
+      let sourceAcc;
+      if (sourceAccType === "INVESTMENT") {
+        // Usar la cuenta de inversión activa
+        sourceAcc = investmentAcc;
+      } else {
+        sourceAcc = accounts.find(a => a.type === "SAVINGS");
+      }
       if (sourceAcc) {
           fetch(`/api/wallet/balance?accountId=${sourceAcc.id}`)
              .then(res => res.json())
@@ -42,7 +55,7 @@ export function InternalTransferModal({
       setSuccessMsg(null);
       setError(null);
     }
-  }, [isOpen, direction, accounts]);
+  }, [isOpen, direction, accounts, investmentAcc]);
 
   if (!isOpen) return null;
 
@@ -61,6 +74,9 @@ export function InternalTransferModal({
     setError(null);
     setSuccessMsg(null);
 
+    // Enviar el ID de la cuenta de inversión activa para soportar múltiples cajitas
+    const investmentAccId = investmentAcc?.id;
+
     try {
       const res = await fetch("/api/wallet/transfer-internal", {
         method: "POST",
@@ -68,6 +84,8 @@ export function InternalTransferModal({
         body: JSON.stringify({
           amount: numAmount,
           direction,
+          // ID de la cuenta de inversión activa (soporta múltiples cajitas de inversión)
+          accountId: investmentAccId,
         }),
       });
 

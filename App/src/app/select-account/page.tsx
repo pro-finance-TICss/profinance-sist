@@ -123,9 +123,9 @@ export default function SelectAccountPage() {
                 {accounts.length === 0 ? (
                     /* Sin cuentas: mostrar formulario de creación */
                     <div className="auth-card" style={emptyCardStyle}>
-                        <p style={{ color: "rgba(255, 255, 255, 0.6)", textAlign: "center", marginBottom: "1.5rem" }}>
-                            Crea tu primera Cuenta de Inversión para comenzar a operar.
-                        </p>
+                    <p style={{ color: "rgba(255, 255, 255, 0.6)", textAlign: "center", marginBottom: "1.5rem" }}>
+                        Tu cuenta de Ahorros ya está activa. Ponle nombre a tu primera Cuenta de Inversión para comenzar a operar.
+                    </p>
                         <CreateAccountForm
                             name={newAccountName}
                             setName={setNewAccountName}
@@ -153,10 +153,10 @@ export default function SelectAccountPage() {
                                             <div style={{
                                                 padding: "8px",
                                                 borderRadius: "10px",
-                                                backgroundColor: isSocio ? "rgba(59, 130, 246, 0.1)" : "rgba(16, 185, 129, 0.1)",
-                                                color: isSocio ? "#3b82f6" : "#10b981",
+                                                backgroundColor: account.type === "SAVINGS" ? "rgba(189, 142, 72, 0.1)" : isSocio ? "rgba(59, 130, 246, 0.1)" : "rgba(16, 185, 129, 0.1)",
+                                                color: account.type === "SAVINGS" ? "#bd8e48" : isSocio ? "#3b82f6" : "#10b981",
                                             }}>
-                                                {isSocio ? <Briefcase size={20} /> : <Wallet size={20} />}
+                                                {account.type === "SAVINGS" ? <Wallet size={20} /> : isSocio ? <Briefcase size={20} /> : <TrendingUp size={20} />}
                                             </div>
                                             <div>
                                                 <h3 style={{ fontSize: "1.1rem", color: "var(--color-white)", margin: 0, fontWeight: 600 }}>
@@ -175,11 +175,11 @@ export default function SelectAccountPage() {
                                             fontSize: "0.7rem", 
                                             fontWeight: "bold",
                                             textTransform: "uppercase",
-                                            backgroundColor: isSocio ? "rgba(59, 130, 246, 0.2)" : "rgba(189, 142, 72, 0.2)",
-                                            color: isSocio ? "#60a5fa" : "#bd8e48",
-                                            border: `1px solid ${isSocio ? "rgba(59, 130, 246, 0.3)" : "rgba(189, 142, 72, 0.3)"}`
+                                            backgroundColor: account.type === "SAVINGS" ? "rgba(189, 142, 72, 0.2)" : isSocio ? "rgba(59, 130, 246, 0.2)" : "rgba(16, 185, 129, 0.2)",
+                                            color: account.type === "SAVINGS" ? "#bd8e48" : isSocio ? "#60a5fa" : "#10b981",
+                                            border: `1px solid ${account.type === "SAVINGS" ? "rgba(189, 142, 72, 0.3)" : isSocio ? "rgba(59, 130, 246, 0.3)" : "rgba(16, 185, 129, 0.3)"}`
                                         }}>
-                                            {isSocio ? "SOCIO" : "USUARIO"}
+                                            {account.type === "SAVINGS" ? "AHORROS" : isSocio ? "SOCIO" : "INVERSIÓN"}
                                         </span>
                                     </div>
 
@@ -241,10 +241,10 @@ export default function SelectAccountPage() {
                             >
                                 <div style={plusIconCircleStyle}>+</div>
                                 <span style={{ color: "rgba(255, 255, 255, 0.9)", fontSize: "1.1rem", fontWeight: "600" }}>
-                                    Nueva Cuenta
+                                    Nueva Cuenta de Inversión
                                 </span>
                                 <span style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "0.85rem" }}>
-                                    Agrega una nueva cuenta de inversión
+                                    Los fondos se mueven desde tu Cuenta de Ahorros
                                 </span>
                             </button>
                         ) : (

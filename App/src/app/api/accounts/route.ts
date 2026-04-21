@@ -77,13 +77,51 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existingCount = await prisma.account.count({
-      where: { userId: session.user.id },
+    // Verificar si ya existe una cuenta de Ahorros (solo puede haber 1 por usuario)
+    const existingSavings = await prisma.account.findFirst({
+      where: { userId: session.user.id, type: "SAVINGS" },
     });
 
-    if (existingCount >= 10) {
+    if (!existingSavings) {
+      // Esta situación no debería ocurrir (el usuario nace con 1 cuenta de Ahorros),
+      // pero por seguridad lo manejamos creando la cuenta de Ahorros.
+      const account = await prisma.account.create({
+        data: {
+          userId: session.user.id,
+          name,
+          type: "SAVINGS",
+          role: "USER",
+          investedCapital: 0,
+        },
+      });
+
+      logger.debug(
+        `✅ Nueva cuenta de Ahorro creada: "${account.name}" para usuario ${session.user.id}`
+      );
+
       return NextResponse.json(
-        { error: "Has alcanzado el límite máximo de 10 cuentas" },
+        {
+          id: account.id,
+          name: account.name,
+          userId: account.userId,
+          type: account.type ?? "SAVINGS",
+          role: account.role,
+          investedCapital: 0,
+          withdrawalLimitByDate: null,
+          createdAt: account.createdAt.toISOString(),
+        },
+        { status: 201 }
+      );
+    }
+
+    // El usuario ya tiene cuenta de Ahorros → la nueva cuenta es de INVERSIÓN
+    const existingInvestmentCount = await prisma.account.count({
+      where: { userId: session.user.id, type: "INVESTMENT" },
+    });
+
+    if (existingInvestmentCount >= 9) {
+      return NextResponse.json(
+        { error: "Has alcanzado el límite máximo de 9 cuentas de inversión" },
         { status: 400 }
       );
     }
@@ -102,20 +140,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Las cuentas creadas por el usuario son de Ahorro (SAVINGS) por defecto.
-    // Las cuentas de Inversión (INVESTMENT) solo las crea el superadmin.
+    // Nueva cuenta → siempre es de Inversión (INVESTMENT)
     const account = await prisma.account.create({
       data: {
         userId: session.user.id,
         name,
-        type: "SAVINGS",
+        type: "INVESTMENT",
         role: "USER",
         investedCapital: 0,
       },
     });
 
     logger.debug(
-      `✅ Nueva cuenta de Ahorro creada: "${account.name}" para usuario ${session.user.id}`
+      `✅ Nueva cuenta de Inversión creada: "${account.name}" para usuario ${session.user.id}`
     );
 
     return NextResponse.json(
@@ -123,7 +160,7 @@ export async function POST(req: NextRequest) {
         id: account.id,
         name: account.name,
         userId: account.userId,
-        type: account.type ?? "SAVINGS",
+        type: account.type ?? "INVESTMENT",
         role: account.role,
         investedCapital: 0,
         withdrawalLimitByDate: null,

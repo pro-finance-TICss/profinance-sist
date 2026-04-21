@@ -1030,8 +1030,11 @@ export async function deleteUser(userId: string) {
     if (!user) {
       return { success: false, message: "Usuario no encontrado." };
     }
-    if (user.role === "SUPER_ADMIN") {
-      return { success: false, message: "No se puede eliminar a otro Super Admin." };
+
+    // Obtener la sesión del superadmin que ejecuta la acción
+    const session = await auth();
+    if (session?.user?.id === userId) {
+      return { success: false, message: "No puedes eliminarte a ti mismo." };
     }
 
     // Guardar info para el audit log antes de eliminar
@@ -1049,5 +1052,69 @@ export async function deleteUser(userId: string) {
   } catch (error) {
     logger.error("❌ Error al eliminar usuario:", error);
     return { success: false, message: "Error al eliminar el usuario." };
+  }
+}
+
+/**
+ * Elimina una cuenta ("cajita") específica de un usuario.
+ * Solo SUPER_ADMIN puede ejecutar esta acción.
+ * No permite eliminar si es la única cuenta SAVINGS del usuario.
+ */
+export async function deleteAccount(accountId: string) {
+  await requireRole(UserRole.SUPER_ADMIN);
+
+  try {
+    const account = await prisma.account.findUnique({
+      where: { id: accountId },
+      include: {
+        user: { select: { email: true, id: true } },
+        _count: { select: { transactions: true } },
+      },
+    });
+
+    if (!account) {
+      return { success: false, message: "Cuenta no encontrada." };
+    }
+
+    // No permitir eliminar cuentas con capital invertido
+    if (Number(account.investedCapital) > 0) {
+      return {
+        success: false,
+        message: `La cuenta "${account.name}" tiene capital ($${Number(account.investedCapital).toFixed(2)}). Retíralo antes de eliminarla.`,
+      };
+    }
+
+    // Eliminar la cuenta (las transacciones asociadas se mantienen por historial)
+    await prisma.$transaction(async (tx) => {
+      // Desvincular transacciones (poner accountId = null) para no romper historial
+      await tx.transaction.updateMany({
+        where: { accountId },
+        data: { accountId: null },
+      });
+
+      // Desvincular retiros pendientes
+      await tx.withdrawalRequest.updateMany({
+        where: { accountId, status: { in: ["PENDING"] } },
+        data: { accountId: null },
+      });
+
+      // Eliminar la cuenta
+      await tx.account.delete({ where: { id: accountId } });
+    });
+
+    await logAudit("ACCOUNT_DELETED_BY_ADMIN", "Account", accountId, {
+      accountName: account.name,
+      userId: account.userId,
+      userEmail: account.user.email,
+    });
+
+    revalidatePath("/superadmin/users");
+    return {
+      success: true,
+      message: `Cuenta "${account.name}" eliminada exitosamente.`,
+    };
+  } catch (error) {
+    logger.error("❌ Error al eliminar cuenta:", error);
+    return { success: false, message: "Error al eliminar la cuenta." };
   }
 }

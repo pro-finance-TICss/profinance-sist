@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -23,6 +23,7 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  deleteAccount,
   getUserDeletePreview,
 } from "@/lib/actions/admin";
 import { logger } from "@/lib/logger";
@@ -460,6 +461,20 @@ export default function UsersManagementPage() {
     } catch (error) {
       logger.error("Error toggling account role:", error);
       setFeedback({ msg: "Error al cambiar el rol de la cajita.", ok: false });
+    }
+    setProcessingId(null);
+  };
+
+  const handleDeleteAccount = async (accountId: string, accountName: string) => {
+    if (!window.confirm(`¿Eliminar la cuenta "${accountName}"? Esta acción es irreversible.`)) return;
+    setProcessingId(accountId);
+    try {
+      const result = await deleteAccount(accountId);
+      setFeedback({ msg: result.message || "Cuenta eliminada.", ok: result.success });
+      if (result.success) loadUsers();
+    } catch (error) {
+      logger.error("Error deleting account:", error);
+      setFeedback({ msg: "Error al eliminar la cuenta.", ok: false });
     }
     setProcessingId(null);
   };
@@ -958,6 +973,35 @@ export default function UsersManagementPage() {
                                     >
                                       <MinusCircle size={11} />
                                       - SALDO
+                                    </button>
+                                    {/* Eliminar cuenta */}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteAccount(account.id, account.name);
+                                      }}
+                                      disabled={processingId === account.id}
+                                      title={Number(account.investedCapital) > 0 ? "Primero retira el capital" : "Eliminar esta cuenta"}
+                                      style={{
+                                        padding: "5px 12px",
+                                        backgroundColor: "rgba(239,68,68,0.1)",
+                                        border: "1px solid rgba(239,68,68,0.3)",
+                                        borderRadius: "6px",
+                                        color: "#ef4444",
+                                        cursor: processingId === account.id ? "not-allowed" : "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "5px",
+                                        fontSize: "0.78rem",
+                                        fontWeight: 600,
+                                        opacity: processingId === account.id ? 0.5 : 1,
+                                        transition: "all 0.2s",
+                                      }}
+                                      onMouseEnter={(e) => { if (processingId !== account.id) e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.2)"; }}
+                                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.1)")}
+                                    >
+                                      <Trash2 size={11} />
+                                      {processingId === account.id ? "..." : "BORRAR"}
                                     </button>
                                   </div>
                                 </td>

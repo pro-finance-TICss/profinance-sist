@@ -83,8 +83,9 @@ export default function PerformancePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const dateVal = new Date(formData.startDate);
-      dateVal.setHours(12, 0, 0, 0); // avoid strict timezone shifts
+      // split the string to avoid UTC-parsing which shifts the date in local timezone
+      const [year, month, day] = formData.startDate.split("-").map(Number);
+      const dateVal = new Date(year, month - 1, day, 12, 0, 0, 0);
       
       await createPerformance({
         currency1: formData.currency1,
@@ -111,8 +112,9 @@ export default function PerformancePage() {
     e.preventDefault();
     if (!finalizeId) return;
     try {
-      const dateVal = new Date(finalizeData.endDate);
-      dateVal.setHours(12, 0, 0, 0); // avoid strict timezone shifts
+      // split the string to avoid UTC-parsing which shifts the date in local timezone
+      const [year, month, day] = finalizeData.endDate.split("-").map(Number);
+      const dateVal = new Date(year, month - 1, day, 12, 0, 0, 0);
 
       const result = await finalizePerformance(finalizeId, dateVal, finalizeData.percentage);
       if (result.success) {
@@ -625,7 +627,7 @@ export default function PerformancePage() {
                           fontSize: "0.85rem",
                         }}
                       >
-                        {item.startDate.toLocaleDateString()}
+                        {item.startDate.toLocaleDateString("es-ES")}
                       </td>
                       <td
                         style={{
@@ -635,7 +637,7 @@ export default function PerformancePage() {
                           fontSize: "0.85rem",
                         }}
                       >
-                        {item.endDate ? item.endDate.toLocaleDateString() : "—"}
+                        {item.endDate ? item.endDate.toLocaleDateString("es-ES") : "—"}
                       </td>
                       <td style={{ padding: "12px", textAlign: "center" }}>
                         {item.status === 'PENDING' ? (
