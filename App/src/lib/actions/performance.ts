@@ -29,22 +29,38 @@ export interface CreatePerformanceInput {
 
 /**
  * Obtiene los registros de rendimiento para el dashboard del usuario actual.
- * Si se pasa accountRole, se usa ese rol; si no, se usa el rol global del usuario.
- * Los usuarios/cuentas USER ven registros USER; los SOCIO ven registros SOCIO.
+ *
+ * FASE PRE-1 — Unificación de roles:
+ * `accountRole` se mantiene en la firma por compatibilidad con callers existentes
+ * (PerformanceTable.tsx lo pasa) pero se IGNORA deliberadamente.
+ * La fuente de verdad es SIEMPRE `session.user.role` (user.role en DB).
+ *
+ * Los usuarios USER ven registros USER.
+ * Los usuarios SOCIO ven registros USER + SOCIO (acumulativo).
  */
 export async function getDashboardPerformances(accountRole?: string) {
   const session = await auth();
   if (!session?.user) return [];
 
-  // Priorizar el rol de la cajita activa sobre el rol global del usuario
+  // ── FUENTE ÚNICA DE VERDAD: session.user.role ──────────────────────────────
+  // accountRole se recibe pero no se usa para decisiones financieras.
+  // Si hay discrepancia entre accountRole y user.role, logueamos una advertencia
+  // para detectar cuentas desincronizadas sin interrumpir el flujo.
+  if (accountRole && accountRole !== session.user.role) {
+    console.warn(
+      `[ROLE SYNC WARNING] getDashboardPerformances — accountRole ("${accountRole}") !== user.role ("${session.user.role}") para userId: ${session.user.id}. Usando user.role como fuente de verdad.`
+    );
+  }
+
+  const userRole = session.user.role; // única fuente de verdad
   let targetRoles = ["USER"];
 
-  if (accountRole === "SOCIO" || (!accountRole && session.user.role === UserRole.SOCIO)) {
+  if (userRole === UserRole.SOCIO) {
     targetRoles = ["USER", "SOCIO"];
   }
 
   const perfs = await prisma.performance.findMany({
-    where: { 
+    where: {
       targetRole: { in: targetRoles },
       status: "COMPLETED"
     },
@@ -52,7 +68,8 @@ export async function getDashboardPerformances(accountRole?: string) {
     take: 50,
   });
 
-  // Convertir Prisma Decimal a número para serialización segura en el cliente (dividir entre 2 para la vista de usuario)
+  // Convertir Prisma Decimal a número para serialización segura en el cliente
+  // El porcentaje se divide entre 2 (el usuario ve la mitad del rendimiento real del admin)
   return perfs.map(p => ({
     ...p,
     percentage: p.percentage ? p.percentage.toNumber() / 2 : 0,
@@ -141,16 +158,36 @@ export async function finalizePerformance(id: string, endDate: Date, percentage:
         },
       });
 
-      // 2. Obtener todas las cuentas INVESTMENT afectadas. 
-      // Si el target es USER, aplicamos a USER y a SOCIO. Si es SOCIO, solo a SOCIO.
+      // 2. Obtener todas las cuentas INVESTMENT afectadas.
+      // FASE PRE-1 — Unificación de roles:
+      // La selección se hace por user.role (fuente de verdad), NO por account.role.
+      // Si el target es USER → afecta a USER y SOCIO.
+      // Si el target es SOCIO → afecta solo a SOCIO.
       const rolesToAffect = performance.targetRole === "USER" ? ["USER", "SOCIO"] : ["SOCIO"];
 
       const accounts = await tx.account.findMany({
         where: {
           type: "INVESTMENT",
-          role: { in: rolesToAffect },
+          // Filtrar por el rol del USUARIO propietario, no por el rol de la cuenta
+          user: {
+            role: { in: rolesToAffect },
+          },
+        },
+        include: {
+          // Incluir user para poder detectar desincronizaciones en logs
+          user: { select: { id: true, role: true } },
         },
       });
+
+      // Detectar y loguear cuentas con account.role desincronizado respecto a user.role
+      // (NO lanza error — solo advierte para monitoreo)
+      for (const account of accounts) {
+        if (account.role !== account.user.role) {
+          console.warn(
+            `[ROLE SYNC WARNING] finalizePerformance — account.role ("${account.role}") !== user.role ("${account.user.role}") | accountId: ${account.id}, userId: ${account.userId}. Se usa user.role para el cálculo.`
+          );
+        }
+      }
 
       // 3. Iterar y aplicar el rendimiento a cada cuenta
       // Los usuarios (y socios) reciben y se les refleja solo la MITAD del porcentaje total

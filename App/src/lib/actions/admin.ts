@@ -75,6 +75,7 @@ export async function getUsers() {
 /**
  * Actualiza el rol de un usuario.
  * Solo SUPER_ADMIN puede promover roles críticos.
+ * FASE PRE-1: Sincroniza automáticamente `account.role` con el nuevo `user.role`.
  */
 export async function updateUserRole(userId: string, newRole: string) {
   // Solo SuperAdmin debería poder promover roles críticos
@@ -85,6 +86,15 @@ export async function updateUserRole(userId: string, newRole: string) {
       where: { id: userId },
       data: { role: newRole },
     });
+
+    // Sincronizar account.role si el nuevo rol es USER o SOCIO
+    if (newRole === "USER" || newRole === "SOCIO") {
+      await prisma.account.updateMany({
+        where: { userId },
+        data: { role: newRole },
+      });
+      console.log(`[ROLE SYNC] updateUserRole — Cuentas de userId: ${userId} sincronizadas a role: ${newRole}`);
+    }
 
     await logAudit("USER_ROLE_UPDATED", "User", userId, { newRole });
     revalidatePath("/admin/users");
@@ -98,6 +108,7 @@ export async function updateUserRole(userId: string, newRole: string) {
 /**
  * Alterna el rol de un usuario entre USER y SOCIO (solo SUPERADMIN).
  * No permite alterar roles de ADMIN o SUPER_ADMIN.
+ * FASE PRE-1: Sincroniza automáticamente TODAS las cuentas del usuario al nuevo rol.
  */
 export async function toggleUserSocioRole(userId: string) {
   await requireRole(UserRole.SUPER_ADMIN);
@@ -122,14 +133,23 @@ export async function toggleUserSocioRole(userId: string) {
 
     const newRole = user.role === "USER" ? "SOCIO" : "USER";
 
+    // 1. Actualizar user.role (fuente de verdad)
     await prisma.user.update({
       where: { id: userId },
       data: { role: newRole },
     });
 
+    // 2. Sincronizar TODAS las cuentas del usuario (account.role = shadow field)
+    const { count } = await prisma.account.updateMany({
+      where: { userId },
+      data: { role: newRole },
+    });
+    console.log(`[ROLE SYNC] toggleUserSocioRole — ${count} cuenta(s) de userId: ${userId} sincronizadas ${user.role} → ${newRole}`);
+
     await logAudit("USER_ROLE_TOGGLED", "User", userId, {
       oldRole: user.role,
       newRole,
+      accountsSynced: count,
     });
 
     // Revalidar rutas relevantes
@@ -151,6 +171,10 @@ export async function toggleUserSocioRole(userId: string) {
 /**
  * Alterna el rol de una CUENTA (cajita) específica entre USER y SOCIO.
  * Solo SUPER_ADMIN puede ejecutar esta acción.
+ *
+ * FASE PRE-1 — Unificación de roles:
+ * Al cambiar account.role, se propaga el cambio a user.role Y a TODAS las cuentas
+ * del mismo usuario para mantener la invariante: account.role === user.role.
  */
 export async function toggleAccountRole(accountId: string) {
   await requireRole(UserRole.SUPER_ADMIN);
@@ -158,7 +182,7 @@ export async function toggleAccountRole(accountId: string) {
   try {
     const account = await prisma.account.findUnique({
       where: { id: accountId },
-      select: { id: true, name: true, role: true, userId: true, user: { select: { email: true } } },
+      select: { id: true, name: true, role: true, userId: true, user: { select: { email: true, role: true } } },
     });
 
     if (!account) {
@@ -167,16 +191,25 @@ export async function toggleAccountRole(accountId: string) {
 
     const newRole = account.role === "USER" ? "SOCIO" : "USER";
 
-    await prisma.account.update({
-      where: { id: accountId },
+    // 1. Actualizar user.role (fuente de verdad)
+    await prisma.user.update({
+      where: { id: account.userId },
       data: { role: newRole },
     });
+
+    // 2. Sincronizar TODAS las cuentas del usuario (no solo esta cajita)
+    const { count } = await prisma.account.updateMany({
+      where: { userId: account.userId },
+      data: { role: newRole },
+    });
+    console.log(`[ROLE SYNC] toggleAccountRole — ${count} cuenta(s) de userId: ${account.userId} sincronizadas ${account.user.role} → ${newRole}`);
 
     await logAudit("ACCOUNT_ROLE_TOGGLED", "Account", accountId, {
       accountName: account.name,
       oldRole: account.role,
       newRole,
       userId: account.userId,
+      accountsSynced: count,
     });
 
     revalidatePath("/superadmin/users");
@@ -899,24 +932,29 @@ export async function createUser(data: {
           referralCode,
           accounts: {
             create: [
-              // 1ª cuenta: siempre se crea una cuenta de Ahorro (SAVINGS)
+              // 1ª cuenta: siempre Ahorro (SAVINGS)
+              // FASE PRE-1: account.role sincronizado con user.role
               {
                 name: "Mi Cuenta de Ahorro",
                 type: "SAVINGS",
-                role: "USER",
+                // Sincronizar con user.role. Para ADMIN/SUPER_ADMIN usamos "USER" ya que
+                // no participan en lógica financiera de USER/SOCIO.
+                role: (data.role === "USER" || data.role === "SOCIO") ? data.role : "USER",
                 investedCapital: 0,
               },
-              // 2ª cuenta de Inversión: solo si es usuario regular (role USER)
-              // Los admins y superadmins solo reciben la cuenta de Ahorro.
-              ...(data.role === "USER"
+              // 2ª cuenta de Inversión: solo para roles financieros (USER y SOCIO)
+              // FASE PRE-1: account.role = user.role (accountRole param se ignora para el role field)
+              ...(data.role === "USER" || data.role === "SOCIO"
                 ? [
                   {
+                    // Nombre visual preservado por backward compat
                     name:
-                      data.accountRole === "SOCIO"
+                      data.accountRole === "SOCIO" || data.role === "SOCIO"
                         ? "Mi Cuenta Socio"
                         : "Mi Cuenta de Inversión",
                     type: "INVESTMENT",
-                    role: data.accountRole,
+                    // CLAVE: usar data.role, no data.accountRole
+                    role: data.role,
                     investedCapital: 0,
                   },
                 ]
@@ -997,6 +1035,15 @@ export async function updateUser(
         role: data.role,
       },
     });
+
+    // FASE PRE-1: Sincronizar account.role si el nuevo rol es USER o SOCIO
+    if (data.role === "USER" || data.role === "SOCIO") {
+      const { count } = await prisma.account.updateMany({
+        where: { userId },
+        data: { role: data.role },
+      });
+      console.log(`[ROLE SYNC] updateUser — ${count} cuenta(s) de userId: ${userId} sincronizadas a role: ${data.role}`);
+    }
 
     await logAudit("USER_UPDATED_BY_ADMIN", "User", userId, {
       newData: { ...data, email: data.email.toLowerCase().trim() },
