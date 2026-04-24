@@ -77,6 +77,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ── FUENTE DE VERDAD: obtener user.role desde DB ──────────────────────────
+    // NUNCA usar session.user.role para asignar account.role — puede estar
+    // desactualizado si el SUPER_ADMIN cambió el rol sin que el usuario
+    // cerrara sesión. Se consulta directamente la DB.
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, role: true },
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+
+    // Las cuentas solo tienen roles USER o SOCIO (los roles de backoffice no aplican)
+    const accountRole = (dbUser.role === "SOCIO") ? "SOCIO" : "USER";
+
     // Verificar si ya existe una cuenta de Ahorros (solo puede haber 1 por usuario)
     const existingSavings = await prisma.account.findFirst({
       where: { userId: session.user.id, type: "SAVINGS" },
@@ -90,13 +106,20 @@ export async function POST(req: NextRequest) {
           userId: session.user.id,
           name,
           type: "SAVINGS",
-          role: "USER",
+          role: accountRole, // ← sincronizado con user.role
           investedCapital: 0,
         },
       });
 
+      // Protección defensiva: garantizar que todas las cuentas del usuario
+      // estén sincronizadas con user.role (por si quedaron desincronizadas)
+      await prisma.account.updateMany({
+        where: { userId: session.user.id },
+        data: { role: accountRole },
+      });
+
       logger.debug(
-        `✅ Nueva cuenta de Ahorro creada: "${account.name}" para usuario ${session.user.id}`
+        `✅ Nueva cuenta de Ahorro creada: "${account.name}" para usuario ${session.user.id} con role: ${accountRole}`
       );
 
       return NextResponse.json(
@@ -146,13 +169,20 @@ export async function POST(req: NextRequest) {
         userId: session.user.id,
         name,
         type: "INVESTMENT",
-        role: "USER",
+        role: accountRole, // ← sincronizado con user.role
         investedCapital: 0,
       },
     });
 
+    // Protección defensiva: sincronizar TODAS las cuentas del usuario al role correcto.
+    // Esto corrige cualquier cuenta que pudiera haberse quedado con role incorrecto.
+    await prisma.account.updateMany({
+      where: { userId: session.user.id },
+      data: { role: accountRole },
+    });
+
     logger.debug(
-      `✅ Nueva cuenta de Inversión creada: "${account.name}" para usuario ${session.user.id}`
+      `✅ Nueva cuenta de Inversión creada: "${account.name}" para usuario ${session.user.id} con role: ${accountRole}`
     );
 
     return NextResponse.json(
@@ -176,3 +206,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+

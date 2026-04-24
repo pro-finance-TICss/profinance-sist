@@ -261,11 +261,14 @@ export async function registerUser(
           totpEnabled: false,
           referralCode: newUserReferralCode,
           // Crear cuenta de Ahorro (SAVINGS) por defecto
+          // FASE PRE-1: account.role sincronizado con user.role
+          // Los usuarios que se registran por el flujo público siempre son USER,
+          // pero usamos el campo explícito para mantener la invariante.
           accounts: {
             create: {
               name: "Mi Cuenta de Ahorro",
               type: "SAVINGS",
-              role: "USER",
+              role: "USER", // Los nuevos registros públicos siempre son USER por definición del schema
               investedCapital: 0,
             },
           },
