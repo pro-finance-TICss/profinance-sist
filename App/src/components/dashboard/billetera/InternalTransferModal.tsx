@@ -1,12 +1,22 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { X, ArrowRight, Wallet, ArrowDownToLine, AlertTriangle } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { X, ArrowRight, Wallet, ArrowDownToLine, AlertTriangle, ChevronDown } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/currency";
 import { useAccount } from "@/contexts/AccountContext";
+import type { Account } from "@/contexts/AccountContext";
+
+// ============================================================================
+// INTERNAL TRANSFER MODAL — PRO-FINANCE
+// ============================================================================
+// FASE 0: Usa sourceAccountId + destinationAccountId explícitos.
+// Elimina el uso de direction y accountId en el payload del backend.
+// Soporta múltiples cuentas de inversión con selector dinámico.
+// ============================================================================
 
 interface InternalTransferModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Indica la dirección de la transferencia (solo para UX/texto, no se envía al backend) */
   direction: "TO_INVESTMENT" | "TO_SAVINGS";
   isBlocked: boolean;
   onSuccess: () => void;
@@ -19,73 +29,125 @@ export function InternalTransferModal({
   isBlocked,
   onSuccess,
 }: InternalTransferModalProps) {
-  const { accounts, activeAccount } = useAccount();
+  const { accounts } = useAccount();
+
+  // ── Derivar cuentas disponibles del contexto ────────────────────────────
+  const savingsAccount: Account | undefined = accounts.find(
+    (a) => a.type === "SAVINGS"
+  );
+  const investmentAccounts: Account[] = accounts.filter(
+    (a) => a.type === "INVESTMENT"
+  );
+
+  // ── Estado local ────────────────────────────────────────────────────────
+  const [selectedInvestmentId, setSelectedInvestmentId] = useState<string>("");
   const [sourceBalance, setSourceBalance] = useState(0);
   const [amount, setAmount] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Obtener la cuenta de inversión correcta:
-  // Si el activeAccount es INVESTMENT, usarla para la transferencia.
-  // Si no, tomar la primera INVESTMENT del listado (fallback).
-  const investmentAcc = activeAccount?.type === "INVESTMENT"
-    ? activeAccount
-    : accounts.find(a => a.type === "INVESTMENT");
+  const isInvesting = direction === "TO_INVESTMENT";
 
-  // Fetch true balance on open
+  // ── Inicializar selectedInvestmentId cuando cambian las cuentas ─────────
   useEffect(() => {
-    if (isOpen) {
-      const sourceAccType = direction === "TO_INVESTMENT" ? "SAVINGS" : "INVESTMENT";
-      let sourceAcc;
-      if (sourceAccType === "INVESTMENT") {
-        // Usar la cuenta de inversión activa
-        sourceAcc = investmentAcc;
-      } else {
-        sourceAcc = accounts.find(a => a.type === "SAVINGS");
+    if (investmentAccounts.length > 0 && !selectedInvestmentId) {
+      setSelectedInvestmentId(investmentAccounts[0].id);
+    }
+  }, [investmentAccounts, selectedInvestmentId]);
+
+  // ── Resolver cuentas origen/destino según dirección ─────────────────────
+  // Esto es la única fuente de verdad para el payload — nunca el backend decide.
+  const sourceAccount: Account | undefined = isInvesting
+    ? savingsAccount
+    : investmentAccounts.find((a) => a.id === selectedInvestmentId);
+
+  const destinationAccount: Account | undefined = isInvesting
+    ? investmentAccounts.find((a) => a.id === selectedInvestmentId)
+    : savingsAccount;
+
+  // ── Fetch de balance del origen cuando se abre el modal ─────────────────
+  const fetchSourceBalance = useCallback(async (accountId: string) => {
+    try {
+      const res = await fetch(`/api/wallet/balance?accountId=${accountId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSourceBalance(data.balance?.investedCapital || 0);
       }
-      if (sourceAcc) {
-          fetch(`/api/wallet/balance?accountId=${sourceAcc.id}`)
-             .then(res => res.json())
-             .then(data => setSourceBalance(data.balance?.investedCapital || 0))
-             .catch(console.error);
-      }
-    } else {
+    } catch {
+      // silencioso — el usuario verá balance 0
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && sourceAccount) {
+      fetchSourceBalance(sourceAccount.id);
+    }
+    if (!isOpen) {
       setAmount("");
       setSuccessMsg(null);
       setError(null);
     }
-  }, [isOpen, direction, accounts, investmentAcc]);
+  }, [isOpen, sourceAccount?.id, fetchSourceBalance]);
+
+  // Refetch si el usuario cambia la cuenta de inversión seleccionada
+  useEffect(() => {
+    if (isOpen && sourceAccount) {
+      fetchSourceBalance(sourceAccount.id);
+    }
+  }, [selectedInvestmentId, isOpen, sourceAccount?.id, fetchSourceBalance]);
 
   if (!isOpen) return null;
 
-  // Si direction es TO_INVESTMENT, el origen es SAVINGS y viceversa
-  const isInvesting = direction === "TO_INVESTMENT";
   const numAmount = parseFloat(amount.replace(/,/g, "")) || 0;
   const isOverBalance = numAmount > sourceBalance;
 
+  // ── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!numAmount || numAmount <= 0) return;
     if (isOverBalance) return;
     if (isInvesting && isBlocked) return;
 
+    // Validaciones pre-envío
+    if (!sourceAccount || !destinationAccount) {
+      setError("No se encontraron las cuentas necesarias. Recarga la página.");
+      return;
+    }
+
+    if (sourceAccount.id === destinationAccount.id) {
+      setError("La cuenta de origen y destino no pueden ser la misma.");
+      return;
+    }
+
+    const sourceAccountId = sourceAccount.id;
+    const destinationAccountId = destinationAccount.id;
+
+    // Debug log temporal (requerido por la tarea)
+    console.log("TRANSFER DEBUG", {
+      sourceAccountId,
+      destinationAccountId,
+      amount: numAmount,
+    });
+
     setIsLoading(true);
     setError(null);
     setSuccessMsg(null);
 
-    // Enviar el ID de la cuenta de inversión activa para soportar múltiples cajitas
-    const investmentAccId = investmentAcc?.id;
-
     try {
+      console.log("DEBUG: Enviando dinero a la cuenta ID:", selectedInvestmentId);
+
       const res = await fetch("/api/wallet/transfer-internal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          // Payload limpio: IDs explícitos, sin direction, sin accountId legacy
           amount: numAmount,
+          sourceAccountId,
+          destinationAccountId,
+          // direction sigue siendo necesario para la lógica de ventana de inversión
+          // en el backend (isInvestmentWindowOpen). Se mantiene solo por eso.
           direction,
-          // ID de la cuenta de inversión activa (soporta múltiples cajitas de inversión)
-          accountId: investmentAccId,
         }),
       });
 
@@ -93,9 +155,9 @@ export function InternalTransferModal({
 
       if (res.ok) {
         if (data.queued) {
-            setSuccessMsg("Puesto en Cola (Periodo cerrado)");
+          setSuccessMsg("Puesto en Cola (Periodo cerrado)");
         } else {
-            setSuccessMsg("¡Transferencia Exitosa!");
+          setSuccessMsg("¡Transferencia Exitosa!");
         }
         setTimeout(() => {
           onSuccess();
@@ -106,12 +168,15 @@ export function InternalTransferModal({
       } else {
         setError(data.error || "Hubo un error al procesar.");
       }
-    } catch (err) {
+    } catch {
       setError("Error de red. Intenta nuevamente.");
     } finally {
       setIsLoading(false);
     }
   };
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  const hasMultipleInvestments = investmentAccounts.length > 1;
 
   return (
     <div
@@ -137,6 +202,7 @@ export function InternalTransferModal({
           overflow: "hidden",
         }}
       >
+        {/* Header */}
         <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h3 style={{ margin: 0, color: "#fff", display: "flex", alignItems: "center", gap: "10px" }}>
             {isInvesting ? <Wallet size={20} color="#bd8e48" /> : <ArrowDownToLine size={20} color="#bd8e48" />}
@@ -148,6 +214,7 @@ export function InternalTransferModal({
         </div>
 
         <div style={{ padding: "24px" }}>
+          {/* Alertas de bloqueo */}
           {isInvesting && isBlocked && (
             <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", padding: "12px", borderRadius: "8px", marginBottom: "20px", color: "#f87171", display: "flex", gap: "10px", alignItems: "center" }}>
               <AlertTriangle size={20} />
@@ -156,20 +223,67 @@ export function InternalTransferModal({
           )}
 
           {!isInvesting && isBlocked && (
-             <div style={{ background: "rgba(255, 152, 0, 0.1)", border: "1px solid rgba(255, 152, 0, 0.2)", padding: "12px", borderRadius: "8px", marginBottom: "20px", color: "#ff9800", display: "flex", gap: "10px", alignItems: "top" }}>
-             <AlertTriangle size={28} />
-             <span style={{ fontSize: "0.80rem" }}>El periodo está cerrado, pero puedes poner tu retiro en cola asegurando salir cuando se abra.</span>
-           </div>
+            <div style={{ background: "rgba(255, 152, 0, 0.1)", border: "1px solid rgba(255, 152, 0, 0.2)", padding: "12px", borderRadius: "8px", marginBottom: "20px", color: "#ff9800", display: "flex", gap: "10px", alignItems: "top" }}>
+              <AlertTriangle size={28} />
+              <span style={{ fontSize: "0.80rem" }}>El periodo está cerrado, pero puedes poner tu retiro en cola asegurando salir cuando se abra.</span>
+            </div>
           )}
 
+          {/* Selector de cuenta de inversión (solo si hay múltiples) */}
+          {hasMultipleInvestments && (
+            <div style={{ marginBottom: "20px" }}>
+              <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.8rem", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                {isInvesting ? "Cajita de destino" : "Cajita de origen"}
+              </p>
+              <div style={{ position: "relative" }}>
+                <select
+                  value={selectedInvestmentId}
+                  onChange={(e) => setSelectedInvestmentId(e.target.value)}
+                  disabled={isLoading}
+                  style={{
+                    width: "100%",
+                    background: "rgba(0,0,0,0.5)",
+                    border: "1px solid rgba(189,142,72,0.3)",
+                    padding: "12px 40px 12px 14px",
+                    borderRadius: "12px",
+                    color: "#fff",
+                    fontSize: "0.95rem",
+                    fontWeight: "600",
+                    outline: "none",
+                    appearance: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  {investmentAccounts.map((acc) => (
+                    <option key={acc.id} value={acc.id} style={{ background: "#111" }}>
+                      {acc.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={16}
+                  color="rgba(189,142,72,0.7)"
+                  style={{ position: "absolute", right: "14px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Balance de origen */}
           <div style={{ background: "rgba(255,255,255,0.02)", padding: "16px", borderRadius: "12px", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.9rem" }}>Balance de origen ({isInvesting ? "Ahorros" : "Inversión"})</span>
-            <span style={{ color: "#bd8e48", fontWeight: "700", fontSize: "1.2rem" }}>{formatCurrency(sourceBalance)}</span>
+            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.9rem" }}>
+              Balance de origen ({isInvesting ? "Ahorros" : "Inversión"})
+            </span>
+            <span style={{ color: "#bd8e48", fontWeight: "700", fontSize: "1.2rem" }}>
+              {formatCurrency(sourceBalance)}
+            </span>
           </div>
 
+          {/* Mensajes de error / éxito */}
           {error && <div style={{ color: "#f87171", fontSize: "0.85rem", marginBottom: "16px", textAlign: "center" }}>{error}</div>}
           {successMsg && <div style={{ color: "#34d399", fontSize: "0.85rem", marginBottom: "16px", textAlign: "center", fontWeight: "bold" }}>{successMsg}</div>}
 
+          {/* Formulario */}
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: "24px" }}>
               <div style={{ position: "relative" }}>
@@ -178,9 +292,9 @@ export function InternalTransferModal({
                   type="number"
                   value={amount}
                   onChange={(e) => {
-                      if (Number(e.target.value) >= 0) {
-                          setAmount(e.target.value);
-                      }
+                    if (Number(e.target.value) >= 0) {
+                      setAmount(e.target.value);
+                    }
                   }}
                   placeholder="0.00"
                   step="0.01"

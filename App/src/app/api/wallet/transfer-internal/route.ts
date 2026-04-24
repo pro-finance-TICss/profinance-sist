@@ -1,3 +1,32 @@
+// ============================================================================
+// API ROUTE: TRANSFERENCIA INTERNA - PRO-FINANCE
+// ============================================================================
+//
+// Mueve fondos entre las cuentas (SAVINGS ↔ INVESTMENT) del usuario autenticado.
+// Toda la operación ocurre dentro de una transacción Prisma para garantizar
+// atomicidad e integridad del saldo.
+//
+// SEGURIDAD:
+//   - userId siempre proviene de session.user.id (JWT).  NUNCA del cuerpo del request.
+//   - Se valida ownership de AMBAS cuentas contra session.user.id.
+//   - Se valida que source !== destination.
+//   - Se valida que los tipos de cuenta son coherentes con la dirección.
+//
+// COMPATIBILIDAD:
+//   El endpoint acepta dos formatos de llamada:
+//
+//   1. EXPLÍCITO (seguro, recomendado):
+//      { amount, direction, sourceAccountId, destinationAccountId }
+//
+//   2. IMPLÍCITO / LEGACY (fallback temporal):
+//      { amount, direction }
+//      → El backend resuelve las cuentas por tipo.
+//      → Emite un warning en logs para que el frontend sea actualizado.
+//      → Aceptable SOLO si el usuario tiene exactamente 1 cuenta SAVINGS
+//        y 1 cuenta INVESTMENT (caso más frecuente).
+//
+// ============================================================================
+
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -7,76 +36,168 @@ import { isInvestmentWindowOpen } from "@/lib/logic/withdrawal-window";
 
 export async function POST(req: NextRequest) {
   try {
+    // ── 1. Autenticación ─────────────────────────────────────────────────────
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
+    const userId = session.user.id; // Fuente de verdad: NUNCA body.userId
 
+    // ── 2. Parseo y validación básica del body ────────────────────────────────
     const body = await req.json();
-    const { amount, direction } = body; // direction: 'TO_INVESTMENT' | 'TO_SAVINGS'
+    const {
+      amount,
+      direction,
+      sourceAccountId,
+      destinationAccountId,
+    } = body;
 
-    if (!amount || amount <= 0) {
+    if (!amount || typeof amount !== "number" || amount <= 0) {
       return NextResponse.json({ error: "Monto inválido" }, { status: 400 });
     }
 
     if (direction !== "TO_INVESTMENT" && direction !== "TO_SAVINGS") {
-      return NextResponse.json({ error: "Dirección de transferencia inválida" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Dirección de transferencia inválida" },
+        { status: 400 }
+      );
     }
 
-    // Verificar estado del periodo de inversión
-    const status = await isInvestmentWindowOpen();
+    // ── 3. Estado del periodo de inversión ────────────────────────────────────
+    const windowStatus = await isInvestmentWindowOpen();
 
+    // ── 4. Transacción Prisma (atómica) ───────────────────────────────────────
     return await prisma.$transaction(async (tx) => {
-      // Siempre buscar la cuenta de Ahorros única del usuario
-      const savingsAccount = await tx.account.findFirst({
-        where: { userId: session.user.id, type: "SAVINGS" },
-      });
 
-      // Si el cliente envía un accountId (cuenta de inversión activa), usarlo.
-      // Esto permite soportar múltiples cuentas de inversión por usuario.
-      const { accountId: activeAccountId } = body;
-      let investmentAccount: any = null;
+      // ── 4a. Resolver cuentas de origen y destino ──────────────────────────
+      let sourceAccount: any = null;
+      let destinationAccount: any = null;
 
-      if (activeAccountId && typeof activeAccountId === "string") {
-        investmentAccount = await tx.account.findFirst({
-          where: { userId: session.user.id, type: "INVESTMENT", id: activeAccountId },
+      const hasExplicitIds =
+        typeof sourceAccountId === "string" && sourceAccountId.length > 0 &&
+        typeof destinationAccountId === "string" && destinationAccountId.length > 0;
+
+      if (hasExplicitIds) {
+        // ── Camino seguro: IDs explícitos provistos por el cliente ──────────
+        // Validar ownership de ambas cuentas contra session.user.id
+        [sourceAccount, destinationAccount] = await Promise.all([
+          tx.account.findFirst({
+            where: { id: sourceAccountId, userId },
+          }),
+          tx.account.findFirst({
+            where: { id: destinationAccountId, userId },
+          }),
+        ]);
+
+        if (!sourceAccount) {
+          logger.error(
+            `[transfer-internal] sourceAccount no encontrada o no autorizada — userId: ${userId}, sourceAccountId: ${sourceAccountId}`
+          );
+          throw new Error("SOURCE_ACCOUNT_NOT_FOUND");
+        }
+
+        if (!destinationAccount) {
+          logger.error(
+            `[transfer-internal] destinationAccount no encontrada o no autorizada — userId: ${userId}, destinationAccountId: ${destinationAccountId}`
+          );
+          throw new Error("DESTINATION_ACCOUNT_NOT_FOUND");
+        }
+
+        // Prevenir transferencia a sí misma
+        if (sourceAccount.id === destinationAccount.id) {
+          throw new Error("SAME_ACCOUNT_ERROR");
+        }
+
+        // Validar coherencia de tipos con la dirección declarada
+        // (protección contra peticiones manipuladas desde el cliente)
+        if (direction === "TO_INVESTMENT") {
+          if (sourceAccount.type !== "SAVINGS") {
+            logger.warn(
+              `[transfer-internal] Tipo de cuenta origen inválido para TO_INVESTMENT — esperado SAVINGS, recibido ${sourceAccount.type}`
+            );
+            throw new Error("INVALID_ACCOUNT_TYPE_FOR_DIRECTION");
+          }
+          if (destinationAccount.type !== "INVESTMENT") {
+            logger.warn(
+              `[transfer-internal] Tipo de cuenta destino inválido para TO_INVESTMENT — esperado INVESTMENT, recibido ${destinationAccount.type}`
+            );
+            throw new Error("INVALID_ACCOUNT_TYPE_FOR_DIRECTION");
+          }
+        } else {
+          // TO_SAVINGS
+          if (sourceAccount.type !== "INVESTMENT") {
+            logger.warn(
+              `[transfer-internal] Tipo de cuenta origen inválido para TO_SAVINGS — esperado INVESTMENT, recibido ${sourceAccount.type}`
+            );
+            throw new Error("INVALID_ACCOUNT_TYPE_FOR_DIRECTION");
+          }
+          if (destinationAccount.type !== "SAVINGS") {
+            logger.warn(
+              `[transfer-internal] Tipo de cuenta destino inválido para TO_SAVINGS — esperado SAVINGS, recibido ${destinationAccount.type}`
+            );
+            throw new Error("INVALID_ACCOUNT_TYPE_FOR_DIRECTION");
+          }
+        }
+
+      } else {
+        // ── Fallback TEMPORAL: cliente no envió IDs explícitos ───────────────
+        // Se resuelven por tipo. Seguro únicamente cuando el usuario tiene
+        // exactamente 1 SAVINGS y 1 INVESTMENT. Loggear para forzar actualización.
+        logger.warn(
+          `[transfer-internal] ⚠️ FALLBACK TEMPORAL ACTIVO: sourceAccountId/destinationAccountId no provistos por el cliente (userId: ${userId}, direction: ${direction}). Actualizar InternalTransferModal para enviar IDs explícitos.`
+        );
+
+        const savingsAcc = await tx.account.findFirst({
+          where: { userId, type: "SAVINGS" },
         });
-      }
-
-      // Fallback: tomar la primera cuenta de inversión (compatibilidad con cuentas legacy)
-      if (!investmentAccount) {
-        investmentAccount = await tx.account.findFirst({
-          where: { userId: session.user.id, type: "INVESTMENT" },
+        const investmentAcc = await tx.account.findFirst({
+          where: { userId, type: "INVESTMENT" },
+          orderBy: { createdAt: "asc" }, // Determinista: siempre la primera creada
         });
+
+        if (!savingsAcc || !investmentAcc) {
+          logger.error(
+            `[transfer-internal] Fallback: cuentas no encontradas — userId: ${userId}`
+          );
+          throw new Error("COULD_NOT_FIND_ACCOUNTS");
+        }
+
+        sourceAccount = direction === "TO_INVESTMENT" ? savingsAcc : investmentAcc;
+        destinationAccount = direction === "TO_INVESTMENT" ? investmentAcc : savingsAcc;
       }
 
-      if (!savingsAccount || !investmentAccount) {
-        throw new Error("COULD_NOT_FIND_ACCOUNTS");
+      // ── 4b. Validar balance suficiente en la cuenta origen ────────────────
+      const currentSourceBalance = decimalToNumber(sourceAccount.investedCapital);
+      if (amount > currentSourceBalance) {
+        logger.warn(
+          `[transfer-internal] Fondos insuficientes — userId: ${userId}, sourceAccount: ${sourceAccount.id}, balance: ${currentSourceBalance}, solicitado: ${amount}`
+        );
+        throw new Error("INSUFFICIENT_FUNDS");
       }
+
+      // ── 4c. Lógica de negocio según dirección ─────────────────────────────
 
       if (direction === "TO_INVESTMENT") {
-        if (!status.isOpen) {
+        // Bloqueo de periodo: no se admiten nuevos fondos en inversión
+        if (!windowStatus.isOpen) {
           throw new Error("INVESTMENT_BLOCKED");
         }
 
-        const currentSavings = decimalToNumber(savingsAccount.investedCapital);
-        if (amount > currentSavings) throw new Error("INSUFFICIENT_FUNDS_SAVINGS");
-
-        // Descontar de Ahorros → sumar a Inversión
+        // Débito en origen → crédito en destino
         await tx.account.update({
-          where: { id: savingsAccount.id },
+          where: { id: sourceAccount.id },
           data: { investedCapital: { decrement: amount } },
         });
         await tx.account.update({
-          where: { id: investmentAccount.id },
+          where: { id: destinationAccount.id },
           data: { investedCapital: { increment: amount } },
         });
 
-        // Registro de transacciones (Ledger)
+        // Ledger: registrar ambos lados de la operación
         await tx.transaction.create({
           data: {
-            userId: session.user.id,
-            accountId: savingsAccount.id,
+            userId,
+            accountId: sourceAccount.id,
             type: "WITHDRAWAL",
             amount,
             status: "COMPLETED",
@@ -84,88 +205,133 @@ export async function POST(req: NextRequest) {
         });
         await tx.transaction.create({
           data: {
-            userId: session.user.id,
-            accountId: investmentAccount.id,
+            userId,
+            accountId: destinationAccount.id,
             type: "DEPOSIT",
             amount,
             status: "COMPLETED",
           },
         });
 
+        logger.debug(
+          `[transfer-internal] ✅ TO_INVESTMENT completado — userId: ${userId}, monto: ${amount}, source: ${sourceAccount.id}, dest: ${destinationAccount.id}`
+        );
+
         return NextResponse.json({
           success: true,
           message: "Transferencia a Inversión exitosa",
         });
 
-      } else if (direction === "TO_SAVINGS") {
-        const currentInvestment = decimalToNumber(investmentAccount.investedCapital);
-        if (amount > currentInvestment) throw new Error("INSUFFICIENT_FUNDS_INVESTMENT");
-
-        if (!status.isOpen) {
-          // Bloqueado: poner en cola como WithdrawalRequest
+      } else {
+        // TO_SAVINGS
+        if (!windowStatus.isOpen) {
+          // Periodo cerrado → encolar como WithdrawalRequest
           await tx.withdrawalRequest.create({
             data: {
-              userId: session.user.id,
-              accountId: investmentAccount.id,
+              userId,
+              accountId: sourceAccount.id,
               amount,
               status: "PENDING",
-              bankAccountId: null, // Indica transferencia interna
+              bankAccountId: null, // null = transferencia interna (no bancaria)
               notes: "En cola para pase a Ahorros",
             },
           });
+
+          logger.debug(
+            `[transfer-internal] ⏳ TO_SAVINGS encolado (periodo cerrado) — userId: ${userId}, monto: ${amount}, sourceAccount: ${sourceAccount.id}`
+          );
 
           return NextResponse.json({
             success: true,
             queued: true,
             message: "Periodo bloqueado: Tu solicitud ha sido puesta en cola.",
           });
-        } else {
-          // Desbloqueado: transferencia instantánea
-          await tx.account.update({
-            where: { id: investmentAccount.id },
-            data: { investedCapital: { decrement: amount } },
-          });
-          await tx.account.update({
-            where: { id: savingsAccount.id },
-            data: { investedCapital: { increment: amount } },
-          });
-
-          // Registro de transacciones (Ledger)
-          await tx.transaction.create({
-            data: {
-              userId: session.user.id,
-              accountId: investmentAccount.id,
-              type: "WITHDRAWAL",
-              amount,
-              status: "COMPLETED",
-            },
-          });
-          await tx.transaction.create({
-            data: {
-              userId: session.user.id,
-              accountId: savingsAccount.id,
-              type: "DEPOSIT",
-              amount,
-              status: "COMPLETED",
-            },
-          });
-
-          return NextResponse.json({
-            success: true,
-            message: "Transferencia a Ahorros exitosa",
-          });
         }
+
+        // Periodo abierto → transferencia inmediata
+        await tx.account.update({
+          where: { id: sourceAccount.id },
+          data: { investedCapital: { decrement: amount } },
+        });
+        await tx.account.update({
+          where: { id: destinationAccount.id },
+          data: { investedCapital: { increment: amount } },
+        });
+
+        await tx.transaction.create({
+          data: {
+            userId,
+            accountId: sourceAccount.id,
+            type: "WITHDRAWAL",
+            amount,
+            status: "COMPLETED",
+          },
+        });
+        await tx.transaction.create({
+          data: {
+            userId,
+            accountId: destinationAccount.id,
+            type: "DEPOSIT",
+            amount,
+            status: "COMPLETED",
+          },
+        });
+
+        logger.debug(
+          `[transfer-internal] ✅ TO_SAVINGS completado — userId: ${userId}, monto: ${amount}, source: ${sourceAccount.id}, dest: ${destinationAccount.id}`
+        );
+
+        return NextResponse.json({
+          success: true,
+          message: "Transferencia a Ahorros exitosa",
+        });
       }
-    });
+    }); // fin prisma.$transaction
 
   } catch (error: any) {
-    logger.error("❌ Error en transferencia interna:", error);
-    const message = error.message;
-    if (message === "COULD_NOT_FIND_ACCOUNTS") return NextResponse.json({ error: "Cuentas no encontradas. Asegúrate de tener al menos una cuenta de inversión." }, { status: 404 });
-    if (message === "INVESTMENT_BLOCKED") return NextResponse.json({ error: "El periodo de Inversión está cerrado. No se puede ingresar capital nuevo." }, { status: 403 });
-    if (message === "INSUFFICIENT_FUNDS_SAVINGS") return NextResponse.json({ error: "Fondos insuficientes en la cuenta de Ahorros" }, { status: 400 });
-    if (message === "INSUFFICIENT_FUNDS_INVESTMENT") return NextResponse.json({ error: "Fondos insuficientes en la cuenta de Inversión" }, { status: 400 });
+    logger.error("❌ [transfer-internal] Error:", error?.message ?? error);
 
-    return NextResponse.json({ error: "Error al procesar solicitud" }, { status: 500 });
+    const msg = error?.message;
+
+    if (msg === "SOURCE_ACCOUNT_NOT_FOUND")
+      return NextResponse.json(
+        { error: "Cuenta de origen no encontrada o no autorizada" },
+        { status: 404 }
+      );
+    if (msg === "DESTINATION_ACCOUNT_NOT_FOUND")
+      return NextResponse.json(
+        { error: "Cuenta de destino no encontrada o no autorizada" },
+        { status: 404 }
+      );
+    if (msg === "SAME_ACCOUNT_ERROR")
+      return NextResponse.json(
+        { error: "Las cuentas de origen y destino no pueden ser la misma" },
+        { status: 400 }
+      );
+    if (msg === "INVALID_ACCOUNT_TYPE_FOR_DIRECTION")
+      return NextResponse.json(
+        { error: "Los tipos de cuenta no coinciden con la dirección de transferencia" },
+        { status: 400 }
+      );
+    if (msg === "COULD_NOT_FIND_ACCOUNTS")
+      return NextResponse.json(
+        { error: "Cuentas no encontradas. Asegúrate de tener al menos una cuenta de inversión." },
+        { status: 404 }
+      );
+    if (msg === "INVESTMENT_BLOCKED")
+      return NextResponse.json(
+        { error: "El periodo de Inversión está cerrado. No se puede ingresar capital nuevo." },
+        { status: 403 }
+      );
+    if (msg === "INSUFFICIENT_FUNDS")
+      return NextResponse.json(
+        { error: "Fondos insuficientes en la cuenta de origen" },
+        { status: 400 }
+      );
+
+    return NextResponse.json(
+      { error: "Error al procesar solicitud" },
+      { status: 500 }
+    );
   }
 }
