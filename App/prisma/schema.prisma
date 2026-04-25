@@ -208,6 +208,9 @@ model Account {
   /// Comisiones de referidos acreditadas en esta cuenta
   referralRewards     ReferralReward[]
 
+  /// Snapshots históricos de rendimiento aplicados a esta cuenta (Fase 1)
+  performanceSnapshots AccountPerformanceSnapshot[]
+
   /// Índice para búsquedas eficientes por usuario
   @@index([userId])
   @@index([type])
@@ -587,7 +590,10 @@ model Performance {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
+  /// Snapshots históricos de rendimiento por cuenta (Fase 1)
+  snapshots AccountPerformanceSnapshot[]
+
   @@index([targetRole])
   @@index([startDate])
   @@index([status])
@@ -677,4 +683,49 @@ model ReferralReward {
   @@index([creditedAccountId])
   @@index([status])
   @@index([createdAt])
+}
+
+// ============================================================================
+// FASE 1: SNAPSHOT DE RENDIMIENTO POR CUENTA
+// ============================================================================
+/// Registra, de forma inmutable y auditable, el rendimiento aplicado
+/// a cada cuenta individual en cada ciclo de Performance.
+/// Permite construir gráficos históricos deterministas sin recalcular.
+/// percentageRaw = porcentaje REAL del admin (sin la reducción del 50%).
+/// El frontend NUNCA recibe percentageRaw; solo recibe userPercentage = raw * 0.5.
+model AccountPerformanceSnapshot {
+  /// Identificador único del snapshot
+  id            String   @id @default(cuid())
+
+  /// Cuenta a la que pertenece este snapshot
+  accountId     String
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  /// Registro de Performance global que originó este snapshot
+  performanceId String
+  performance   Performance @relation(fields: [performanceId], references: [id], onDelete: Cascade)
+
+  /// Inicio del periodo de rendimiento
+  periodStart   DateTime
+
+  /// Fin del periodo de rendimiento
+  periodEnd     DateTime
+
+  /// Porcentaje REAL (del admin, sin reducción).
+  /// El usuario ve percentageRaw * 0.5 — NUNCA este valor directamente.
+  percentageRaw Decimal
+
+  /// Capital base al momento de aplicar el rendimiento
+  capitalBase   Decimal
+
+  /// Monto ganado (positivo) o perdido (negativo)
+  gainAmount    Decimal
+
+  /// Fecha y hora en que se aplicó el rendimiento
+  appliedAt     DateTime @default(now())
+
+  /// Índices para consultas eficientes de gráficos y auditoría
+  @@index([accountId])
+  @@index([periodStart])
+  @@index([accountId, periodStart]) // compuesto para gráfico por cuenta
 }

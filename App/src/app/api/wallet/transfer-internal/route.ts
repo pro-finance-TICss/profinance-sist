@@ -52,6 +52,12 @@ export async function POST(req: NextRequest) {
       destinationAccountId,
     } = body;
 
+    // Structured log: inicio de la operación
+    logger.debug(
+      `[transfer-internal] START — userId: ${userId}, direction: ${direction ?? "(none)"}, amount: ${amount ?? "(none)"}, ` +
+      `sourceAccountId: ${sourceAccountId ?? "(implicit)"}, destinationAccountId: ${destinationAccountId ?? "(implicit)"}`
+    );
+
     if (!amount || typeof amount !== "number" || amount <= 0) {
       return NextResponse.json({ error: "Monto inválido" }, { status: 400 });
     }
@@ -289,7 +295,9 @@ export async function POST(req: NextRequest) {
     }); // fin prisma.$transaction
 
   } catch (error: any) {
-    logger.error("❌ [transfer-internal] Error:", error?.message ?? error);
+    logger.error(
+      `[transfer-internal] ERROR — ${error?.message ?? error}`
+    );
 
     const msg = error?.message;
 
