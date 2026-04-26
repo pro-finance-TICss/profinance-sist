@@ -34,17 +34,17 @@ function DashboardLayoutContent({
   const router = useRouter();
   const { isMobile, isTablet, isSidebarOpen, closeSidebar, isCollapsed } =
     useDashboard();
-  const { activeAccount, isLoading: isLoadingAccount } = useAccount();
+  const { accounts, activeAccount, isLoading: isLoadingAccount } = useAccount();
 
   useSessionValidator(30000);
 
   React.useEffect(() => {
-    if (!isLoadingAccount && !activeAccount) {
-      router.replace("/select-account");
+    if (!isLoadingAccount && accounts.length === 0) {
+      router.replace("/dashboard");
     }
-  }, [activeAccount, isLoadingAccount, router]);
+  }, [accounts, isLoadingAccount, router]);
 
-  if (isLoadingAccount || !activeAccount) {
+  if (isLoadingAccount) {
     return (
       <div
         style={{

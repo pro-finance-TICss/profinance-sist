@@ -6,6 +6,15 @@
 // Gestiona el estado de las cuentas del usuario actual.
 // Provee funciones para cargar, seleccionar y crear cuentas.
 // Persiste la cuenta activa en localStorage para mantener la selección.
+//
+// FASE 2 — MULTI-ACCOUNT AWARE (SIN BREAKING CHANGES)
+// Extiende el contexto original con:
+//   - savingsAccount          — cuenta de ahorro derivada
+//   - investmentAccounts      — cuentas de inversión derivadas
+//   - primaryInvestmentAccount — cuenta de inversión con mayor capital
+//   - totalCapital            — capital consolidado desde backend
+//   - totalPendingWithdrawals — retiros pendientes desde backend
+//   - setViewedAccount        — alias semántico de setActiveAccount
 // ============================================================================
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
@@ -37,6 +46,7 @@ export interface Account {
 
 /// Valor expuesto por el contexto
 interface AccountContextValue {
+    // ── EXISTENTE (NO TOCAR) ─────────────────────────────────────────────────
     /// Lista de cuentas del usuario
     accounts: Account[];
     /// Cuenta actualmente seleccionada
@@ -51,6 +61,24 @@ interface AccountContextValue {
     createAccount: (name: string) => Promise<Account | null>;
     /// Recargar cuentas desde el servidor
     refreshAccounts: () => Promise<void>;
+
+    // ── NUEVO — DERIVADOS ────────────────────────────────────────────────────
+    /// Cuenta de ahorro del usuario (SAVINGS)
+    savingsAccount: Account | null;
+    /// Cuentas de inversión del usuario (INVESTMENT)
+    investmentAccounts: Account[];
+    /// Cuenta de inversión con mayor capital invertido
+    primaryInvestmentAccount: Account | null;
+
+    // ── NUEVO — AGREGADOS DESDE BACKEND ──────────────────────────────────────
+    /// Capital total consolidado de todas las cuentas (viene de /api/wallet/summary)
+    totalCapital: number;
+    /// Total de retiros pendientes (viene de /api/wallet/summary)
+    totalPendingWithdrawals: number;
+
+    // ── NUEVO — ALIAS SEMÁNTICO ──────────────────────────────────────────────
+    /// Alias de setActiveAccount con semántica de "ver" una cuenta
+    setViewedAccount: (accountId: string) => void;
 }
 
 const AccountContext = createContext<AccountContextValue | undefined>(undefined);
@@ -69,6 +97,10 @@ export function AccountProvider({ children }: AccountProviderProps) {
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+
+    // ── NUEVO — estado para métricas agregadas de backend ───────────────────
+    const [totalCapital, setTotalCapital] = useState<number>(0);
+    const [totalPendingWithdrawals, setTotalPendingWithdrawals] = useState<number>(0);
 
     // ================================================================
     // Función interna para cargar cuentas desde la API
@@ -101,7 +133,33 @@ export function AccountProvider({ children }: AccountProviderProps) {
     }, []);
 
     // ================================================================
-    // EFECTO: Carga inicial de cuentas cuando hay sesión
+    // NUEVO — Función interna para cargar resumen del wallet desde backend
+    // ⚠️ NO recalcula en frontend — consume /api/wallet/summary directamente
+    // ================================================================
+    const loadWalletSummary = useCallback(async () => {
+        try {
+            const response = await fetch("/api/wallet/summary", {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+            });
+
+            if (!response.ok) {
+                logger.error(`[AccountContext] Error cargando wallet/summary: HTTP ${response.status}`);
+                return;
+            }
+
+            const summary = await response.json();
+            setTotalCapital(summary.totalCapital ?? 0);
+            setTotalPendingWithdrawals(summary.totalPendingWithdrawals ?? 0);
+        } catch (error) {
+            logger.error("[AccountContext] Error en loadWalletSummary:", error);
+        }
+    }, []);
+
+    // ================================================================
+    // EFECTO: Carga inicial de cuentas + wallet summary cuando hay sesión
+    // ⚠️ loadWalletSummary se dispara aquí (mismo efecto) para evitar
+    //    re-renders infinitos por dependencias cruzadas
     // ================================================================
     useEffect(() => {
         const initAccounts = async () => {
@@ -115,15 +173,28 @@ export function AccountProvider({ children }: AccountProviderProps) {
             if (status === "unauthenticated" || !session?.user?.id) {
                 setAccounts([]);
                 setActiveAccountId(null);
+                setTotalCapital(0);
+                setTotalPendingWithdrawals(0);
                 localStorage.removeItem("activeAccountId");
                 setIsLoading(false);
                 return;
             }
 
-            // Autenticado: cargar cuentas
+            // Autenticado: cargar cuentas y resumen consolidado en paralelo
             setIsLoading(true);
 
-            const validAccounts = await loadAccounts(session.user.id);
+            const [validAccounts] = await Promise.all([
+                loadAccounts(session.user.id),
+                loadWalletSummary(),
+            ]);
+
+            if (process.env.NODE_ENV === "development") {
+                const savings = validAccounts.filter(acc => acc.type === "SAVINGS");
+                const investments = validAccounts.filter(acc => acc.type === "INVESTMENT");
+                console.log("[AccountContext] Accounts:", validAccounts.length);
+                console.log("[AccountContext] Savings:", savings[0]?.id);
+                console.log("[AccountContext] Investments:", investments.length);
+            }
 
             // Restaurar cuenta guardada en localStorage
             const savedAccountId = localStorage.getItem("activeAccountId");
@@ -145,7 +216,7 @@ export function AccountProvider({ children }: AccountProviderProps) {
         };
 
         initAccounts();
-    }, [session?.user?.id, status, loadAccounts]);
+    }, [session?.user?.id, status, loadAccounts, loadWalletSummary]);
 
     // ================================================================
     // Limpieza al cerrar sesión
@@ -154,6 +225,8 @@ export function AccountProvider({ children }: AccountProviderProps) {
         if (status === "unauthenticated") {
             setAccounts([]);
             setActiveAccountId(null);
+            setTotalCapital(0);
+            setTotalPendingWithdrawals(0);
             localStorage.removeItem("activeAccountId");
         }
     }, [status]);
@@ -222,9 +295,12 @@ export function AccountProvider({ children }: AccountProviderProps) {
     // ================================================================
     const refreshAccounts = useCallback(async () => {
         if (session?.user?.id) {
-            await loadAccounts(session.user.id);
+            await Promise.all([
+                loadAccounts(session.user.id),
+                loadWalletSummary(),
+            ]);
         }
-    }, [session?.user?.id, loadAccounts]);
+    }, [session?.user?.id, loadAccounts, loadWalletSummary]);
 
     // ================================================================
     // Derivar cuenta activa desde el ID
@@ -235,10 +311,37 @@ export function AccountProvider({ children }: AccountProviderProps) {
     }, [activeAccountId, accounts]);
 
     // ================================================================
+    // NUEVO — Derivar cuentas por tipo
+    // ================================================================
+    const savingsAccount = useMemo(
+        () => accounts.find((acc) => acc.type === "SAVINGS") ?? null,
+        [accounts]
+    );
+
+    const investmentAccounts = useMemo(
+        () => accounts.filter((acc) => acc.type === "INVESTMENT"),
+        [accounts]
+    );
+
+    const primaryInvestmentAccount = useMemo(() => {
+        if (investmentAccounts.length === 0) return null;
+        return investmentAccounts.reduce((max, acc) =>
+            acc.investedCapital > max.investedCapital ? acc : max
+        );
+    }, [investmentAccounts]);
+
+
+    // ================================================================
+    // NUEVO — Alias semántico (NO elimina setActiveAccount)
+    // ================================================================
+    const setViewedAccount = setActiveAccount;
+
+    // ================================================================
     // Valor del contexto (memoizado para evitar renders innecesarios)
     // ================================================================
     const value = useMemo(
         () => ({
+            // Existente
             accounts,
             activeAccount,
             isLoading,
@@ -246,8 +349,31 @@ export function AccountProvider({ children }: AccountProviderProps) {
             clearActiveAccount,
             createAccount,
             refreshAccounts,
+            // Nuevo — derivados
+            savingsAccount,
+            investmentAccounts,
+            primaryInvestmentAccount,
+            // Nuevo — agregados backend
+            totalCapital,
+            totalPendingWithdrawals,
+            // Nuevo — alias semántico
+            setViewedAccount,
         }),
-        [accounts, activeAccount, isLoading, setActiveAccount, clearActiveAccount, createAccount, refreshAccounts]
+        [
+            accounts,
+            activeAccount,
+            isLoading,
+            setActiveAccount,
+            clearActiveAccount,
+            createAccount,
+            refreshAccounts,
+            savingsAccount,
+            investmentAccounts,
+            primaryInvestmentAccount,
+            totalCapital,
+            totalPendingWithdrawals,
+            setViewedAccount,
+        ]
     );
 
     return (
@@ -267,13 +393,23 @@ export function useAccount() {
     if (context === undefined) {
         // Evita crash durante prerender (_global-error)
         return {
+            // Existente
             accounts: [],
             activeAccount: null,
             isLoading: false,
-            setActiveAccount: () => {},
-            clearActiveAccount: () => {},
+            setActiveAccount: () => { },
+            clearActiveAccount: () => { },
             createAccount: async () => null,
-            refreshAccounts: async () => {},
+            refreshAccounts: async () => { },
+            // Nuevo — derivados
+            savingsAccount: null,
+            investmentAccounts: [],
+            primaryInvestmentAccount: null,
+            // Nuevo — agregados backend
+            totalCapital: 0,
+            totalPendingWithdrawals: 0,
+            // Nuevo — alias semántico
+            setViewedAccount: () => { },
         };
     }
 
