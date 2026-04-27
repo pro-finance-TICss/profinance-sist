@@ -30,6 +30,17 @@ export default function SelectAccountPage() {
         return "/dashboard";
     }, [session]);
 
+    // FASE 3: Redirigir automáticamente a los roles USER/SOCIO al dashboard.
+    // /select-account ya no es parte del flujo de usuario normal.
+    // ADMIN y SUPER_ADMIN siguen su flujo propio.
+    useEffect(() => {
+        if (isLoading) return; // Esperar a que cargue la sesión
+        const role = session?.user?.role;
+        if (role === "USER" || role === "SOCIO") {
+            router.replace("/dashboard");
+        }
+    }, [isLoading, session?.user?.role, router]);
+
     // Estado para crear nueva cajita
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [newAccountName, setNewAccountName] = useState("");

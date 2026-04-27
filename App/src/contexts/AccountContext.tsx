@@ -196,21 +196,11 @@ export function AccountProvider({ children }: AccountProviderProps) {
                 console.log("[AccountContext] Investments:", investments.length);
             }
 
-            // Restaurar cuenta guardada en localStorage
-            const savedAccountId = localStorage.getItem("activeAccountId");
-            if (savedAccountId) {
-                const savedAccount = validAccounts.find(
-                    (acc) => acc.id === savedAccountId && acc.userId === session.user.id
-                );
-
-                if (savedAccount) {
-                    setActiveAccountId(savedAccountId);
-                } else {
-                    // Cuenta guardada no es válida, limpiar
-                    localStorage.removeItem("activeAccountId");
-                    setActiveAccountId(null);
-                }
-            }
+            // FASE 3: Limpiar persistencia legacy de activeAccountId.
+            // En la nueva arquitectura multi-cuenta el dashboard muestra todas
+            // las cuentas sin requerir una cuenta activa seleccionada.
+            localStorage.removeItem("activeAccountId");
+            setActiveAccountId(null);
 
             setIsLoading(false);
         };
@@ -241,7 +231,8 @@ export function AccountProvider({ children }: AccountProviderProps) {
             );
 
             if (!account) {
-                logger.error("❌ Intento de seleccionar cuenta inválida:", accountId);
+                // FASE 3: setActiveAccount es opcional en la nueva arquitectura.
+                // No loguear error — el dashboard opera sin cuenta activa obligatoria.
                 return;
             }
 

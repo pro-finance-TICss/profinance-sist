@@ -63,7 +63,7 @@ export const authConfig: NextAuthConfig = {
 
       const isSetupSecurityRoute = pathname === "/setup-security";
 
-      // Rutas protegidas (Rama 10 incluye select-account)
+      // Rutas protegidas
       const protectedRoutes = [
         "/dashboard",
         "/home",
@@ -71,7 +71,6 @@ export const authConfig: NextAuthConfig = {
         "/profile",
         "/admin",
         "/superadmin",
-        "/select-account",
       ];
 
       const isProtectedRoute = protectedRoutes.some(
@@ -94,9 +93,9 @@ export const authConfig: NextAuthConfig = {
           return Response.redirect(new URL("/setup-security", nextUrl));
         }
 
-        // 🛡️ DECISIÓN ARQUITECTÓNICA RAMA 10: 
-        // Obligamos a pasar por el selector de cuenta para inicializar el contexto financiero
-        return Response.redirect(new URL("/select-account", nextUrl));
+        // FASE 3: El contexto financiero se inicializa en /dashboard (AccountContext).
+        // Ya no se necesita /select-account como intermediario.
+        return Response.redirect(new URL("/dashboard", nextUrl));
       }
 
       // 3. Verificación de seguridad obligatoria

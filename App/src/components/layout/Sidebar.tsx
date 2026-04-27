@@ -334,13 +334,14 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         </ul>
       </nav>
 
-      {/* BOTÓN CAMBIAR CUENTA */}
+      {/* BOTÓN VER CUENTAS (Fase 3: multi-cuenta en dashboard) */}
       <div style={{ padding: "0 15px", marginBottom: "8px" }}>
         <button
           onClick={() => {
-            window.location.href = "/select-account?switch=true";
+            router.push("/dashboard");
+            if (onNavigate) onNavigate();
           }}
-          title={isCollapsed && !isMobile ? "Cambiar Cuenta" : ""}
+          title={isCollapsed && !isMobile ? "Ver Cuentas" : ""}
           style={{
             display: "flex",
             alignItems: "center",
@@ -369,7 +370,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
           }}
         >
           <ArrowLeftRight size={20} />
-          {(!isCollapsed || isMobile) && <span>Cambiar Cuenta</span>}
+          {(!isCollapsed || isMobile) && <span>Ver Cuentas</span>}
         </button>
       </div>
 
