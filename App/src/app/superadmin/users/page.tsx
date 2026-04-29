@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -95,6 +95,17 @@ const getRoleBadgeColor = (role: string) => {
       return { bg: "rgba(16,185,129,0.12)", color: "#10b981", border: "rgba(16,185,129,0.3)" };
     default:
       return { bg: "rgba(156,163,175,0.12)", color: "#9ca3af", border: "rgba(156,163,175,0.3)" };
+  }
+};
+
+/** Etiqueta de rol legible para el usuario */
+const getRoleLabel = (role: string): string => {
+  switch (role) {
+    case "USER": return "Usuario";
+    case "SOCIO": return "Socio";
+    case "ADMIN": return "Admin";
+    case "SUPER_ADMIN": return "Super Admin";
+    default: return role;
   }
 };
 
@@ -404,8 +415,8 @@ export default function UsersManagementPage() {
     const role = createForm.isSuperAdmin
       ? "SUPER_ADMIN"
       : createForm.isAdmin
-      ? "ADMIN"
-      : createForm.accountRole; // USER o SOCIO según lo que eligió el admin
+        ? "ADMIN"
+        : createForm.accountRole; // USER o SOCIO según lo que eligió el admin
 
     const result = await createUser({
       firstName: createForm.firstName,
@@ -708,14 +719,6 @@ export default function UsersManagementPage() {
                     const canExpand = accountCount > 0;
                     const isUserSuperAdmin = user.role === "SUPER_ADMIN";
 
-                    // Rol efectivo: si tiene al menos 1 cuenta INVESTMENT con rol SOCIO → mostrar SOCIO
-                    const hasSocioAccount = user.accounts?.some(
-                      (acc) => acc.role === "SOCIO" && acc.type === "INVESTMENT"
-                    );
-                    const effectiveRole =
-                      user.role === "USER" && hasSocioAccount ? "SOCIO" : user.role;
-                    const effectiveRoleColors = getRoleBadgeColor(effectiveRole);
-
                     // Badge de moneda
                     const currencyBadge = user.baseCurrency || "—";
 
@@ -752,22 +755,21 @@ export default function UsersManagementPage() {
                             {user.email}
                           </td>
 
-                          {/* Role — shows effective role (SOCIO if has SOCIO account) */}
+                          {/* Rol general del usuario */}
                           <td style={{ padding: "12px 10px" }}>
                             <span
                               style={{
                                 padding: "3px 10px",
                                 borderRadius: "6px",
-                                background: effectiveRoleColors.bg,
-                                color: effectiveRoleColors.color,
-                                border: `1px solid ${effectiveRoleColors.border}`,
+                                background: roleColors.bg,
+                                color: roleColors.color,
+                                border: `1px solid ${roleColors.border}`,
                                 fontSize: "0.7rem",
                                 fontWeight: 700,
-                                textTransform: "uppercase",
                                 letterSpacing: "0.05em",
                               }}
                             >
-                              {effectiveRole}
+                              {getRoleLabel(user.role)}
                             </span>
                           </td>
 
@@ -829,11 +831,15 @@ export default function UsersManagementPage() {
                         {/* ── Accounts sub-rows ── */}
                         {isExpanded &&
                           user.accounts?.map((account) => {
-                            const accRoleColors = getRoleBadgeColor(account.role);
                             const isSavings = account.type === "SAVINGS";
+                            const isInvestment = account.type === "INVESTMENT";
+                            // AR: la cuenta tiene rol SOCIO en BD (independiente del rol general del usuario)
+                            const isAR = isInvestment && account.role === "SOCIO";
                             const acctTypeColor = isSavings
                               ? { bg: "rgba(20,184,166,0.12)", color: "#14b8a6", border: "rgba(20,184,166,0.3)" }
                               : { bg: "rgba(168,85,247,0.12)", color: "#a855f7", border: "rgba(168,85,247,0.3)" };
+                            // Colores AR (naranja/ámbar)
+                            const arColor = { bg: "rgba(234,179,8,0.12)", color: "#eab308", border: "rgba(234,179,8,0.3)" };
                             return (
                               <tr
                                 key={account.id}
@@ -845,7 +851,7 @@ export default function UsersManagementPage() {
                                 }}
                               >
                                 <td style={{ padding: "10px 10px" }} />
-                                <td colSpan={2} style={{ padding: "10px 10px 10px 20px" }}>
+                                <td colSpan={5} style={{ padding: "10px 10px 10px 20px" }}>
                                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                                     <Box size={15} style={{ color: isSavings ? "#14b8a6" : "#a855f7", flexShrink: 0 }} />
                                     <div>
@@ -853,6 +859,7 @@ export default function UsersManagementPage() {
                                         <p style={{ margin: 0, color: "#fff", fontSize: "0.88rem", fontWeight: 500 }}>
                                           {account.name}
                                         </p>
+                                        {/* Tipo de cuenta */}
                                         <span
                                           style={{
                                             padding: "1px 7px",
@@ -866,8 +873,25 @@ export default function UsersManagementPage() {
                                             letterSpacing: "0.06em",
                                           }}
                                         >
-                                          {isSavings ? "Ahorro" : "Inversion"}
+                                          {isSavings ? "Ahorro" : "Inversión"}
                                         </span>
+                                        {/* Badge AR solo para inversión de Socios */}
+                                        {isAR && (
+                                          <span
+                                            style={{
+                                              padding: "1px 7px",
+                                              borderRadius: "4px",
+                                              background: arColor.bg,
+                                              color: arColor.color,
+                                              border: `1px solid ${arColor.border}`,
+                                              fontSize: "0.62rem",
+                                              fontWeight: 700,
+                                              letterSpacing: "0.06em",
+                                            }}
+                                          >
+                                            AR
+                                          </span>
+                                        )}
                                       </div>
                                       <p style={{ margin: 0, color: "rgba(255,255,255,0.38)", fontSize: "0.74rem" }}>
                                         Capital: ${Number(account.investedCapital).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -875,53 +899,40 @@ export default function UsersManagementPage() {
                                     </div>
                                   </div>
                                 </td>
-                                <td style={{ padding: "10px" }}>
-                                  <span
-                                    style={{
-                                      padding: "2px 8px",
-                                      borderRadius: "5px",
-                                      background: accRoleColors.bg,
-                                      color: accRoleColors.color,
-                                      border: `1px solid ${accRoleColors.border}`,
-                                      fontSize: "0.68rem",
-                                      fontWeight: 700,
-                                      textTransform: "uppercase",
-                                    }}
-                                  >
-                                    {account.role}
-                                  </span>
+                                {/* Columna de Fecha */}
+                                <td style={{ padding: "10px", color: "rgba(255,255,255,0.35)", fontSize: "0.78rem" }}>
+                                  {account.createdAt.toLocaleDateString()}
                                 </td>
-                                <td colSpan={3} style={{ padding: "10px" }}>
-                                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                                    {/* Role toggle: only for INVESTMENT accounts */}
-                                    {!isSavings && (
+                                {/* Columna de Acciones */}
+                                <td style={{ padding: "10px" }}>
+                                  <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
+                                    {/* Toggle AR: solo para cuentas de inversión cuando el usuario es SOCIO */}
+                                    {isInvestment && user.role === "SOCIO" && (
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleToggleAccountRole(account.id);
                                         }}
+                                        title={isAR ? "Cambiar a Inversión Normal" : "Cambiar a Alto Riesgo"}
                                         disabled={processingId === account.id}
                                         style={{
-                                          padding: "5px 12px",
-                                          backgroundColor:
-                                            account.role === "USER"
-                                              ? "rgba(59,130,246,0.1)"
-                                              : "rgba(16,185,129,0.1)",
-                                          border: `1px solid ${account.role === "USER" ? "rgba(59,130,246,0.3)" : "rgba(16,185,129,0.3)"}`,
+                                          padding: "5px 8px",
+                                          backgroundColor: isAR ? "rgba(16,185,129,0.1)" : "rgba(234,179,8,0.1)",
+                                          border: `1px solid ${isAR ? "rgba(16,185,129,0.3)" : "rgba(234,179,8,0.3)"}`,
                                           borderRadius: "6px",
-                                          color: account.role === "USER" ? "#3b82f6" : "#10b981",
+                                          color: isAR ? "#10b981" : "#eab308",
                                           cursor: processingId === account.id ? "not-allowed" : "pointer",
                                           display: "flex",
                                           alignItems: "center",
                                           gap: "5px",
-                                          fontSize: "0.78rem",
+                                          fontSize: "0.75rem",
                                           fontWeight: 600,
                                           opacity: processingId === account.id ? 0.5 : 1,
                                           transition: "all 0.2s",
                                         }}
                                       >
-                                        <RefreshCw size={11} />
-                                        {processingId === account.id ? "..." : account.role === "USER" ? "→ SOCIO" : "→ USER"}
+                                        <RefreshCw size={12} />
+                                        {processingId === account.id ? "..." : isAR ? "Norm" : "AR"}
                                       </button>
                                     )}
                                     <button
@@ -929,8 +940,9 @@ export default function UsersManagementPage() {
                                         e.stopPropagation();
                                         openDeposit(account.id, account.name);
                                       }}
+                                      title="Añadir Capital"
                                       style={{
-                                        padding: "5px 12px",
+                                        padding: "5px 8px",
                                         backgroundColor: "rgba(234,179,8,0.1)",
                                         border: "1px solid rgba(234,179,8,0.3)",
                                         borderRadius: "6px",
@@ -938,24 +950,25 @@ export default function UsersManagementPage() {
                                         cursor: "pointer",
                                         display: "flex",
                                         alignItems: "center",
-                                        gap: "5px",
-                                        fontSize: "0.78rem",
+                                        gap: "4px",
+                                        fontSize: "0.75rem",
                                         fontWeight: 600,
                                         transition: "all 0.2s",
                                       }}
                                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(234,179,8,0.2)")}
                                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "rgba(234,179,8,0.1)")}
                                     >
-                                      <PlusCircle size={11} />
-                                      SALDO
+                                      <PlusCircle size={12} />
+                                      +$
                                     </button>
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         openWithdraw(account.id, account.name);
                                       }}
+                                      title="Retirar Capital"
                                       style={{
-                                        padding: "5px 12px",
+                                        padding: "5px 8px",
                                         backgroundColor: "rgba(234,179,8,0.1)",
                                         border: "1px solid rgba(234,179,8,0.3)",
                                         borderRadius: "6px",
@@ -963,16 +976,16 @@ export default function UsersManagementPage() {
                                         cursor: "pointer",
                                         display: "flex",
                                         alignItems: "center",
-                                        gap: "5px",
-                                        fontSize: "0.78rem",
+                                        gap: "4px",
+                                        fontSize: "0.75rem",
                                         fontWeight: 600,
                                         transition: "all 0.2s",
                                       }}
                                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(234,179,8,0.2)")}
                                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "rgba(234,179,8,0.1)")}
                                     >
-                                      <MinusCircle size={11} />
-                                      - SALDO
+                                      <MinusCircle size={12} />
+                                      -$
                                     </button>
                                     {/* Eliminar cuenta */}
                                     <button
@@ -981,9 +994,9 @@ export default function UsersManagementPage() {
                                         handleDeleteAccount(account.id, account.name);
                                       }}
                                       disabled={processingId === account.id}
-                                      title={Number(account.investedCapital) > 0 ? "Primero retira el capital" : "Eliminar esta cuenta"}
+                                      title={Number(account.investedCapital) > 0 ? "Primero retira el capital" : "Eliminar cuenta"}
                                       style={{
-                                        padding: "5px 12px",
+                                        padding: "5px 8px",
                                         backgroundColor: "rgba(239,68,68,0.1)",
                                         border: "1px solid rgba(239,68,68,0.3)",
                                         borderRadius: "6px",
@@ -991,8 +1004,8 @@ export default function UsersManagementPage() {
                                         cursor: processingId === account.id ? "not-allowed" : "pointer",
                                         display: "flex",
                                         alignItems: "center",
-                                        gap: "5px",
-                                        fontSize: "0.78rem",
+                                        justifyContent: "center",
+                                        fontSize: "0.75rem",
                                         fontWeight: 600,
                                         opacity: processingId === account.id ? 0.5 : 1,
                                         transition: "all 0.2s",
@@ -1000,13 +1013,9 @@ export default function UsersManagementPage() {
                                       onMouseEnter={(e) => { if (processingId !== account.id) e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.2)"; }}
                                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.1)")}
                                     >
-                                      <Trash2 size={11} />
-                                      {processingId === account.id ? "..." : "BORRAR"}
+                                      <Trash2 size={13} />
                                     </button>
                                   </div>
-                                </td>
-                                <td style={{ padding: "10px", color: "rgba(255,255,255,0.35)", fontSize: "0.78rem" }}>
-                                  {account.createdAt.toLocaleDateString()}
                                 </td>
                               </tr>
                             );
@@ -1038,8 +1047,8 @@ export default function UsersManagementPage() {
           MODAL: CREAR USUARIO
       ══════════════════════════════════════════════ */}
       {modalMode === "create" && (
-        <ModalOverlay onClose={processingId ? () => {} : closeModal} width={520}>
-          <ModalHeader title="✦ Crear Nuevo Usuario" onClose={processingId ? () => {} : closeModal} />
+        <ModalOverlay onClose={processingId ? () => { } : closeModal} width={520}>
+          <ModalHeader title="✦ Crear Nuevo Usuario" onClose={processingId ? () => { } : closeModal} />
           <form onSubmit={handleCreate}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
               {fieldGroup("Nombre(s) *", (
@@ -1090,17 +1099,16 @@ export default function UsersManagementPage() {
                 background: createForm.isSuperAdmin
                   ? "rgba(239,68,68,0.08)"
                   : "rgba(255,255,255,0.03)",
-                border: `1px solid ${
-                  createForm.isSuperAdmin ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.08)"
-                }`,
+                border: `1px solid ${createForm.isSuperAdmin ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.08)"
+                  }`,
                 borderRadius: "10px",
                 marginBottom: "12px",
                 cursor: "pointer",
                 transition: "all 0.2s",
               }}
               onClick={() =>
-                setCreateForm((p) => ({ 
-                  ...p, 
+                setCreateForm((p) => ({
+                  ...p,
                   isSuperAdmin: !p.isSuperAdmin,
                   isAdmin: !p.isSuperAdmin ? true : p.isAdmin // Si es super admin, marcamos admin también
                 }))
@@ -1119,9 +1127,8 @@ export default function UsersManagementPage() {
                     width: 20,
                     height: 20,
                     borderRadius: "5px",
-                    border: `2px solid ${
-                      createForm.isSuperAdmin ? "#ef4444" : "rgba(255,255,255,0.2)"
-                    }`,
+                    border: `2px solid ${createForm.isSuperAdmin ? "#ef4444" : "rgba(255,255,255,0.2)"
+                      }`,
                     background: createForm.isSuperAdmin ? "#ef4444" : "transparent",
                     display: "flex",
                     alignItems: "center",
@@ -1159,9 +1166,8 @@ export default function UsersManagementPage() {
                 background: createForm.isAdmin
                   ? "rgba(249,115,22,0.08)"
                   : "rgba(255,255,255,0.03)",
-                border: `1px solid ${
-                  createForm.isAdmin ? "rgba(249,115,22,0.3)" : "rgba(255,255,255,0.08)"
-                }`,
+                border: `1px solid ${createForm.isAdmin ? "rgba(249,115,22,0.3)" : "rgba(255,255,255,0.08)"
+                  }`,
                 borderRadius: "10px",
                 marginBottom: "16px",
                 cursor: createForm.isSuperAdmin ? "not-allowed" : "pointer",
@@ -1187,9 +1193,8 @@ export default function UsersManagementPage() {
                     width: 20,
                     height: 20,
                     borderRadius: "5px",
-                    border: `2px solid ${
-                      createForm.isAdmin ? "#f97316" : "rgba(255,255,255,0.2)"
-                    }`,
+                    border: `2px solid ${createForm.isAdmin ? "#f97316" : "rgba(255,255,255,0.2)"
+                      }`,
                     background: createForm.isAdmin ? "#f97316" : "transparent",
                     display: "flex",
                     alignItems: "center",
@@ -1227,10 +1232,10 @@ export default function UsersManagementPage() {
               </label>
             </div>
 
-            {/* ── Tipo de cuenta inicial (solo si NO es admin) ── */}
+            {/* ── Rol general del usuario (solo si NO es admin) ── */}
             {(!createForm.isAdmin && !createForm.isSuperAdmin) && (
               <div style={{ marginBottom: "16px" }}>
-                <label style={labelStyle}>Tipo de cuenta inicial *</label>
+                <label style={labelStyle}>Rol general del usuario *</label>
                 <div style={{ display: "flex", gap: "10px" }}>
                   {(["USER", "SOCIO"] as const).map((role) => (
                     <button
@@ -1241,13 +1246,12 @@ export default function UsersManagementPage() {
                         flex: 1,
                         padding: "10px 12px",
                         borderRadius: "8px",
-                        border: `1px solid ${
-                          createForm.accountRole === role
+                        border: `1px solid ${createForm.accountRole === role
                             ? role === "SOCIO"
                               ? "rgba(59,130,246,0.5)"
                               : "rgba(16,185,129,0.5)"
                             : "rgba(255,255,255,0.08)"
-                        }`,
+                          }`,
                         background:
                           createForm.accountRole === role
                             ? role === "SOCIO"
@@ -1270,11 +1274,11 @@ export default function UsersManagementPage() {
                         gap: "3px",
                       }}
                     >
-                      <span>{role === "USER" ? "💼 Usuario" : "🤝 Socio"}</span>
+                      <span>{role === "USER" ? "👤 Usuario" : "🤝 Socio"}</span>
                       <span style={{ fontSize: "0.69rem", fontWeight: 400, opacity: 0.7 }}>
                         {role === "USER"
-                          ? "Cuenta de usuario estándar"
-                          : "Cuenta de socio / inversor"}
+                          ? "Rol estándar (cuentas Normales)"
+                          : "Rol socio (puede tener cuentas AR)"}
                       </span>
                     </button>
                   ))}
@@ -1366,10 +1370,10 @@ export default function UsersManagementPage() {
           MODAL: EDITAR USUARIO
       ══════════════════════════════════════════════ */}
       {modalMode === "edit" && selectedUser && (
-        <ModalOverlay onClose={processingId ? () => {} : closeModal} width={520}>
+        <ModalOverlay onClose={processingId ? () => { } : closeModal} width={520}>
           <ModalHeader
             title={`✎ Editar: ${selectedUser.firstName} ${selectedUser.paternalSurname}`}
-            onClose={processingId ? () => {} : closeModal}
+            onClose={processingId ? () => { } : closeModal}
           />
           <form onSubmit={handleEdit}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
@@ -1484,8 +1488,8 @@ export default function UsersManagementPage() {
           MODAL: ELIMINAR USUARIO (con preview)
       ══════════════════════════════════════════════ */}
       {modalMode === "delete" && selectedUser && (
-        <ModalOverlay onClose={processingId ? () => {} : closeModal} width={500}>
-          <ModalHeader title="⚠ Confirmar Eliminación" onClose={processingId ? () => {} : closeModal} />
+        <ModalOverlay onClose={processingId ? () => { } : closeModal} width={500}>
+          <ModalHeader title="⚠ Confirmar Eliminación" onClose={processingId ? () => { } : closeModal} />
 
           <div
             style={{
@@ -1675,8 +1679,8 @@ export default function UsersManagementPage() {
           MODAL: AGREGAR SALDO
       ══════════════════════════════════════════════ */}
       {modalMode === "deposit" && depositConfig && (
-        <ModalOverlay onClose={depositing ? () => {} : closeModal} width={420}>
-          <ModalHeader title="+ Agregar Saldo" onClose={depositing ? () => {} : closeModal} />
+        <ModalOverlay onClose={depositing ? () => { } : closeModal} width={420}>
+          <ModalHeader title="+ Agregar Saldo" onClose={depositing ? () => { } : closeModal} />
           <form onSubmit={handleDepositSubmit}>
             {fieldGroup("Cuenta Destino", (
               <div
@@ -1748,8 +1752,8 @@ export default function UsersManagementPage() {
           MODAL: QUITAR SALDO
       ══════════════════════════════════════════════ */}
       {modalMode === "withdraw" && withdrawConfig && (
-        <ModalOverlay onClose={withdrawing ? () => {} : closeModal} width={420}>
-          <ModalHeader title="- Quitar Saldo" onClose={withdrawing ? () => {} : closeModal} />
+        <ModalOverlay onClose={withdrawing ? () => { } : closeModal} width={420}>
+          <ModalHeader title="- Quitar Saldo" onClose={withdrawing ? () => { } : closeModal} />
           <form onSubmit={handleWithdrawSubmit}>
             {fieldGroup("Cuenta Destino", (
               <div

@@ -1,456 +1,388 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
+  AreaChart, Area,
+  BarChart, Bar, Cell,
+  XAxis, YAxis,
+  CartesianGrid, Tooltip,
+  ResponsiveContainer, TooltipProps,
 } from "recharts";
-import { TrendingUp, TrendingDown } from "lucide-react";
 import { logger } from "@/lib/logger";
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// ── Tipos ────────────────────────────────────────────────────────────────────
 
-interface InvestmentChartProps {
-  role: "USER" | "SOCIO";
-  title: string;
-  /** Filtra el capital por la moneda base de los usuarios (ej. "COP", "USD") */
-  currency?: string;
+interface ChartDataPoint  { date: string; total: number; }
+interface DailyChangePoint {
+  date: string; total: number;
+  changePercent: number | null; changeAmount: number | null;
+  type: "GAIN" | "LOSS" | "NEUTRAL";
 }
-
-interface ChartDataPoint {
-  date: string;
-  displayDate: string;
-  total: number;
-}
-
 interface MonthlyTotal {
-  month: string;
-  displayMonth: string;
-  total: number;
-  changeFromPrevious: number;
-  isIncrease: boolean;
+  month: string; displayMonth: string; total: number;
+  changeFromPrevious: number; isIncrease: boolean;
 }
-
 interface AnalyticsData {
   currentTotal: number;
   chartData: ChartDataPoint[];
+  dailyChanges: DailyChangePoint[];
   monthlyTotals: MonthlyTotal[];
 }
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
+// Punto normalizado para Recharts
+interface DisplayPoint {
+  label: string;
+  value: number;
+  rawTotal: number;
+  rawPercent: number | null;
+  type: "GAIN" | "LOSS" | "NEUTRAL";
+}
 
-/**
- * Formatea un valor como moneda de forma determinista, usando la divisa recibida.
- */
-const formatCurrency = (value: number, currency = "COP"): string => {
-  const abs = Math.abs(value);
-  const formatted = abs.toLocaleString("es-CO", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+export interface InvestmentChartProps {
+  role: "USER" | "SOCIO";
+  title: string;
+  currency?: string;
+}
+
+// ── Colores ──────────────────────────────────────────────────────────────────
+const C_GOLD    = "#bd8e48";
+const C_GAIN    = "#10b981";
+const C_LOSS    = "#ef4444";
+const C_NEUTRAL = "rgba(255,255,255,0.25)";
+
+// ── Utilidades ───────────────────────────────────────────────────────────────
+function fmtCurrency(v: number, currency = "COP") {
+  const abs = Math.abs(v);
+  if (abs >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M ${currency}`;
+  if (abs >= 1_000)     return `${(v / 1_000).toFixed(1)}K ${currency}`;
+  return `${v.toLocaleString("es-CO", { maximumFractionDigits: 0 })} ${currency}`;
+}
+
+function fmtAxisAmount(v: number) {
+  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(v) >= 1_000)     return `${(v / 1_000).toFixed(0)}K`;
+  return `${v.toFixed(0)}`;
+}
+
+function fmtDate(iso: string) {
+  // Si es solo "YYYY-MM-DD", agregamos T00:00:00 para que se parsee en zona horaria local
+  const parseable = iso.length === 10 ? `${iso}T00:00:00` : iso;
+  return new Date(parseable).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+}
+
+// ── Tooltip ──────────────────────────────────────────────────────────────────
+function ChartTooltip({
+  active, payload, mode, currency,
+}: TooltipProps<number, string> & { mode: "amount" | "percentage"; currency?: string }) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload as DisplayPoint;
+  const isPercent = mode === "percentage";
+  const val   = isPercent ? (p.rawPercent ?? 0) : p.rawTotal;
+  const isPos = val > 0; const isNeg = val < 0;
+  const sign  = isPos ? "+" : isNeg ? "−" : "";
+  const color = isPos ? C_GAIN : isNeg ? C_LOSS : C_NEUTRAL;
+  const text  = isPercent
+    ? `${sign}${Math.abs(val).toFixed(2)}%`
+    : `${sign}${fmtCurrency(Math.abs(val), currency)}`;
+  return (
+    <div style={{
+      background: "rgba(8,8,8,0.95)", border: `1px solid ${color}40`,
+      borderRadius: 10, padding: "10px 14px",
+      boxShadow: `0 0 12px ${color}20`, minWidth: 150,
+    }}>
+      <p style={{ margin: "0 0 5px", fontSize: "0.72rem", color: "rgba(255,255,255,0.4)" }}>{p.label}</p>
+      <p style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color }}>{text}</p>
+    </div>
+  );
+}
+
+// ── Skeleton ─────────────────────────────────────────────────────────────────
+function Skeleton() {
+  return (
+    <div style={{
+      height: 300, borderRadius: 16,
+      background: "rgba(255,255,255,0.03)",
+      border: "1px solid rgba(255,255,255,0.06)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <p style={{ color: "rgba(255,255,255,0.2)", fontSize: "0.85rem" }}>Cargando...</p>
+    </div>
+  );
+}
+
+// ── Empty ─────────────────────────────────────────────────────────────────────
+function Empty({ msg }: { msg: string }) {
+  return (
+    <div style={{
+      height: 300, borderRadius: 16,
+      background: "rgba(255,255,255,0.02)",
+      border: "1px dashed rgba(255,255,255,0.08)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <p style={{ color: "rgba(255,255,255,0.25)", fontSize: "0.85rem", textAlign: "center", maxWidth: 240 }}>{msg}</p>
+    </div>
+  );
+}
+
+// ── Controles de cabecera ────────────────────────────────────────────────────
+function HeaderControls({
+  timeRange, setTimeRange,
+  mode, setMode,
+  disabled,
+}: {
+  timeRange: "1D" | "1W" | "1M";
+  setTimeRange: (r: "1D" | "1W" | "1M") => void;
+  mode: "amount" | "percentage";
+  setMode: (m: "amount" | "percentage") => void;
+  disabled: boolean;
+}) {
+  const btnBase: React.CSSProperties = {
+    border: "none", borderRadius: 0, cursor: disabled ? "default" : "pointer",
+    transition: "background 0.15s, color 0.15s",
+    padding: "5px 11px", fontSize: "0.72rem", fontWeight: 700,
+  };
+  const groupStyle: React.CSSProperties = {
+    display: "flex", background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, overflow: "hidden",
+  };
+  const active = (on: boolean): React.CSSProperties => ({
+    background: on ? "rgba(255,255,255,0.1)" : "transparent",
+    color: on ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.3)",
   });
-  return `$ ${formatted} ${currency}`;
-};
 
-/**
- * Formatea valores del eje Y con sufijos K/M para mayor legibilidad.
- * Siempre muestra "COP" como sufijo para dejar claro la divisa.
- */
-const formatAxisTick = (value: number): string => {
-  if (value === 0) return "0";
-  if (Math.abs(value) >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(1)}M`;
-  }
-  if (Math.abs(value) >= 1_000) {
-    return `${(value / 1_000).toFixed(0)}K`;
-  }
-  return value.toLocaleString("es-CO");
-};
+  return (
+    <div style={{ display: "flex", gap: 6, alignItems: "center", opacity: disabled ? 0.5 : 1, flexWrap: "wrap" }}>
+      {/* Rango de tiempo */}
+      <div style={groupStyle}>
+        {(["1D","1W","1M"] as const).map(r => (
+          <button key={r} type="button" disabled={disabled}
+            onClick={() => setTimeRange(r)}
+            style={{ ...btnBase, ...active(timeRange === r), letterSpacing: "0.3px" }}>
+            {r === "1D" ? "1D" : r === "1W" ? "1S" : "1M"}
+          </button>
+        ))}
+      </div>
 
-const formatDate = (dateStr: string, range: string): string => {
-  const date = new Date(dateStr);
-  if (range === "1D") {
-    return date.toLocaleTimeString("es-ES", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } else if (range === "1W" || "1M") {
-    return date.toLocaleDateString("es-ES", {
-      day: "numeric",
-      month: "short",
-    });
-  } else {
-    return date.toLocaleDateString("es-ES", {
-      month: "short",
-      year: "2-digit",
-    });
-  }
-};
+      <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.08)" }} />
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
+      {/* Modo $ / % — el tipo de gráfico se deriva automáticamente */}
+      <div style={groupStyle}>
+        {(["amount","percentage"] as const).map(m => (
+          <button key={m} type="button" disabled={disabled}
+            onClick={() => setMode(m)}
+            title={m === "amount" ? "Capital total (tendencia)" : "Variación % diaria (barras)"}
+            style={{ ...btnBase, ...active(mode === m), padding: "5px 13px" }}>
+            {m === "amount" ? "$" : "%"}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
+// ── Componente principal ─────────────────────────────────────────────────────
 export function InvestmentChart({ role, title, currency }: InvestmentChartProps) {
   const [timeRange, setTimeRange] = useState<"1D" | "1W" | "1M">("1M");
-  const [data, setData] = useState<AnalyticsData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
+  const [mode, setMode]           = useState<"amount" | "percentage">("amount");
+  const [data, setData]           = useState<AnalyticsData | null>(null);
+  const [status, setStatus]       = useState<"loading" | "success" | "empty">("loading");
+
+  // $ → área (tendencia acumulada), % → barras (variación diaria)
+  const chartType: "area" | "bar" = mode === "amount" ? "area" : "bar";
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    fetchData();
+    const load = async () => {
+      setStatus("loading");
+      try {
+        const params = new URLSearchParams({ role, timeRange, ...(currency ? { currency } : {}) });
+        const res = await fetch(`/api/superadmin/analytics?${params}`);
+        if (!res.ok) { setStatus("empty"); return; }
+        const json = await res.json();
+        if (json.success && json.data) {
+          setData(json.data);
+          setStatus("success");
+        } else {
+          setStatus("empty");
+        }
+      } catch (e) {
+        logger.error("InvestmentChart fetch error:", e);
+        setStatus("empty");
+      }
+    };
+    load();
   }, [role, timeRange, currency]);
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      // Construir URL: si hay currency la pasamos como filtro de baseCurrency
-      const params = new URLSearchParams({
-        role,
-        timeRange,
-        ...(currency ? { currency } : {}),
-      });
-      const response = await fetch(`/api/superadmin/analytics?${params.toString()}`);
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data) {
-          // Format display dates for chart
-          const formattedChartData = result.data.chartData.map((point: any) => ({
-            ...point,
-            displayDate: formatDate(point.date, timeRange),
-          }));
-          setData({
-            ...result.data,
-            chartData: formattedChartData,
-          });
-        }
-      }
-    } catch (error) {
-      logger.error("Error fetching analytics:", error);
-    } finally {
-      setIsLoading(false);
+  // Construir puntos de display según modo
+  const displayPoints = useMemo<DisplayPoint[]>(() => {
+    if (!data) return [];
+    if (mode === "amount") {
+      return data.chartData.map(p => ({
+        label: fmtDate(p.date),
+        value: p.total,
+        rawTotal: p.total,
+        rawPercent: null,
+        type: "GAIN" as const,
+      }));
     }
-  };
+    // modo % → serie de cambio diario
+    return data.dailyChanges.map(p => ({
+      label: fmtDate(p.date),
+      value: p.changePercent ?? 0,
+      rawTotal: p.total,
+      rawPercent: p.changePercent,
+      type: p.type,
+    }));
+  }, [data, mode]);
 
-  // Custom tooltip
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const point = payload[0].payload as ChartDataPoint;
+  // Color de tendencia (para modo $) o neutral palette (para modo %)
+  const trendColor = useMemo(() => {
+    if (mode === "percentage") return C_GOLD;
+    if (displayPoints.length < 2) return C_NEUTRAL;
+    return displayPoints[displayPoints.length - 1].rawTotal > displayPoints[0].rawTotal ? C_GAIN : C_LOSS;
+  }, [displayPoints, mode]);
+
+  const gradId = `grad-${role}`;
+
+  const renderChart = () => {
+    if (chartType === "area") {
       return (
-        <div
-          style={{
-            backgroundColor: "#000",
-            border: "1px solid #bd8e48",
-            borderRadius: "8px",
-            padding: "10px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-          }}
-        >
-          <p
-            style={{
-              color: "rgba(255,255,255,0.5)",
-              fontSize: "0.75rem",
-              margin: "0 0 5px 0",
-            }}
-          >
-            {label}
-          </p>
-          <p
-            style={{
-              color: "#bd8e48",
-              fontSize: "1rem",
-              fontWeight: "bold",
-              margin: 0,
-            }}
-          >
-            {formatCurrency(point.total, currency)}
-          </p>
-        </div>
+        <AreaChart data={displayPoints} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%"  stopColor={trendColor} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={trendColor} stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+          <XAxis dataKey="label" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+          <YAxis tickFormatter={v => mode === "percentage" ? `${v.toFixed(1)}%` : fmtAxisAmount(v)}
+            tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }} axisLine={false} tickLine={false} width={52} />
+          <Tooltip content={<ChartTooltip mode={mode} currency={currency} />}
+            cursor={{ stroke: `${trendColor}30`, strokeWidth: 1, strokeDasharray: "4 4" }} />
+          <Area type="monotone" dataKey="value" stroke={trendColor} strokeWidth={2}
+            fill={`url(#${gradId})`} dot={false}
+            activeDot={{ r: 5, fill: trendColor, stroke: "rgba(0,0,0,0.6)", strokeWidth: 2 }} />
+        </AreaChart>
       );
     }
-    return null;
+    // Bar chart
+    const barSize = Math.max(6, Math.min(22, Math.floor(280 / Math.max(displayPoints.length, 1))));
+    return (
+      <BarChart data={displayPoints} margin={{ top: 4, right: 16, left: 0, bottom: 0 }} barSize={barSize} barCategoryGap="20%">
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+        <XAxis dataKey="label" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+        <YAxis tickFormatter={v => mode === "percentage" ? `${v.toFixed(1)}%` : fmtAxisAmount(v)}
+          tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11 }} axisLine={false} tickLine={false} width={52} />
+        <CartesianGrid strokeDasharray="0" stroke="rgba(255,255,255,0.12)" vertical={false}
+          horizontalCoordinatesGenerator={(props: any) => {
+            const y0 = props?.yAxis?.scale?.(0);
+            return isFinite(y0) ? [y0] : [];
+          }} />
+        <Tooltip content={<ChartTooltip mode={mode} currency={currency} />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+        <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+          {displayPoints.map((p, i) => {
+            const color = mode === "percentage"
+              ? (p.value > 0 ? C_GAIN : p.value < 0 ? C_LOSS : C_NEUTRAL)
+              : trendColor;
+            return <Cell key={i} fill={color} fillOpacity={0.85} />;
+          })}
+        </Bar>
+      </BarChart>
+    );
   };
 
   return (
-    <div style={{ position: "relative" }}>
-      <style>
-        {`
-          @keyframes floatParticles {
-            0% { background-position: 0% 0%; }
-            100% { background-position: 100% 100%; }
-          }
-          .analytics-glass-container {
-            position: relative;
-            background: #080808;
-            border-radius: 24px;
-            border: 1px solid rgba(189, 142, 72, 0.3);
-            overflow: hidden;
-            padding: 30px;
-            display: flex;
-            flex-direction: column;
-          }
-          .analytics-particles-overlay {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-image: url("https://www.transparenttextures.com/patterns/stardust.png");
-            opacity: 0.15;
-            pointer-events: none;
-            animation: floatParticles 60s linear infinite;
-            z-index: 0;
-          }
-          .analytics-time-btn {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(189, 142, 72, 0.2);
-            color: rgba(255, 255, 255, 0.5);
-            padding: 6px 14px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.7rem;
-            font-weight: 700;
-            transition: all 0.3s;
-            text-transform: uppercase;
-          }
-          .analytics-time-btn.active {
-            background: #bd8e48;
-            color: #000;
-            border-color: #bd8e48;
-            box-shadow: 0 0 15px rgba(189, 142, 72, 0.4);
-          }
-        `}
-      </style>
+    <div style={{
+      background: "#080808", borderRadius: 24,
+      border: "1px solid rgba(189,142,72,0.3)",
+      padding: 30, display: "flex", flexDirection: "column", gap: 16, position: "relative", overflow: "hidden",
+    }}>
+      {/* Partículas decorativas */}
+      <div style={{
+        position: "absolute", inset: 0,
+        backgroundImage: "url('https://www.transparenttextures.com/patterns/stardust.png')",
+        opacity: 0.12, pointerEvents: "none", zIndex: 0,
+      }} />
 
-      <div className="analytics-glass-container">
-        <div className="analytics-particles-overlay" />
-
-        {/* Header */}
-        <div
-          style={{
-            position: "relative",
-            zIndex: 2,
-            marginBottom: "20px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
-        >
-          <div>
-            <h3
-              style={{
-                color: "rgba(189, 142, 72, 0.8)",
-                margin: 0,
-                fontSize: "0.9rem",
-                fontWeight: "600",
-                textTransform: "uppercase",
-                letterSpacing: "1px",
-              }}
-            >
-              {title}
-            </h3>
-            <p
-              style={{
-                color: "#fff",
-                margin: 0,
-                fontSize: "2.4rem",
-                fontWeight: "800",
-              }}
-            >
-              {isLoading ? "..." : formatCurrency(data?.currentTotal || 0, currency)}
+      {/* Header */}
+      <div style={{ position: "relative", zIndex: 2, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h3 style={{ margin: 0, color: "rgba(189,142,72,0.85)", fontSize: "0.8rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px" }}>
+            {title}
+          </h3>
+          <p style={{ margin: "4px 0 0", color: "#fff", fontSize: "2rem", fontWeight: 800, lineHeight: 1 }}>
+            {status === "loading" ? "…" : fmtCurrency(data?.currentTotal ?? 0, currency)}
+          </p>
+          {mode === "percentage" && (
+            <p style={{ margin: "4px 0 0", color: "rgba(255,255,255,0.35)", fontSize: "0.7rem" }}>
+              Variación % diaria · el cambio del día anterior
             </p>
-          </div>
+          )}
+        </div>
+        <HeaderControls
+          timeRange={timeRange} setTimeRange={setTimeRange}
+          mode={mode} setMode={setMode}
+          disabled={status === "loading"}
+        />
+      </div>
 
-          <div style={{ display: "flex", gap: "8px", marginTop: "5px" }}>
-            {(["1D", "1W", "1M"] as const).map((range) => (
-              <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                className={`analytics-time-btn ${
-                  timeRange === range ? "active" : ""
-                }`}
-              >
-                {range === "1D" ? "Días" : range === "1W" ? "Semanas" : "Meses"}
-              </button>
+      {/* Chart area */}
+      <div style={{ position: "relative", zIndex: 1, height: 300 }}>
+        {status === "loading" && <Skeleton />}
+        {status === "empty"   && <Empty msg="Sin datos para mostrar en este período" />}
+        {status === "success" && (
+          displayPoints.length === 0
+            ? <Empty msg={mode === "percentage" ? "Sin variaciones registradas en este período" : "Sin datos de capital"} />
+            : (
+              <div style={{
+                height: "100%", borderRadius: 16,
+                background: "rgba(255,255,255,0.02)",
+                border: `1px solid ${trendColor}25`,
+                padding: "16px 4px 8px 4px", position: "relative", overflow: "hidden",
+              }}>
+                <div style={{
+                  position: "absolute", inset: 0,
+                  background: `radial-gradient(ellipse at top center, ${trendColor}08 0%, transparent 65%)`,
+                  pointerEvents: "none",
+                }} />
+                <ResponsiveContainer width="100%" height="100%">
+                  {renderChart()}
+                </ResponsiveContainer>
+              </div>
+            )
+        )}
+      </div>
+
+      {/* Resumen mensual */}
+      {status === "success" && data && data.monthlyTotals.length > 0 && (
+        <div style={{ position: "relative", zIndex: 2, borderTop: "1px solid rgba(189,142,72,0.2)", paddingTop: 16 }}>
+          <p style={{ margin: "0 0 10px", color: "rgba(189,142,72,0.8)", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px" }}>
+            Resumen Mensual
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {data.monthlyTotals.map(m => (
+              <div key={m.month} style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "8px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8,
+              }}>
+                <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.85rem" }}>{m.displayMonth}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ color: "#fff", fontSize: "0.9rem", fontWeight: 600 }}>
+                    {fmtCurrency(m.total, currency)}
+                  </span>
+                  {m.changeFromPrevious !== 0 && (
+                    <span style={{
+                      fontSize: "0.75rem", fontWeight: 700,
+                      color: m.isIncrease ? C_GAIN : C_LOSS,
+                    }}>
+                      {m.isIncrease ? "▲" : "▼"} {Math.abs(m.changeFromPrevious).toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         </div>
-
-        {/* Chart */}
-        <div
-          style={{
-            position: "relative",
-            zIndex: 1,
-            height: "300px",
-            width: "100%",
-            marginBottom: "20px",
-          }}
-        >
-          {mounted && data && data.chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.chartData} margin={{ left: -20, right: 10 }}>
-                <defs>
-                  <linearGradient id={`colorBalance-${role}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#bd8e48" stopOpacity={0.6} />
-                    <stop offset="95%" stopColor="#bd8e48" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-
-                <CartesianGrid
-                  strokeDasharray="0"
-                  stroke="rgba(189, 142, 72, 0.08)"
-                  vertical={true}
-                />
-
-                <XAxis
-                  dataKey="displayDate"
-                  axisLine={{ stroke: "rgba(189, 142, 72, 0.2)" }}
-                  tickLine={false}
-                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
-                  dy={10}
-                  interval="preserveStartEnd"
-                />
-
-                <YAxis
-                  axisLine={{ stroke: "rgba(189, 142, 72, 0.2)" }}
-                  tickLine={false}
-                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
-                  domain={["auto", "auto"]}
-                  tickFormatter={formatAxisTick}
-                />
-
-                <Tooltip
-                  cursor={{ stroke: "#bd8e48", strokeWidth: 1 }}
-                  content={<CustomTooltip />}
-                />
-
-                <Area
-                  type="monotone"
-                  dataKey="total"
-                  stroke="#bd8e48"
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill={`url(#colorBalance-${role})`}
-                  activeDot={{
-                    r: 6,
-                    fill: "#fff",
-                    stroke: "#bd8e48",
-                    strokeWidth: 2,
-                  }}
-                  animationDuration={1500}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <p style={{ color: "rgba(255,255,255,0.2)" }}>
-                {isLoading ? "Cargando..." : "No hay datos para mostrar"}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Monthly Summary */}
-        {data && data.monthlyTotals && data.monthlyTotals.length > 0 && (
-          <div
-            style={{
-              position: "relative",
-              zIndex: 2,
-              borderTop: "1px solid rgba(189, 142, 72, 0.2)",
-              paddingTop: "20px",
-            }}
-          >
-            <h4
-              style={{
-                color: "rgba(189, 142, 72, 0.8)",
-                margin: "0 0 12px 0",
-                fontSize: "0.75rem",
-                fontWeight: "600",
-                textTransform: "uppercase",
-                letterSpacing: "1px",
-              }}
-            >
-              Resumen Mensual
-            </h4>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {data.monthlyTotals.map((month) => (
-                <div
-                  key={month.month}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "8px 12px",
-                    background: "rgba(255, 255, 255, 0.02)",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <div>
-                    <span
-                      style={{
-                        color: "rgba(255, 255, 255, 0.7)",
-                        fontSize: "0.85rem",
-                        fontWeight: "500",
-                      }}
-                    >
-                      {month.displayMonth}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <span
-                      style={{
-                        color: "#fff",
-                        fontSize: "0.9rem",
-                        fontWeight: "600",
-                      }}
-                    >
-                      {formatCurrency(month.total, currency)}
-                    </span>
-                    {month.changeFromPrevious !== 0 && (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          color: month.isIncrease ? "#4caf50" : "#f44336",
-                          fontSize: "0.75rem",
-                          fontWeight: "600",
-                        }}
-                      >
-                        {month.isIncrease ? (
-                          <TrendingUp size={14} />
-                        ) : (
-                          <TrendingDown size={14} />
-                        )}
-                        <span>
-                          {month.isIncrease ? "+" : ""}
-                          {month.changeFromPrevious.toFixed(1)}%
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

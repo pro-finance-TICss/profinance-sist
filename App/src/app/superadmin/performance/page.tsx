@@ -1,7 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { TrendingUp, Plus, Trash2 } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import {
+  BarChart, Bar, Cell,
+  XAxis, YAxis,
+  CartesianGrid, Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import {
   getPerformancesByTarget,
   createPerformance,
@@ -10,6 +16,163 @@ import {
 } from "@/lib/actions/performance";
 import * as Flags from "country-flag-icons/react/3x2";
 import { logger } from "@/lib/logger";
+
+// ── Tooltip extraído fuera del componente (evita re-creación en cada render) ─
+
+const C_GAIN    = "#10b981";
+const C_LOSS    = "#ef4444";
+const C_NEUTRAL = "rgba(255,255,255,0.2)";
+
+function PerfTooltip({
+  active, payload, selectedMonth,
+}: {
+  active?: boolean;
+  payload?: any[];
+  selectedMonth: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const point: BarPoint = payload[0].payload;
+  const val = point.value;
+  const color = val > 0 ? C_GAIN : val < 0 ? C_LOSS : C_NEUTRAL;
+  const [y, m] = selectedMonth.split("-").map(Number);
+  const dateLabel = new Date(y, m - 1, point.day)
+    .toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+  return (
+    <div style={{
+      background: "rgba(8,8,8,0.96)", border: `1px solid ${color}40`,
+      borderRadius: 10, padding: "10px 14px", minWidth: 160,
+      boxShadow: `0 0 12px ${color}20`,
+    }}>
+      <p style={{ margin: "0 0 5px", fontSize: "0.72rem", color: "rgba(255,255,255,0.4)" }}>{dateLabel}</p>
+      <p style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color }}>
+        {val > 0 ? "+" : val < 0 ? "−" : ""}{Math.abs(val).toFixed(2)}%
+      </p>
+    </div>
+  );
+}
+
+function PerformanceBarChart({
+  performances, selectedMonth,
+}: {
+  performances: Performance[];
+  selectedMonth: string;
+}) {
+  // Filtrar COMPLETED con % y agrupar por día sumando
+  const points = useMemo<BarPoint[]>(() => {
+    const dayMap = new Map<string, number>();
+
+    performances
+      .filter(p => p.status === "COMPLETED" && p.percentage != null)
+      .forEach(p => {
+        const d = p.startDate;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        dayMap.set(key, (dayMap.get(key) ?? 0) + (p.percentage ?? 0));
+      });
+
+    // Rellenar todos los días del mes seleccionado
+    const [y, m] = selectedMonth.split("-").map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const result: BarPoint[] = [];
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const key = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const value = dayMap.get(key) ?? 0;
+      result.push({ day, value });
+    }
+    return result;
+  }, [performances, selectedMonth]);
+
+  const hasData = points.some(p => p.value !== 0);
+
+  // Curried para pasar selectedMonth sin violar reglas de hooks
+  const renderTooltip = (props: any) => (
+    <PerfTooltip {...props} selectedMonth={selectedMonth} />
+  );
+
+  return (
+    <div style={{
+      background: "#080808", borderRadius: 20,
+      border: "1px solid rgba(189,142,72,0.25)",
+      padding: "24px 24px 16px", marginBottom: 24,
+      position: "relative", overflow: "hidden",
+    }}>
+      {/* Decoración de fondo */}
+      <div style={{
+        position: "absolute", inset: 0,
+        backgroundImage: "url('https://www.transparenttextures.com/patterns/stardust.png')",
+        opacity: 0.1, pointerEvents: "none",
+      }} />
+
+      {/* Cabecera */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, position: "relative", zIndex: 1 }}>
+        <div>
+          <p style={{ margin: 0, fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.1px", color: "rgba(189,142,72,0.85)" }}>
+            Evolución de Rendimiento
+          </p>
+        </div>
+      </div>
+
+      {/* Gráfica */}
+      <div style={{ height: 220, position: "relative", zIndex: 1 }}>
+        {!hasData ? (
+          <div style={{
+            height: "100%", display: "flex", alignItems: "center", justifyContent: "center",
+            border: "1px dashed rgba(255,255,255,0.07)", borderRadius: 12,
+          }}>
+            <p style={{ color: "rgba(255,255,255,0.2)", fontSize: "0.85rem" }}>
+              Sin operaciones concretadas en este mes
+            </p>
+          </div>
+        ) : (
+          <div style={{
+            height: "100%", borderRadius: 12,
+            background: "rgba(255,255,255,0.015)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            padding: "12px 4px 4px", position: "relative", overflow: "hidden",
+          }}>
+            <div style={{
+              position: "absolute", inset: 0,
+              background: "radial-gradient(ellipse at top center, rgba(189,142,72,0.04) 0%, transparent 70%)",
+              pointerEvents: "none",
+            }} />
+            <ResponsiveContainer width="100%" height="100%" style={{ outline: "none" }}>
+              <BarChart data={points} margin={{ top: 2, right: 8, left: 0, bottom: 0 }} barSize={8} barCategoryGap="8%" style={{ outline: "none" }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <CartesianGrid strokeDasharray="0" stroke="rgba(255,255,255,0.1)" vertical={false}
+                  horizontalCoordinatesGenerator={(props: any) => {
+                    const y0 = props?.yAxis?.scale?.(0);
+                    return isFinite(y0) ? [y0] : [];
+                  }} />
+                <XAxis 
+                  dataKey="day"
+                  tickFormatter={(day) => {
+                    // Solo mostrar el día 1, múltiplos de 5, y el último día aproximado
+                    return day === 1 || day % 5 === 0 || day >= 28 ? String(day) : "";
+                  }}
+                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                  axisLine={false} tickLine={false} />
+                <YAxis
+                  tickFormatter={v => `${v > 0 ? "+" : ""}${v.toFixed(1)}%`}
+                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
+                  axisLine={false} tickLine={false} width={48} />
+                <Tooltip content={renderTooltip} cursor={false} isAnimationActive={false} />
+                <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+                  {points.map((p, i) => (
+                    <Cell key={i}
+                      fill={p.value > 0 ? C_GAIN : p.value < 0 ? C_LOSS : C_NEUTRAL}
+                      fillOpacity={p.value === 0 ? 0.15 : 0.85}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 interface Performance {
   id: string;
@@ -24,7 +187,7 @@ interface Performance {
 }
 
 const CURRENCY_OPTIONS = [
-  "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", 
+  "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY",
   "NZD", "MXN", "COP", "BRL", "ARS", "CLP", "PEN"
 ];
 
@@ -39,7 +202,7 @@ export default function PerformancePage() {
   const [performances, setPerformances] = useState<Performance[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  
+
   const [finalizeId, setFinalizeId] = useState<string | null>(null);
   const [finalizeData, setFinalizeData] = useState({
     endDate: new Date().toISOString().split("T")[0],
@@ -86,7 +249,7 @@ export default function PerformancePage() {
       // split the string to avoid UTC-parsing which shifts the date in local timezone
       const [year, month, day] = formData.startDate.split("-").map(Number);
       const dateVal = new Date(year, month - 1, day, 12, 0, 0, 0);
-      
+
       await createPerformance({
         currency1: formData.currency1,
         currency2: formData.currency2,
@@ -241,7 +404,7 @@ export default function PerformancePage() {
             transition: "all 0.3s",
           }}
         >
-          Tabla USER
+          Rendimiento Normal
         </button>
         <button
           onClick={() => setActiveTab("SOCIO")}
@@ -257,7 +420,7 @@ export default function PerformancePage() {
             transition: "all 0.3s",
           }}
         >
-          Tabla SOCIO
+          Rendimiento Alto Riesgo (AR)
         </button>
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
@@ -299,7 +462,7 @@ export default function PerformancePage() {
               marginBottom: "20px",
             }}
           >
-            Nuevo Registro de Rendimiento - {activeTab}
+            Nuevo Registro - {activeTab === "USER" ? "Usuarios" : "Alto Riesgo (AR)"}
           </h3>
           <form onSubmit={handleSubmit}>
             <div
@@ -321,7 +484,7 @@ export default function PerformancePage() {
                 >
                   Divisa 1
                 </label>
-                  <style jsx>{`
+                <style jsx>{`
                     select option {
                       background-color: #111;
                       color: #fff;
@@ -479,6 +642,9 @@ export default function PerformancePage() {
           </form>
         </div>
       )}
+
+      {/* Gráfica de rendimiento del mes */}
+      <PerformanceBarChart performances={filteredPerformances} selectedMonth={selectedMonth} />
 
       {/* Table */}
       <div
@@ -641,14 +807,14 @@ export default function PerformancePage() {
                       </td>
                       <td style={{ padding: "12px", textAlign: "center" }}>
                         {item.status === 'PENDING' ? (
-                          <span style={{ 
-                            color: '#eab308', background: 'rgba(234, 179, 8, 0.15)', 
-                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' 
+                          <span style={{
+                            color: '#eab308', background: 'rgba(234, 179, 8, 0.15)',
+                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold'
                           }}>En Espera</span>
                         ) : (
-                          <span style={{ 
-                            color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', 
-                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' 
+                          <span style={{
+                            color: '#10b981', background: 'rgba(16, 185, 129, 0.15)',
+                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold'
                           }}>Concretado</span>
                         )}
                       </td>
@@ -667,45 +833,50 @@ export default function PerformancePage() {
                       <td style={{ padding: "12px" }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                           {item.status === 'PENDING' && (
-                            <>
-                              <button
-                                onClick={() => setFinalizeId(item.id)}
-                                style={{
-                                  padding: "6px 12px",
-                                  backgroundColor: "rgba(16, 185, 129, 0.1)",
-                                  border: "1px solid rgba(16, 185, 129, 0.3)",
-                                  borderRadius: "6px",
-                                  color: "#10b981",
-                                  cursor: "pointer",
-                                  fontSize: "0.8rem",
-                                  fontWeight: "bold",
-                                  transition: "all 0.3s",
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(16, 185, 129, 0.2)"}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "rgba(16, 185, 129, 0.1)"}
-                              >
-                                Finalizar
-                              </button>
-                              <button
-                                onClick={() => handleDelete(item.id)}
-                                style={{
-                                  padding: "6px 8px",
-                                  backgroundColor: "rgba(239, 68, 68, 0.1)",
-                                  border: "1px solid rgba(239, 68, 68, 0.3)",
-                                  borderRadius: "6px",
-                                  color: "#ef4444",
-                                  cursor: "pointer",
-                                  transition: "all 0.3s",
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.2)"}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.1)"}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </>
+                            <button
+                              onClick={() => setFinalizeId(item.id)}
+                              style={{
+                                padding: "6px 12px",
+                                backgroundColor: "rgba(16, 185, 129, 0.1)",
+                                border: "1px solid rgba(16, 185, 129, 0.3)",
+                                borderRadius: "6px",
+                                color: "#10b981",
+                                cursor: "pointer",
+                                fontSize: "0.8rem",
+                                fontWeight: "bold",
+                                transition: "all 0.3s",
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(16, 185, 129, 0.2)"}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "rgba(16, 185, 129, 0.1)"}
+                            >
+                              Finalizar
+                            </button>
                           )}
+                          <button
+                            title={item.status === 'COMPLETED' ? "Eliminar registro concretado (los saldos NO se revierten automáticamente)" : "Eliminar registro"}
+                            onClick={() => {
+                              const msg = item.status === 'COMPLETED'
+                                ? `⚠️ ATENCIÓN: Este registro ya fue CONCRETADO.\n\nEl rendimiento ya fue aplicado a los balances de las cuentas y NO se revertirá automáticamente.\n\nDeberás quitar el dinero manualmente desde Gestión de Usuarios.\n\n¿Confirmas eliminar el registro?`
+                                : `¿Confirmas eliminar este registro de rendimiento?`;
+                              if (window.confirm(msg)) handleDelete(item.id);
+                            }}
+                            style={{
+                              padding: "6px 8px",
+                              backgroundColor: item.status === 'COMPLETED' ? "rgba(239, 68, 68, 0.15)" : "rgba(239, 68, 68, 0.1)",
+                              border: `1px solid ${item.status === 'COMPLETED' ? "rgba(239, 68, 68, 0.5)" : "rgba(239, 68, 68, 0.3)"}`,
+                              borderRadius: "6px",
+                              color: "#ef4444",
+                              cursor: "pointer",
+                              transition: "all 0.3s",
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.25)"}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = item.status === 'COMPLETED' ? "rgba(239, 68, 68, 0.15)" : "rgba(239, 68, 68, 0.1)"}
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       </td>
+
                     </tr>
                   ))
                 )}

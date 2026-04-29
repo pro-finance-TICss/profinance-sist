@@ -169,12 +169,12 @@ export async function toggleUserSocioRole(userId: string) {
 }
 
 /**
- * Alterna el rol de una CUENTA (cajita) específica entre USER y SOCIO.
+ * Alterna el rol de una CUENTA de inversión específica entre SOCIO (AR) y USER (Normal).
  * Solo SUPER_ADMIN puede ejecutar esta acción.
  *
- * FASE PRE-1 — Unificación de roles:
- * Al cambiar account.role, se propaga el cambio a user.role Y a TODAS las cuentas
- * del mismo usuario para mantener la invariante: account.role === user.role.
+ * IMPORTANTE: Solo modifica el account.role de esa cuenta concreta.
+ * El user.role general (Socio/Usuario) es independiente y NO se toca aquí.
+ * Solo los usuarios con rol general SOCIO pueden tener cuentas AR.
  */
 export async function toggleAccountRole(accountId: string) {
   await requireRole(UserRole.SUPER_ADMIN);
@@ -182,34 +182,45 @@ export async function toggleAccountRole(accountId: string) {
   try {
     const account = await prisma.account.findUnique({
       where: { id: accountId },
-      select: { id: true, name: true, role: true, userId: true, user: { select: { email: true, role: true } } },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        type: true,
+        userId: true,
+        user: { select: { email: true, role: true } },
+      },
     });
 
     if (!account) {
       return { success: false, message: "Cuenta no encontrada" };
     }
 
-    const newRole = account.role === "USER" ? "SOCIO" : "USER";
+    // Solo aplica a cuentas de inversión
+    if (account.type !== "INVESTMENT") {
+      return { success: false, message: "Solo las cuentas de inversión pueden ser AR" };
+    }
 
-    // 1. Actualizar user.role (fuente de verdad)
-    await prisma.user.update({
-      where: { id: account.userId },
+    // Solo usuarios con rol general SOCIO pueden tener cuentas AR
+    if (account.user.role !== "SOCIO") {
+      return { success: false, message: "El usuario debe tener rol general de Socio para asignar cuentas AR" };
+    }
+
+    // Alternar solo el rol de ESTA cuenta (AR ↔ Normal)
+    const newRole = account.role === "SOCIO" ? "USER" : "SOCIO";
+
+    await prisma.account.update({
+      where: { id: accountId },
       data: { role: newRole },
     });
 
-    // 2. Sincronizar TODAS las cuentas del usuario (no solo esta cajita)
-    const { count } = await prisma.account.updateMany({
-      where: { userId: account.userId },
-      data: { role: newRole },
-    });
-    console.log(`[ROLE SYNC] toggleAccountRole — ${count} cuenta(s) de userId: ${account.userId} sincronizadas ${account.user.role} → ${newRole}`);
+    console.log(`[AR TOGGLE] toggleAccountRole — cuenta "${account.name}" (${accountId}): ${account.role} → ${newRole} (user.role intacto: ${account.user.role})`);
 
     await logAudit("ACCOUNT_ROLE_TOGGLED", "Account", accountId, {
       accountName: account.name,
       oldRole: account.role,
       newRole,
       userId: account.userId,
-      accountsSynced: count,
     });
 
     revalidatePath("/superadmin/users");
@@ -219,7 +230,7 @@ export async function toggleAccountRole(accountId: string) {
     return {
       success: true,
       newRole,
-      message: `Cajita "${account.name}" actualizada a ${newRole}. El usuario (${account.user.email}) verá los cambios al recargar.`,
+      message: `Cuenta "${account.name}" cambiada a ${newRole === "SOCIO" ? "Alto Riesgo (AR)" : "Inversión Normal"}.`,
     };
   } catch (error) {
     logger.error("❌ Error al alternar rol de cuenta:", error);
@@ -572,6 +583,91 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
     // NUEVO LOGICA: Si se está Abriendo el periodo, procesar retiros pendientes
     if (isEnabled) {
       await prisma.$transaction(async (tx) => {
+        // ── PASO 1: Aplicar rendimientos acumulados del periodo ──────────────────
+        // Buscar todas las cuentas de inversión
+        const investmentAccounts = await tx.account.findMany({
+          where: { type: "INVESTMENT" },
+        });
+
+        // Obtener IDs de todas las combinaciones (accountId, performanceId) ya aplicadas
+        const existingSnapshots = await tx.accountPerformanceSnapshot.findMany({
+          select: { accountId: true, performanceId: true },
+        });
+        const appliedSet = new Set(
+          existingSnapshots.map((s) => `${s.accountId}::${s.performanceId}`)
+        );
+
+        // Obtener todos los rendimientos COMPLETED de una vez (evita N+1 queries)
+        const allCompletedPerfs = await tx.performance.findMany({
+          where: { status: "COMPLETED" },
+        });
+
+        for (const account of investmentAccounts) {
+          // Las cuentas AR (SOCIO) reciben rendimientos Normal (USER) + AR (SOCIO).
+          // Las cuentas Normales (USER) reciben solo rendimientos Normal (USER).
+          const targetRolesForAccount = account.role === "SOCIO" ? ["USER", "SOCIO"] : ["USER"];
+
+          // Filtrar en JS: rendimientos del tipo correcto y que aún no tienen snapshot para esta cuenta
+          const unappliedPerfs = allCompletedPerfs.filter(
+            (p) =>
+              targetRolesForAccount.includes(p.targetRole) &&
+              !appliedSet.has(`${account.id}::${p.id}`)
+          );
+
+          if (unappliedPerfs.length === 0) continue;
+
+          // Sumar todos los % del periodo (interés simple: se aplican sobre el capital base congelado)
+          const totalPercentageRaw = unappliedPerfs.reduce(
+            (sum, p) => sum + Number(p.percentage ?? 0),
+            0
+          );
+          // El usuario recibe la mitad del % registrado por el superadmin
+          const userPercentage = totalPercentageRaw / 2;
+          const baseCapital = Number(account.investedCapital);
+          const gain = baseCapital * (userPercentage / 100);
+
+          // Aplicar la ganancia/pérdida acumulada al balance
+          if (gain !== 0) {
+            await tx.account.update({
+              where: { id: account.id },
+              data: { investedCapital: { increment: gain } },
+            });
+
+            // Registrar una sola transacción PROFIT con el total del periodo
+            await tx.transaction.create({
+              data: {
+                userId: account.userId,
+                accountId: account.id,
+                type: "PROFIT",
+                amount: gain,
+                status: "COMPLETED",
+                paymentId: `PERIOD-APPLY-${account.id}-${Date.now()}`,
+              },
+            });
+          }
+
+          // Crear un snapshot por cada performance aplicada (marca como "ya aplicado")
+          for (const perf of unappliedPerfs) {
+            const perfGain = baseCapital * (Number(perf.percentage ?? 0) / 2 / 100);
+            await tx.accountPerformanceSnapshot.create({
+              data: {
+                accountId: account.id,
+                performanceId: perf.id,
+                periodStart: perf.startDate,
+                periodEnd: perf.endDate ?? new Date(),
+                percentageRaw: Number(perf.percentage ?? 0),
+                capitalBase: baseCapital,
+                gainAmount: perfGain,
+              },
+            });
+          }
+
+          console.log(
+            `[PERIOD APPLY] Cuenta ${account.id} | ${unappliedPerfs.length} perf(s) | % total raw: ${totalPercentageRaw} | base: $${baseCapital} | ganancia: $${gain.toFixed(4)}`
+          );
+        }
+
+        // ── PASO 2: Procesar retiros pendientes ──────────────────────────────────
         // Buscar solicitudes en cola (bankAccountId = null) desde cuentas de inversión
         const pendingRequests = await tx.withdrawalRequest.findMany({
           where: {
@@ -653,14 +749,18 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
           await tx.withdrawalRequest.update({
             where: { id: req.id },
             data: {
-              amount: finalExtractAmount, // Si se ajustó, actualizamos al valor real
+              amount: finalExtractAmount,
               status: "COMPLETED",
               processedAt: new Date(),
               notes: requestedAmt > currentInv ? "Aprobado automáticamente (Ajustado por balance final topado)" : "Aprobado automáticamente al abrir periodo",
             }
           });
         }
+      }, {
+        maxWait: 10000,
+        timeout: 60000, // 60s para cubrir muchas cuentas y rendimientos
       });
+
     }
 
     await logAudit(

@@ -127,6 +127,12 @@ export async function createPerformance(data: CreatePerformanceInput) {
 /**
  * Concreta (finaliza) un registro de rendimiento en estado de espera.
  * Solo accesible por SUPER_ADMIN.
+ *
+ * MODELO DIFERIDO (interés simple):
+ * Este paso SOLO registra el % en la tabla Performance.
+ * Los balances de las cuentas NO se modifican aquí.
+ * El dinero se aplica al descongelar el periodo (updateGlobalWithdrawalSettings → isEnabled=true),
+ * sumando todos los % acumulados y aplicándolos UNA VEZ sobre el capital base congelado.
  */
 export async function finalizePerformance(id: string, endDate: Date, percentage: number) {
   const session = await auth();
@@ -147,95 +153,32 @@ export async function finalizePerformance(id: string, endDate: Date, percentage:
   }
 
   try {
-    await prisma.$transaction(async (tx) => {
-      // 1. Actualizar el registro de performance a COMPLETED
-      await tx.performance.update({
-        where: { id },
-        data: {
-          status: "COMPLETED",
-          endDate,
-          percentage,
-        },
-      });
-
-      // 2. Obtener todas las cuentas INVESTMENT afectadas.
-      // FASE PRE-1 — Unificación de roles:
-      // La selección se hace por user.role (fuente de verdad), NO por account.role.
-      // Si el target es USER → afecta a USER y SOCIO.
-      // Si el target es SOCIO → afecta solo a SOCIO.
-      const rolesToAffect = performance.targetRole === "USER" ? ["USER", "SOCIO"] : ["SOCIO"];
-
-      const accounts = await tx.account.findMany({
-        where: {
-          type: "INVESTMENT",
-          // Filtrar por el rol del USUARIO propietario, no por el rol de la cuenta
-          user: {
-            role: { in: rolesToAffect },
-          },
-        },
-        include: {
-          // Incluir user para poder detectar desincronizaciones en logs
-          user: { select: { id: true, role: true } },
-        },
-      });
-
-      // Detectar y loguear cuentas con account.role desincronizado respecto a user.role
-      // (NO lanza error — solo advierte para monitoreo)
-      for (const account of accounts) {
-        if (account.role !== account.user.role) {
-          console.warn(
-            `[ROLE SYNC WARNING] finalizePerformance — account.role ("${account.role}") !== user.role ("${account.user.role}") | accountId: ${account.id}, userId: ${account.userId}. Se usa user.role para el cálculo.`
-          );
-        }
-      }
-
-      // 3. Iterar y aplicar el rendimiento a cada cuenta
-      // Los usuarios (y socios) reciben y se les refleja solo la MITAD del porcentaje total
-      const userPercentage = percentage / 2;
-
-      for (const account of accounts) {
-        const currentBalance = Number(account.investedCapital);
-        // Profit calculation: 
-        const profit = currentBalance * (userPercentage / 100);
-        
-        await tx.account.update({
-          where: { id: account.id },
-          data: {
-            investedCapital: {
-              increment: profit,
-            },
-          },
-        });
-
-        // 4. Crear registro transaccional
-        await tx.transaction.create({
-          data: {
-            userId: account.userId,
-            accountId: account.id,
-            type: "PROFIT", // Custom type for UI tracking
-            amount: profit,
-            status: "COMPLETED",
-            paymentId: `PERF-${id}-${account.id}-${Date.now()}`,
-          },
-        });
-      }
-    }, {
-      maxWait: 10000,
-      timeout: 30000,
+    // Solo actualizar el registro: guardar % y marcar como COMPLETED.
+    // No se toca ningún balance — el dinero se aplica al descongelar el periodo.
+    await prisma.performance.update({
+      where: { id },
+      data: {
+        status: "COMPLETED",
+        endDate,
+        percentage,
+      },
     });
 
     revalidatePath("/dashboard");
     revalidatePath("/superadmin");
-    return { success: true, message: "Rendimiento concretado masivamente con éxito." };
+    return { success: true, message: "Rendimiento registrado. Se aplicará a las cuentas al descongelar el periodo." };
   } catch (error) {
     console.error("Error finalizePerformance:", error);
     return { success: false, message: "Ocurrió un error al concretar el rendimiento." };
   }
 }
 
+
 /**
  * Elimina un registro de rendimiento.
  * Solo accesible por SUPER_ADMIN.
+ * ADVERTENCIA: Si el registro ya fue CONCRETADO, los balances de las cuentas
+ * NO se revierten automáticamente. El superadmin debe ajustar los saldos manualmente.
  */
 export async function deletePerformance(id: string) {
   const session = await auth();
@@ -247,14 +190,21 @@ export async function deletePerformance(id: string) {
     where: { id },
   });
 
-  // Proteccion
-  if (performance?.status === "COMPLETED") {
-    throw new Error("No se puede eliminar un rendimiento concretado. Acción prohibida de forma reversible.");
+  if (!performance) {
+    throw new Error("Registro no encontrado");
   }
+
+  const wasCompleted = performance.status === "COMPLETED";
 
   await prisma.performance.delete({
     where: { id },
   });
+
+  if (wasCompleted) {
+    console.warn(
+      `[SUPERADMIN] deletePerformance — Registro CONCRETADO eliminado manualmente. id: ${id}, targetRole: ${performance.targetRole}, percentage: ${performance.percentage}. Los saldos de las cuentas afectadas NO fueron revertidos.`
+    );
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/superadmin");
