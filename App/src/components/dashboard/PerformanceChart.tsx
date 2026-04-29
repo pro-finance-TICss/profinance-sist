@@ -142,7 +142,9 @@ function getTrendColor(points: ChartDisplayPoint[]): string {
 // TOOLTIP PERSONALIZADO
 // ============================================================================
 
-interface CustomTooltipProps extends TooltipProps<number, string> {
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: any[];
   mode: "amount" | "percentage";
 }
 

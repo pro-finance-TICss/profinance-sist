@@ -72,7 +72,7 @@ function fmtDate(iso: string) {
 // ── Tooltip ──────────────────────────────────────────────────────────────────
 function ChartTooltip({
   active, payload, mode, currency,
-}: TooltipProps<number, string> & { mode: "amount" | "percentage"; currency?: string }) {
+}: { active?: boolean; payload?: any[]; mode: "amount" | "percentage"; currency?: string }) {
   if (!active || !payload?.length) return null;
   const p = payload[0].payload as DisplayPoint;
   const isPercent = mode === "percentage";

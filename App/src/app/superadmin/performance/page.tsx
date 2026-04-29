@@ -23,6 +23,11 @@ const C_GAIN    = "#10b981";
 const C_LOSS    = "#ef4444";
 const C_NEUTRAL = "rgba(255,255,255,0.2)";
 
+interface BarPoint {
+  day: number;
+  value: number;
+}
+
 function PerfTooltip({
   active, payload, selectedMonth,
 }: {
