@@ -11,6 +11,7 @@
 // ============================================================================
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { Landmark, TrendingUp } from "lucide-react";
 import { Account } from "@/contexts/AccountContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -110,21 +111,37 @@ export function CajitaCard({
   size = "medium",
   onClick,
 }: CajitaCardProps) {
+  const router = useRouter();
   const { formatAmount } = useCurrency();
   const sizeConf = SIZE_CONFIG[size];
   const typeConf = TYPE_CONFIG[account.type];
   const { Icon } = typeConf;
 
+  // Efecto visual de clic — feedback inmediato antes de navegar
+  const [pressed, setPressed] = React.useState(false);
+
+  // Manejador unificado: onClick externo tiene prioridad;
+  // si no se pasa, navega a /dashboard/cuentas/[id] por defecto.
+  const handleClick = React.useCallback(() => {
+    setPressed(true);
+    setTimeout(() => setPressed(false), 200);
+    if (onClick) {
+      onClick();
+    } else if (account.id) {
+      router.push(`/dashboard/cuentas/${account.id}`);
+    }
+  }, [onClick, router, account.id]);
+
   return (
     <div
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
+      role="button"
+      tabIndex={0}
       aria-label={`Cuenta ${account.name}: ${formatAmount(account.investedCapital)}`}
-      onClick={onClick}
+      onClick={handleClick}
       onKeyDown={(e) => {
-        if (onClick && (e.key === "Enter" || e.key === " ")) {
+        if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onClick();
+          handleClick();
         }
       }}
       style={{
@@ -132,14 +149,15 @@ export function CajitaCard({
         minHeight: sizeConf.minHeight,
         padding: sizeConf.padding,
         borderRadius: "20px",
-        background: "#080808",
-        border: `1px solid ${typeConf.borderColor}`,
+        background: pressed ? "rgba(255,255,255,0.03)" : "#080808",
+        border: `1px solid ${pressed ? typeConf.accentColor + "88" : typeConf.borderColor}`,
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
         gap: "16px",
-        cursor: onClick ? "pointer" : "default",
-        transition: "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
+        cursor: "pointer",
+        transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease, background 0.12s ease",
+        transform: pressed ? "scale(0.975)" : "scale(1)",
         overflow: "hidden",
         width: "100%",
       }}

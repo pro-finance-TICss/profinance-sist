@@ -113,8 +113,8 @@ export function CajitasGrid() {
               ? "1fr 1fr"
               : "1fr"
             : primaryInvestmentAccount
-            ? "1fr"
-            : "1fr",
+              ? "1fr"
+              : "1fr",
           gap: "20px",
           alignItems: "stretch",
         }}
@@ -126,7 +126,7 @@ export function CajitasGrid() {
             <CajitaCard
               account={savingsAccount}
               size="large"
-              onClick={() => setViewedAccount(savingsAccount.id)}
+            //onClick={() => setViewedAccount(savingsAccount.id)}
             />
           </div>
         )}
@@ -138,7 +138,7 @@ export function CajitasGrid() {
             <CajitaCard
               account={primaryInvestmentAccount}
               size="medium"
-              onClick={() => setViewedAccount(primaryInvestmentAccount.id)}
+            //onClick={() => setViewedAccount(primaryInvestmentAccount.id)} ///////////////////////////////////
             />
           </div>
         )}
@@ -163,7 +163,7 @@ export function CajitasGrid() {
                 key={acc.id}
                 account={acc}
                 size="small"
-                onClick={() => setViewedAccount(acc.id)}
+              //onClick={() => setViewedAccount(acc.id)}
               />
             ))}
           </div>

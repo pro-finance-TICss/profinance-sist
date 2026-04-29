@@ -96,6 +96,9 @@ export function AccountProvider({ children }: AccountProviderProps) {
 
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
+    useEffect(() => {
+        console.log("👁️ activeAccountId:", activeAccountId);
+    }, [activeAccountId]);
     const [isLoading, setIsLoading] = useState(true);
 
     // ── NUEVO — estado para métricas agregadas de backend ───────────────────
