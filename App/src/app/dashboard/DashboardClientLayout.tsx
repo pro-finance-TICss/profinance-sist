@@ -134,9 +134,6 @@ function DashboardLayoutContent({
         >
           <div
             style={{
-              marginTop: isMobile
-                ? "var(--header-height-mobile)"
-                : "var(--header-height-desktop)",
               backgroundColor: "transparent",
               position: "relative",
               flex: "1 0 auto",

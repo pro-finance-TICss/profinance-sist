@@ -151,16 +151,25 @@ model User {
   sessions               Session[]
 }
 
-// ============================================================================
-// MODELO DE CUENTAS FINANCIERAS ("CAJITAS")
-// ============================================================================
-/// Cada usuario puede tener múltiples cuentas ("cajitas"), cada una con
-/// su propio balance y rol. El nombre es definido por el usuario.
-/// Solo SUPER_ADMIN puede cambiar el rol de una cuenta (USER ↔ SOCIO).
+/// MODELO DE CUENTAS FINANCIERAS ("CAJITAS")
+/// ─────────────────────────────────────────────────────────────────────────
+/// Una cuenta tiene TRES dimensiones independientes:
 ///
-/// TIPOS DE CUENTA:
-///   SAVINGS    = Cuenta de Ahorro (default para nuevos usuarios)
-///   INVESTMENT = Cuenta de Inversión (afectada por % de rendimiento del superadmin)
+///   1. type  (account.type)      → ¿Qué tipo de cuenta es?
+///      SAVINGS    = Cuenta de Ahorro. Nace con el usuario, no se puede eliminar.
+///      INVESTMENT = Cuenta de Inversión. Afectada por el % de rendimiento.
+///
+///   2. role  (account.role)      → ¿Cuál es el rol del usuario propietario?
+///      Campo "espejo" de user.role. Solo puede ser USER o SOCIO.
+///      Se sincroniza automáticamente cuando el SUPER_ADMIN cambia user.role.
+///      NO indica si la cuenta es Alto Riesgo.
+///
+///   3. isHighRisk (account.isHighRisk) → ¿Es esta cuenta de Inversión Alto Riesgo?
+///      Solo aplica cuando type = INVESTMENT.
+///      Solo puede ser true si el usuario tiene user.role = SOCIO.
+///      Si true, la cuenta recibe rendimientos normales (USER) + rendimientos AR (SOCIO).
+///      Si false, la cuenta recibe solo rendimientos normales (USER).
+/// ─────────────────────────────────────────────────────────────────────────
 model Account {
   /// Identificador único de la cuenta
   id                  String   @id @default(cuid())
@@ -174,14 +183,23 @@ model Account {
   /// Nombre personalizado de la cuenta (definido por el usuario)
   name                String
 
-  /// Tipo de cuenta: SAVINGS (Ahorro) | INVESTMENT (Inversión)
-  /// - SAVINGS: cuenta de ahorro, es la default al crear un usuario
-  /// - INVESTMENT: cuenta de inversión, afectada por el % de rendimiento
+  /// Tipo de cuenta (dimensión 1):
+  ///   SAVINGS    = Cuenta de Ahorro (creada automáticamente al registrarse, única e inamovible)
+  ///   INVESTMENT = Cuenta de Inversión (puede haber varias, afectadas por rendimientos)
   type                String   @default("SAVINGS")
 
-  /// Rol de la cuenta: USER | SOCIO
-  /// Solo SUPER_ADMIN puede modificar este campo
+  /// Rol del usuario propietario (dimensión 2, espejo de user.role):
+  ///   USER  = el usuario es Usuario normal
+  ///   SOCIO = el usuario es Socio
+  /// ⚠️ Este campo NO indica si la cuenta es Alto Riesgo. Ver isHighRisk.
   role                String   @default("USER")
+
+  /// Bandera de Alto Riesgo (dimensión 3):
+  ///   false (default) = Inversión normal — recibe solo rendimientos USER
+  ///   true            = Inversión AR     — recibe rendimientos USER + AR (SOCIO)
+  /// Solo puede ser true si type = INVESTMENT y user.role = SOCIO.
+  /// Solo SUPER_ADMIN puede modificar este campo.
+  isHighRisk          Boolean  @default(false)
 
   /// Capital invertido en esta cuenta (balance principal)
   investedCapital     Decimal  @default(0)
@@ -215,6 +233,7 @@ model Account {
   @@index([userId])
   @@index([type])
   @@index([isDefaultReward])
+  @@index([isHighRisk])
 }
 
 // ============================================================================

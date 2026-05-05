@@ -16,7 +16,7 @@ import { useAccount } from "@/contexts/AccountContext";
 import { CajitasGrid } from "@/components/dashboard/CajitasGrid";
 import { ActivitySection } from "@/components/dashboard/ActivitySection";
 import { QuickActions } from "@/components/dashboard/QuickActions";
-import { SummaryCards } from "@/components/dashboard/SummaryCards";
+
 import { ActionModal } from "@/components/dashboard/ActionModal";
 import { DepositForm } from "@/components/dashboard/DepositForm";
 import { PerformanceTable } from "@/components/dashboard/PerformanceTable";
@@ -123,8 +123,7 @@ export function DashboardContent() {
           gap: "28px",
         }}
       >
-        {/* 1. KPIs consolidados — datos desde AccountContext */}
-        <SummaryCards />
+
 
         {/* 2. Cajitas — visión multi-cuenta */}
         <CajitasGrid />

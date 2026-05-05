@@ -47,6 +47,7 @@ export async function getUsers() {
             name: true,
             type: true,
             role: true,
+            isHighRisk: true,
             investedCapital: true,
             createdAt: true,
           },
@@ -139,12 +140,18 @@ export async function toggleUserSocioRole(userId: string) {
       data: { role: newRole },
     });
 
-    // 2. Sincronizar TODAS las cuentas del usuario (account.role = shadow field)
+    // 2. Sincronizar TODAS las cuentas del usuario:
+    //    - account.role = espejo del nuevo user.role
+    //    - Si el usuario pasa de SOCIO → USER, resetear isHighRisk (un USER no puede tener cuentas AR)
+    const syncData: Record<string, unknown> = { role: newRole };
+    if (newRole === "USER") {
+      syncData.isHighRisk = false;
+    }
     const { count } = await prisma.account.updateMany({
       where: { userId },
-      data: { role: newRole },
+      data: syncData,
     });
-    console.log(`[ROLE SYNC] toggleUserSocioRole — ${count} cuenta(s) de userId: ${userId} sincronizadas ${user.role} → ${newRole}`);
+    console.log(`[ROLE SYNC] toggleUserSocioRole — ${count} cuenta(s) de userId: ${userId} sincronizadas ${user.role} → ${newRole}${newRole === "USER" ? " (isHighRisk reseteado)" : ""}`);
 
     await logAudit("USER_ROLE_TOGGLED", "User", userId, {
       oldRole: user.role,
@@ -176,6 +183,11 @@ export async function toggleUserSocioRole(userId: string) {
  * El user.role general (Socio/Usuario) es independiente y NO se toca aquí.
  * Solo los usuarios con rol general SOCIO pueden tener cuentas AR.
  */
+/**
+ * Alterna el flag Alto Riesgo (isHighRisk) de una cuenta de inversión concreta.
+ * Solo SUPER_ADMIN puede ejecutar esta acción.
+ * IMPORTANTE: isHighRisk es independiente de account.role (que es el espejo del user.role).
+ */
 export async function toggleAccountRole(accountId: string) {
   await requireRole(UserRole.SUPER_ADMIN);
 
@@ -185,7 +197,7 @@ export async function toggleAccountRole(accountId: string) {
       select: {
         id: true,
         name: true,
-        role: true,
+        isHighRisk: true,
         type: true,
         userId: true,
         user: { select: { email: true, role: true } },
@@ -206,20 +218,20 @@ export async function toggleAccountRole(accountId: string) {
       return { success: false, message: "El usuario debe tener rol general de Socio para asignar cuentas AR" };
     }
 
-    // Alternar solo el rol de ESTA cuenta (AR ↔ Normal)
-    const newRole = account.role === "SOCIO" ? "USER" : "SOCIO";
+    // Alternar isHighRisk de esta cuenta
+    const newIsHighRisk = !account.isHighRisk;
 
     await prisma.account.update({
       where: { id: accountId },
-      data: { role: newRole },
+      data: { isHighRisk: newIsHighRisk },
     });
 
-    console.log(`[AR TOGGLE] toggleAccountRole — cuenta "${account.name}" (${accountId}): ${account.role} → ${newRole} (user.role intacto: ${account.user.role})`);
+    console.log(`[AR TOGGLE] toggleAccountRole — cuenta "${account.name}" (${accountId}): isHighRisk ${account.isHighRisk} → ${newIsHighRisk} (user.role intacto: ${account.user.role})`);
 
-    await logAudit("ACCOUNT_ROLE_TOGGLED", "Account", accountId, {
+    await logAudit("ACCOUNT_AR_TOGGLED", "Account", accountId, {
       accountName: account.name,
-      oldRole: account.role,
-      newRole,
+      wasHighRisk: account.isHighRisk,
+      isHighRisk: newIsHighRisk,
       userId: account.userId,
     });
 
@@ -229,11 +241,11 @@ export async function toggleAccountRole(accountId: string) {
 
     return {
       success: true,
-      newRole,
-      message: `Cuenta "${account.name}" cambiada a ${newRole === "SOCIO" ? "Alto Riesgo (AR)" : "Inversión Normal"}.`,
+      newRole: newIsHighRisk ? "SOCIO" : "USER", // compatibilidad con UI existente
+      message: `Cuenta "${account.name}" cambiada a ${newIsHighRisk ? "Alto Riesgo (AR)" : "Inversión Normal"}.`,
     };
   } catch (error) {
-    logger.error("❌ Error al alternar rol de cuenta:", error);
+    logger.error("❌ Error al alternar AR de cuenta:", error);
     return { success: false, message: "Error al alternar rol de la cuenta" };
   }
 }
@@ -603,9 +615,10 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
         });
 
         for (const account of investmentAccounts) {
-          // Las cuentas AR (SOCIO) reciben rendimientos Normal (USER) + AR (SOCIO).
-          // Las cuentas Normales (USER) reciben solo rendimientos Normal (USER).
-          const targetRolesForAccount = account.role === "SOCIO" ? ["USER", "SOCIO"] : ["USER"];
+          // isHighRisk determina si la cuenta es Alto Riesgo (AR).
+          // AR = recibe rendimientos normales (targetRole USER) + rendimientos AR (targetRole SOCIO).
+          // Normal = recibe solo rendimientos normales (targetRole USER).
+          const targetRolesForAccount = account.isHighRisk ? ["USER", "SOCIO"] : ["USER"];
 
           // Filtrar en JS: rendimientos del tipo correcto y que aún no tienen snapshot para esta cuenta
           const unappliedPerfs = allCompletedPerfs.filter(
@@ -1203,7 +1216,7 @@ export async function deleteUser(userId: string) {
 }
 
 /**
- * Elimina una cuenta ("cajita") específica de un usuario.
+ * Elimina una cuenta (cajita) específica de un usuario.
  * Solo SUPER_ADMIN puede ejecutar esta acción.
  * No permite eliminar si es la única cuenta SAVINGS del usuario.
  */
@@ -1265,3 +1278,115 @@ export async function deleteAccount(accountId: string) {
     return { success: false, message: "Error al eliminar la cuenta." };
   }
 }
+
+// ============================================================================
+// CREAR CUENTA DE INVERSIÓN PARA UN USUARIO EXISTENTE (SOLO SUPER_ADMIN)
+// ============================================================================
+
+/**
+ * Crea una nueva cuenta de inversión para un usuario existente, con un monto inicial opcional.
+ * Solo SUPER_ADMIN puede ejecutar esta acción.
+ * - Siempre tipo INVESTMENT (la de Ahorro ya nace con el usuario y no puede eliminarse).
+ * - isAR=true marca la cuenta como Alto Riesgo (role='SOCIO'). Solo aplica si el usuario es SOCIO.
+ * - Si se indica un monto inicial > 0, se registra como DEPOSIT en el historial.
+ */
+export async function createInvestmentAccountForUser(
+  userId: string,
+  accountName: string,
+  initialAmount: number = 0,
+  isAR: boolean = false
+) {
+  await requireRole(UserRole.SUPER_ADMIN);
+
+  if (!accountName || accountName.trim().length === 0) {
+    return { success: false, message: "El nombre de la cuenta es obligatorio." };
+  }
+  if (initialAmount < 0) {
+    return { success: false, message: "El monto inicial no puede ser negativo." };
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, role: true },
+    });
+
+    if (!user) {
+      return { success: false, message: "Usuario no encontrado." };
+    }
+
+    // Solo roles financieros (USER/SOCIO) pueden tener cuentas de inversión
+    if (user.role !== "USER" && user.role !== "SOCIO") {
+      return {
+        success: false,
+        message: "Solo usuarios con rol USER o SOCIO pueden tener cuentas de inversión.",
+      };
+    }
+
+    // AR solo puede asignarse a usuarios con rol general SOCIO
+    if (isAR && user.role !== "SOCIO") {
+      return {
+        success: false,
+        message: "Solo los usuarios con rol Socio pueden tener cuentas de Alto Riesgo (AR).",
+      };
+    }
+
+    // IMPORTANTE: role es el espejo de user.role (no indica AR).
+    // isHighRisk es el verdadero flag de Alto Riesgo.
+    const newAccount = await prisma.$transaction(async (tx) => {
+      // 1. Crear la cuenta de inversión
+      const account = await tx.account.create({
+        data: {
+          userId,
+          name: accountName.trim(),
+          type: "INVESTMENT",
+          role: user.role as "USER" | "SOCIO", // espejo del rol del usuario
+          isHighRisk: isAR,                    // bandera AR explícita
+          investedCapital: initialAmount,
+        },
+      });
+
+      // 2. Si hay monto inicial, registrar la transacción como DEPOSIT
+      if (initialAmount > 0) {
+        await tx.transaction.create({
+          data: {
+            userId,
+            accountId: account.id,
+            type: "DEPOSIT",
+            amount: initialAmount,
+            status: "COMPLETED",
+            paymentId: `ADMIN-NEWACCT-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+          },
+        });
+      }
+
+      return account;
+    }, {
+      maxWait: 5000,
+      timeout: 20000,
+    });
+
+    await logAudit("ADMIN_CREATED_INVESTMENT_ACCOUNT", "Account", newAccount.id, {
+      userId,
+      userEmail: user.email,
+      accountName: newAccount.name,
+      initialAmount,
+    });
+
+    revalidatePath("/superadmin/users");
+    revalidatePath("/dashboard");
+
+    return {
+      success: true,
+      message: `Cuenta de inversión"${isAR ? " AR" : ""} "${newAccount.name}" creada exitosamente${initialAmount > 0 ? ` con $${initialAmount.toLocaleString()} de capital inicial` : ""}.`,
+      accountId: newAccount.id,
+    };
+  } catch (error) {
+    logger.error("❌ Error al crear cuenta de inversión:", error);
+    return {
+      success: false,
+      message: "Error al crear la cuenta: " + (error instanceof Error ? error.message : "Desconocido"),
+    };
+  }
+}
+

@@ -25,6 +25,7 @@ import {
   deleteUser,
   deleteAccount,
   getUserDeletePreview,
+  createInvestmentAccountForUser,
 } from "@/lib/actions/admin";
 import { logger } from "@/lib/logger";
 
@@ -37,6 +38,7 @@ interface AccountInfo {
   name: string;
   type: string; // SAVINGS | INVESTMENT
   role: string;
+  isHighRisk: boolean;
   investedCapital: any;
   createdAt: Date;
 }
@@ -55,7 +57,7 @@ interface UserRow {
   accounts?: AccountInfo[];
 }
 
-type ModalMode = "create" | "edit" | "delete" | "deposit" | "withdraw" | null;
+type ModalMode = "create" | "edit" | "delete" | "deposit" | "withdraw" | "createAccount" | null;
 
 const COUNTRY_CURRENCY_MAP: Record<string, string> = {
   CO: "COP",
@@ -288,6 +290,15 @@ export default function UsersManagementPage() {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
 
+  // Create investment account
+  const [createAccountUserId, setCreateAccountUserId] = useState<string | null>(null);
+  const [createAccountUserName, setCreateAccountUserName] = useState("");
+  const [createAccountUserRole, setCreateAccountUserRole] = useState("");
+  const [createAccountName, setCreateAccountName] = useState("");
+  const [createAccountAmount, setCreateAccountAmount] = useState("");
+  const [createAccountIsAR, setCreateAccountIsAR] = useState(false);
+  const [creatingAccount, setCreatingAccount] = useState(false);
+
   // ── Feedback auto-dismiss ──
   useEffect(() => {
     if (!feedback) return;
@@ -341,6 +352,12 @@ export default function UsersManagementPage() {
     setDepositAmount("");
     setWithdrawConfig(null);
     setWithdrawAmount("");
+    setCreateAccountUserId(null);
+    setCreateAccountUserName("");
+    setCreateAccountUserRole("");
+    setCreateAccountName("");
+    setCreateAccountAmount("");
+    setCreateAccountIsAR(false);
   };
 
   // ── OPEN CREATE ──
@@ -404,6 +421,17 @@ export default function UsersManagementPage() {
     setWithdrawConfig({ accountId, accountName });
     setWithdrawAmount("");
     setModalMode("withdraw");
+  };
+
+  // ── OPEN CREATE ACCOUNT ──
+  const openCreateAccount = (userId: string, userName: string, userRole: string) => {
+    setCreateAccountUserId(userId);
+    setCreateAccountUserName(userName);
+    setCreateAccountUserRole(userRole);
+    setCreateAccountName("");
+    setCreateAccountAmount("");
+    setCreateAccountIsAR(false);
+    setModalMode("createAccount");
   };
 
   // ── HANDLERS ──
@@ -522,6 +550,26 @@ export default function UsersManagementPage() {
     setProcessingId(withdrawConfig.accountId);
     const result = await removeCapitalFromAccount(withdrawConfig.accountId, amount);
     setWithdrawing(false);
+    setProcessingId(null);
+    setFeedback({ msg: result.message || "Operación completada.", ok: result.success });
+    if (result.success) {
+      closeModal();
+      loadUsers();
+    }
+  };
+
+  const handleCreateAccountSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createAccountUserId || !createAccountName) return;
+    const amount = createAccountAmount ? parseFloat(createAccountAmount) : 0;
+    if (isNaN(amount) || amount < 0) {
+      setFeedback({ msg: "El monto inicial debe ser 0 o mayor.", ok: false });
+      return;
+    }
+    setCreatingAccount(true);
+    setProcessingId(createAccountUserId);
+    const result = await createInvestmentAccountForUser(createAccountUserId, createAccountName, amount, createAccountIsAR);
+    setCreatingAccount(false);
     setProcessingId(null);
     setFeedback({ msg: result.message || "Operación completada.", ok: result.success });
     if (result.success) {
@@ -810,6 +858,16 @@ export default function UsersManagementPage() {
                               style={{ display: "flex", gap: "6px", justifyContent: "center" }}
                               onClick={(e) => e.stopPropagation()}
                             >
+                              {/* Nueva Cuenta de Inversión — solo para USER/SOCIO */}
+                              {(user.role === "USER" || user.role === "SOCIO") && (
+                                <ActionBtn
+                                  icon={<PlusCircle size={13} />}
+                                  label=""
+                                  title="Crear cuenta de inversión"
+                                  color="#a855f7"
+                                  onClick={() => openCreateAccount(user.id, `${user.firstName} ${user.paternalSurname}`, user.role)}
+                                />
+                              )}
                               <ActionBtn
                                 icon={<Pencil size={13} />}
                                 label=""
@@ -833,8 +891,8 @@ export default function UsersManagementPage() {
                           user.accounts?.map((account) => {
                             const isSavings = account.type === "SAVINGS";
                             const isInvestment = account.type === "INVESTMENT";
-                            // AR: la cuenta tiene rol SOCIO en BD (independiente del rol general del usuario)
-                            const isAR = isInvestment && account.role === "SOCIO";
+                            // AR: ahora usa el flag explícito isHighRisk
+                            const isAR = isInvestment && account.isHighRisk;
                             const acctTypeColor = isSavings
                               ? { bg: "rgba(20,184,166,0.12)", color: "#14b8a6", border: "rgba(20,184,166,0.3)" }
                               : { bg: "rgba(168,85,247,0.12)", color: "#a855f7", border: "rgba(168,85,247,0.3)" };
@@ -1815,6 +1873,175 @@ export default function UsersManagementPage() {
                 }}
               >
                 {withdrawing ? "Procesando..." : "Confirmar Retiro"}
+              </button>
+            </div>
+          </form>
+        </ModalOverlay>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          MODAL: CREAR CUENTA DE INVERSIÓN
+      ══════════════════════════════════════════════ */}
+      {modalMode === "createAccount" && createAccountUserId && (
+        <ModalOverlay onClose={creatingAccount ? () => { } : closeModal} width={460}>
+          <ModalHeader
+            title="✦ Crear Cuenta de Inversión"
+            onClose={creatingAccount ? () => { } : closeModal}
+          />
+          {/* Info del usuario */}
+          <div
+            style={{
+              padding: "10px 14px",
+              background: "rgba(168,85,247,0.07)",
+              border: "1px solid rgba(168,85,247,0.25)",
+              borderRadius: "8px",
+              marginBottom: "20px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            <Box size={16} style={{ color: "#a855f7", flexShrink: 0 }} />
+            <div>
+              <p style={{ margin: 0, color: "#fff", fontSize: "0.9rem", fontWeight: 600 }}>
+                {createAccountUserName}
+              </p>
+              <p style={{ margin: 0, color: "rgba(255,255,255,0.45)", fontSize: "0.78rem", marginTop: 2 }}>
+                Nueva cuenta de tipo <strong style={{ color: "#a855f7" }}>Inversión</strong>
+              </p>
+            </div>
+          </div>
+          <form onSubmit={handleCreateAccountSubmit}>
+            {fieldGroup("Nombre de la cuenta *", (
+              <input
+                style={inputStyle}
+                value={createAccountName}
+                onChange={(e) => setCreateAccountName(e.target.value)}
+                placeholder='Ej. "Mi Segunda Cuenta de Inversión"'
+                autoFocus
+                required
+              />
+            ))}
+            {fieldGroup("Monto inicial ($) — opcional", (
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={createAccountAmount}
+                onChange={(e) => setCreateAccountAmount(e.target.value)}
+                placeholder="0.00  (dejar vacío para iniciar en $0)"
+                style={inputStyle}
+              />
+            ))}
+            {/* Casilla AR — solo visible si el usuario tiene rol general SOCIO */}
+            {createAccountUserRole === "SOCIO" && (
+              <div
+                style={{
+                  marginBottom: "16px",
+                  padding: "12px 14px",
+                  background: createAccountIsAR
+                    ? "rgba(234,179,8,0.08)"
+                    : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${createAccountIsAR ? "rgba(234,179,8,0.35)" : "rgba(255,255,255,0.08)"}`,
+                  borderRadius: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+                onClick={() => setCreateAccountIsAR((v) => !v)}
+              >
+                {/* Checkbox visual */}
+                <div
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 4,
+                    border: `2px solid ${createAccountIsAR ? "#eab308" : "rgba(255,255,255,0.25)"}`,
+                    backgroundColor: createAccountIsAR ? "#eab308" : "transparent",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {createAccountIsAR && (
+                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4L3.5 6.5L9 1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+                <div>
+                  <p style={{ margin: 0, color: createAccountIsAR ? "#eab308" : "#fff", fontSize: "0.88rem", fontWeight: 600 }}>
+                    Cuenta de Alto Riesgo (AR)
+                  </p>
+                  <p style={{ margin: 0, color: "rgba(255,255,255,0.4)", fontSize: "0.75rem", marginTop: 2 }}>
+                    Recibe rendimientos AR además de los normales
+                  </p>
+                </div>
+              </div>
+            )}
+            {/* Nota informativa */}
+            <div
+              style={{
+                padding: "10px 14px",
+                background: "rgba(234,179,8,0.06)",
+                border: "1px solid rgba(234,179,8,0.2)",
+                borderRadius: "8px",
+                marginBottom: "20px",
+                fontSize: "0.8rem",
+                color: "rgba(255,255,255,0.55)",
+                lineHeight: 1.5,
+              }}
+            >
+              ⚠️ Solo se pueden crear cuentas de <strong style={{ color: "#eab308" }}>Inversión</strong>.
+              La cuenta de Ahorro ya existe desde el registro y no puede duplicarse.
+              {createAccountAmount && parseFloat(createAccountAmount) > 0 && (
+                <><br />El monto inicial se registrará como un <strong style={{ color: "#eab308" }}>Depósito</strong> en el historial.</>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={closeModal}
+                disabled={creatingAccount}
+                style={{
+                  padding: "10px 20px",
+                  background: "transparent",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  color: "#aaa",
+                  borderRadius: "8px",
+                  cursor: creatingAccount ? "not-allowed" : "pointer",
+                  fontWeight: 600,
+                  fontSize: "0.88rem",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={creatingAccount || !createAccountName.trim()}
+                style={{
+                  padding: "10px 24px",
+                  background: creatingAccount
+                    ? "rgba(168,85,247,0.3)"
+                    : "linear-gradient(135deg, #a855f7, #7c3aed)",
+                  border: "none",
+                  color: "#fff",
+                  borderRadius: "8px",
+                  cursor: creatingAccount || !createAccountName.trim() ? "not-allowed" : "pointer",
+                  fontWeight: 700,
+                  fontSize: "0.88rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  opacity: !createAccountName.trim() ? 0.5 : 1,
+                }}
+              >
+                <PlusCircle size={14} />
+                {creatingAccount ? "Creando..." : "Crear Cuenta"}
               </button>
             </div>
           </form>

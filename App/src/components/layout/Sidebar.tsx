@@ -52,11 +52,13 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       label: "Cuentas",
       href: "/dashboard/cuentas",
     },
+    /*
     {
       icon: <Wallet size={22} />,
       label: "Mi Billetera",
       href: "/dashboard/billetera",
     },
+    */
     {
       icon: <History size={22} />,
       label: "Transacciones",
