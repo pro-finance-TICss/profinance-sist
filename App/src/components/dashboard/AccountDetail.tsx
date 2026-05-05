@@ -23,6 +23,10 @@ import { useRouter } from "next/navigation";
 import { useAccount } from "@/contexts/AccountContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
+import { DepositModal } from "@/components/dashboard/billetera/DepositModal";
+import { WithdrawModal } from "@/components/dashboard/billetera/WithdrawModal";
+import { InternalTransferModal } from "@/components/dashboard/billetera/InternalTransferModal";
+import { checkWithdrawalWindowStatus } from "@/lib/actions/wallet-checks";
 import {
   Landmark,
   TrendingUp,
@@ -36,6 +40,7 @@ import {
   CheckCircle2,
   XCircle,
   MinusCircle,
+  X,
 } from "lucide-react";
 
 // ============================================================================
@@ -212,13 +217,17 @@ interface ActionButtonProps {
   accentColor: string;
   dimColor: string;
   borderColor: string;
+  onClick?: () => void;
+  disabled?: boolean;
 }
 
-function ActionButton({ label, icon: Icon, accentColor, dimColor, borderColor }: ActionButtonProps) {
+function ActionButton({ label, icon: Icon, accentColor, dimColor, borderColor, onClick, disabled }: ActionButtonProps) {
   return (
     <button
       type="button"
-      disabled
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      className="acct-action-btn"
       style={{
         flex: 1,
         display: "flex",
@@ -229,18 +238,74 @@ function ActionButton({ label, icon: Icon, accentColor, dimColor, borderColor }:
         borderRadius: "14px",
         background: dimColor,
         border: `1px solid ${borderColor}`,
-        cursor: "not-allowed",
-        opacity: 0.7,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
         color: accentColor,
-        transition: "opacity 0.15s ease",
+        transition: "opacity 0.15s ease, transform 0.15s ease, background 0.15s ease",
       }}
-      title={`${label} — Próximamente`}
     >
       <Icon size={20} color={accentColor} />
       <span style={{ fontSize: "0.78rem", fontWeight: 600, letterSpacing: "0.3px" }}>
         {label}
       </span>
+      <style>{`
+        .acct-action-btn:not(:disabled):hover {
+          opacity: 1 !important;
+          transform: translateY(-2px);
+        }
+        .acct-action-btn:not(:disabled):active { transform: translateY(0); }
+      `}</style>
     </button>
+  );
+}
+
+// ============================================================================
+// SUBCOMPONENTE: TOAST INLINE
+// ============================================================================
+
+interface InlineToastProps {
+  message: string;
+  type: "success" | "error";
+  onDismiss: () => void;
+}
+
+function InlineToast({ message, type, onDismiss }: InlineToastProps) {
+  const isSuccess = type === "success";
+  return (
+    <div
+      style={{
+        position: "fixed",
+        bottom: "28px",
+        right: "24px",
+        zIndex: 2000,
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        padding: "14px 20px",
+        borderRadius: "14px",
+        background: isSuccess ? "rgba(0,201,122,0.12)" : "rgba(224,92,92,0.12)",
+        border: `1px solid ${isSuccess ? "rgba(0,201,122,0.35)" : "rgba(224,92,92,0.35)"}`,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+        backdropFilter: "blur(12px)",
+        maxWidth: "360px",
+        animation: "slideUp 0.25s ease-out",
+      }}
+    >
+      {isSuccess
+        ? <CheckCircle2 size={18} color="#00c97a" style={{ flexShrink: 0 }} />
+        : <AlertTriangle size={18} color="#e05c5c" style={{ flexShrink: 0 }} />}
+      <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "#fff", flex: 1 }}>
+        {message}
+      </span>
+      <button
+        type="button"
+        onClick={onDismiss}
+        style={{ background: "none", border: "none", cursor: "pointer", padding: "2px", color: "rgba(255,255,255,0.4)" }}
+      >
+        <X size={14} />
+      </button>
+      <style>{`@keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }`}</style>
+    </div>
   );
 }
 
@@ -329,20 +394,40 @@ interface AccountDetailProps {
 
 export function AccountDetail({ accountId }: AccountDetailProps) {
   const router = useRouter();
-  const { setViewedAccount } = useAccount();
+  const { setViewedAccount, refreshAccounts } = useAccount();
   const { formatAmount } = useCurrency();
 
-  // ── Estado ─────────────────────────────────────────────────────────────────
+  // ── Estado de datos ────────────────────────────────────────────────────────
   const [data, setData] = useState<AccountDetailData | null>(null);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+
+  // ── Estado de modales ──────────────────────────────────────────────────────
+  const [isDepositOpen, setIsDepositOpen] = useState(false);
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [transferDirection, setTransferDirection] = useState<"TO_INVESTMENT" | "TO_SAVINGS">("TO_INVESTMENT");
+  const [withdrawalWindow, setWithdrawalWindow] = useState<{ isOpen: boolean; reason?: string }>({ isOpen: true });
+
+  // ── Estado de toast inline ─────────────────────────────────────────────────
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const showToast = useCallback((message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  }, []);
 
   // ── Sincronización con contexto (CRÍTICO) ──────────────────────────────────
   // Garantiza que modales de transferencia/retiro usen esta cuenta como activa.
   useEffect(() => {
     setViewedAccount(accountId);
   }, [accountId, setViewedAccount]);
+
+  // ── Cargar estado de ventana de retiros ────────────────────────────────────
+  useEffect(() => {
+    checkWithdrawalWindowStatus().then(setWithdrawalWindow);
+  }, []);
 
   // ── Fetch de datos ─────────────────────────────────────────────────────────
   const fetchDetail = useCallback(async () => {
@@ -376,6 +461,14 @@ export function AccountDetail({ accountId }: AccountDetailProps) {
   useEffect(() => {
     fetchDetail();
   }, [fetchDetail]);
+
+  // ── Handlers de éxito de modales ──────────────────────────────────────────
+  // refreshAccounts() sincroniza el contexto global sin navegar ni recargar.
+  const handleActionSuccess = useCallback(async (message: string) => {
+    await refreshAccounts();
+    await fetchDetail(); // Refresca datos locales (capital, transacciones)
+    showToast(message);
+  }, [refreshAccounts, fetchDetail, showToast]);
 
   // ── Helper de navegación ───────────────────────────────────────────────────
   const goToDashboard = () => router.push("/dashboard");
@@ -575,32 +668,43 @@ export function AccountDetail({ accountId }: AccountDetailProps) {
         accountType={data.type}
       />
 
-      {/* ══ ACCIONES (UI únicamente — Fase 4.4) ══ */}
+      {/* ══ ACCIONES — Fase 4.4 ══ */}
       <div>
         <p style={{ margin: "0 0 12px 2px", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.1px", color: "rgba(255,255,255,0.25)" }}>
           Acciones
         </p>
         <div style={{ display: "flex", gap: "12px" }}>
+          {/* Depositar: abre DepositModal — respeta DEPOSITS_ENABLED=false */}
           <ActionButton
             label="Depositar"
             icon={ArrowDownLeft}
             accentColor="#00c97a"
             dimColor="rgba(0,201,122,0.07)"
             borderColor="rgba(0,201,122,0.2)"
+            onClick={() => setIsDepositOpen(true)}
           />
+          {/* Transferir: dirección según tipo de cuenta */}
           <ActionButton
             label="Transferir"
             icon={ArrowLeftRight}
             accentColor="#bd8e48"
             dimColor="rgba(189,142,72,0.07)"
             borderColor="rgba(189,142,72,0.2)"
+            onClick={() => {
+              setTransferDirection(
+                data.type === "INVESTMENT" ? "TO_SAVINGS" : "TO_INVESTMENT"
+              );
+              setIsTransferOpen(true);
+            }}
           />
+          {/* Retirar: pasa accountId explícito al modal */}
           <ActionButton
             label="Retirar"
             icon={ArrowUpRight}
             accentColor="rgba(255,255,255,0.55)"
             dimColor="rgba(255,255,255,0.03)"
             borderColor="rgba(255,255,255,0.08)"
+            onClick={() => setIsWithdrawOpen(true)}
           />
         </div>
       </div>
@@ -638,6 +742,49 @@ export function AccountDetail({ accountId }: AccountDetailProps) {
           </div>
         )}
       </div>
+
+      {/* ══ MODALES — Fase 4.4 ══ */}
+
+      {/* Depositar: DEPOSITS_ENABLED=false en el modal → muestra "no disponible" automáticamente */}
+      <DepositModal
+        isOpen={isDepositOpen}
+        onClose={() => setIsDepositOpen(false)}
+        onSuccess={() => setIsDepositOpen(false)}
+      />
+
+      {/* Retirar: opera sobre accountId actual; balance viene de data */}
+      <WithdrawModal
+        isOpen={isWithdrawOpen}
+        onClose={() => setIsWithdrawOpen(false)}
+        availableBalance={data.investedCapital}
+        accountId={accountId}
+        onSuccess={async () => {
+          setIsWithdrawOpen(false);
+          await handleActionSuccess("Solicitud de retiro enviada correctamente.");
+        }}
+      />
+
+      {/* Transferir: defaultInvestmentAccountId = accountId para preselección */}
+      <InternalTransferModal
+        isOpen={isTransferOpen}
+        onClose={() => setIsTransferOpen(false)}
+        direction={transferDirection}
+        isBlocked={!withdrawalWindow.isOpen}
+        defaultInvestmentAccountId={data.type === "INVESTMENT" ? accountId : undefined}
+        onSuccess={async () => {
+          setIsTransferOpen(false);
+          await handleActionSuccess("Transferencia realizada correctamente.");
+        }}
+      />
+
+      {/* Toast inline de feedback */}
+      {toast && (
+        <InlineToast
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

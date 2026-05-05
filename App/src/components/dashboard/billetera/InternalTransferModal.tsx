@@ -20,6 +20,12 @@ interface InternalTransferModalProps {
   direction: "TO_INVESTMENT" | "TO_SAVINGS";
   isBlocked: boolean;
   onSuccess: () => void;
+  /**
+   * ID de la cuenta de inversión a preseleccionar al abrir el modal.
+   * Si no se provee, se usa investmentAccounts[0].
+   * Útil cuando se abre desde el detalle de una cuenta específica.
+   */
+  defaultInvestmentAccountId?: string;
 }
 
 export function InternalTransferModal({
@@ -28,6 +34,7 @@ export function InternalTransferModal({
   direction,
   isBlocked,
   onSuccess,
+  defaultInvestmentAccountId,
 }: InternalTransferModalProps) {
   const { accounts } = useAccount();
 
@@ -50,11 +57,15 @@ export function InternalTransferModal({
   const isInvesting = direction === "TO_INVESTMENT";
 
   // ── Inicializar selectedInvestmentId cuando cambian las cuentas ─────────
+  // Prioridad: defaultInvestmentAccountId (si existe en la lista) → investmentAccounts[0]
   useEffect(() => {
     if (investmentAccounts.length > 0 && !selectedInvestmentId) {
-      setSelectedInvestmentId(investmentAccounts[0].id);
+      const preferred = defaultInvestmentAccountId
+        ? investmentAccounts.find((a) => a.id === defaultInvestmentAccountId)
+        : undefined;
+      setSelectedInvestmentId(preferred?.id ?? investmentAccounts[0].id);
     }
-  }, [investmentAccounts, selectedInvestmentId]);
+  }, [investmentAccounts, selectedInvestmentId, defaultInvestmentAccountId]);
 
   // ── Resolver cuentas origen/destino según dirección ─────────────────────
   // Esto es la única fuente de verdad para el payload — nunca el backend decide.

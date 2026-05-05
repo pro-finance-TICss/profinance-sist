@@ -171,6 +171,8 @@ function DashboardLayoutContent({
 
 function getTitle(path: string) {
   if (path === "/dashboard") return "Resumen Financiero";
+  if (path.startsWith("/dashboard/cuentas/")) return "Detalle de Cuenta";
+  if (path === "/dashboard/cuentas") return "Mis Cuentas";
   if (path.includes("/productos")) return "Productos";
   if (path.includes("/billetera")) return "Mi Billetera";
   if (path.includes("/ajustes/dispositivos"))
@@ -179,5 +181,6 @@ function getTitle(path: string) {
   if (path.includes("/soporte")) return "Soporte";
   if (path.includes("/inversiones")) return "Inversiones";
   if (path.includes("/transacciones")) return "Transacciones";
+  if (path.includes("/referidos")) return "Referidos";
   return "Dashboard";
 }
