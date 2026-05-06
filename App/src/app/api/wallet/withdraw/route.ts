@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
       });
 
       // g. Crear registro de transacción (Ledger)
-      await tx.transaction.create({
+      const ledgerTx = await tx.transaction.create({
         data: {
           userId: session.user.id,
           accountId: account.id,
@@ -124,16 +124,42 @@ export async function POST(req: NextRequest) {
           amount,
           status: "COMPLETED",
         },
+        select: { id: true },
       });
 
-      return { request, accountId: account.id };
+      return { request, accountId: account.id, transactionId: ledgerTx.id };
     });
 
     logger.debug(
       `📤 Solicitud de retiro creada: $${amount} desde cuenta ${withdrawalResult.accountId}`
     );
 
-    // 4. Enviar notificación simulada al departamento de finanzas
+    // ── 4. AuditLog (C-3) ──────────────────────────────────────────────────────
+    // Fuera del $transaction: si el log falla, el retiro ya se creó y confirmó.
+    // No se usa logAudit() — hace auth() extra innecesario en este contexto.
+    try {
+      await prisma.auditLog.create({
+        data: {
+          action: "WITHDRAWAL_REQUESTED",
+          entityType: "WithdrawalRequest",
+          entityId: withdrawalResult.request.id,
+          userId: session.user.id,
+          details: JSON.stringify({
+            amount,
+            accountId: withdrawalResult.accountId,
+            bankAccountId: bankAccountId || null,
+            withdrawalRequestId: withdrawalResult.request.id,
+            transactionId: withdrawalResult.transactionId,
+          }),
+          ipAddress: req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? null,
+        },
+      });
+    } catch (auditError) {
+      // El AuditLog no puede romper una operación financiera ya confirmada
+      logger.error("[AUDIT_ERROR] ❌ Error al registrar AuditLog de retiro:", auditError);
+    }
+
+    // 5. Enviar notificación simulada al departamento de finanzas
     const financeEmail = process.env.FINANCE_DEPARTMENT_EMAIL;
     logger.debug(
       `📧 [SIMULADO] Email enviado a ${financeEmail}:`,

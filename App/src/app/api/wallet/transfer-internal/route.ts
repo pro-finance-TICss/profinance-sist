@@ -73,7 +73,9 @@ export async function POST(req: NextRequest) {
     const windowStatus = await isInvestmentWindowOpen();
 
     // ── 4. Transacción Prisma (atómica) ───────────────────────────────────────
-    return await prisma.$transaction(async (tx) => {
+    // Retorna datos estructurados (no NextResponse) para que el AuditLog (C-2)
+    // pueda insertarse fuera de la transacción.
+    const txResult = await prisma.$transaction(async (tx) => {
 
       // ── 4a. Resolver cuentas de origen y destino ──────────────────────────
       let sourceAccount: any = null;
@@ -199,8 +201,7 @@ export async function POST(req: NextRequest) {
           data: { investedCapital: { increment: amount } },
         });
 
-        // Ledger: registrar ambos lados de la operación
-        await tx.transaction.create({
+        const sourceTx = await tx.transaction.create({
           data: {
             userId,
             accountId: sourceAccount.id,
@@ -208,8 +209,9 @@ export async function POST(req: NextRequest) {
             amount,
             status: "COMPLETED",
           },
+          select: { id: true },
         });
-        await tx.transaction.create({
+        const destTx = await tx.transaction.create({
           data: {
             userId,
             accountId: destinationAccount.id,
@@ -217,16 +219,21 @@ export async function POST(req: NextRequest) {
             amount,
             status: "COMPLETED",
           },
+          select: { id: true },
         });
 
         logger.debug(
           `[transfer-internal] ✅ TO_INVESTMENT completado — userId: ${userId}, monto: ${amount}, source: ${sourceAccount.id}, dest: ${destinationAccount.id}`
         );
 
-        return NextResponse.json({
-          success: true,
+        return {
+          queued: false,
+          sourceAccountId: sourceAccount.id,
+          destinationAccountId: destinationAccount.id,
+          sourceTransactionId: sourceTx.id,
+          destinationTransactionId: destTx.id,
           message: "Transferencia a Inversión exitosa",
-        });
+        };
 
       } else {
         // TO_SAVINGS
@@ -247,11 +254,14 @@ export async function POST(req: NextRequest) {
             `[transfer-internal] ⏳ TO_SAVINGS encolado (periodo cerrado) — userId: ${userId}, monto: ${amount}, sourceAccount: ${sourceAccount.id}`
           );
 
-          return NextResponse.json({
-            success: true,
+          return {
             queued: true,
+            sourceAccountId: sourceAccount.id,
+            destinationAccountId: destinationAccount.id,
+            sourceTransactionId: null,
+            destinationTransactionId: null,
             message: "Periodo bloqueado: Tu solicitud ha sido puesta en cola.",
-          });
+          };
         }
 
         // Periodo abierto → transferencia inmediata
@@ -264,7 +274,7 @@ export async function POST(req: NextRequest) {
           data: { investedCapital: { increment: amount } },
         });
 
-        await tx.transaction.create({
+        const sourceTx = await tx.transaction.create({
           data: {
             userId,
             accountId: sourceAccount.id,
@@ -272,8 +282,9 @@ export async function POST(req: NextRequest) {
             amount,
             status: "COMPLETED",
           },
+          select: { id: true },
         });
-        await tx.transaction.create({
+        const destTx = await tx.transaction.create({
           data: {
             userId,
             accountId: destinationAccount.id,
@@ -281,18 +292,57 @@ export async function POST(req: NextRequest) {
             amount,
             status: "COMPLETED",
           },
+          select: { id: true },
         });
 
         logger.debug(
           `[transfer-internal] ✅ TO_SAVINGS completado — userId: ${userId}, monto: ${amount}, source: ${sourceAccount.id}, dest: ${destinationAccount.id}`
         );
 
-        return NextResponse.json({
-          success: true,
+        return {
+          queued: false,
+          sourceAccountId: sourceAccount.id,
+          destinationAccountId: destinationAccount.id,
+          sourceTransactionId: sourceTx.id,
+          destinationTransactionId: destTx.id,
           message: "Transferencia a Ahorros exitosa",
-        });
+        };
       }
     }); // fin prisma.$transaction
+
+    // ── 5. AuditLog (C-2) ─────────────────────────────────────────────────────────────────────
+    // Fuera del $transaction: si el log falla, la transferencia ya confirmó.
+    // No se usa logAudit() porque hace auth() extra y no es necesario aquí.
+    // Solo auditar transferencias inmediatas (las encoladas no mueven fondos todavía).
+    if (!txResult.queued && txResult.sourceTransactionId) {
+      try {
+        await prisma.auditLog.create({
+          data: {
+            action: "INTERNAL_TRANSFER",
+            entityType: "Transaction",
+            entityId: txResult.sourceTransactionId,
+            userId,
+            details: JSON.stringify({
+              sourceAccountId: txResult.sourceAccountId,
+              destinationAccountId: txResult.destinationAccountId,
+              amount,
+              direction,
+              sourceTransactionId: txResult.sourceTransactionId,
+              destinationTransactionId: txResult.destinationTransactionId,
+            }),
+            ipAddress: req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? null,
+          },
+        });
+      } catch (auditError) {
+        // El AuditLog no puede romper una operación financiera ya confirmada
+        logger.error("[AUDIT_ERROR] ❌ Error al registrar AuditLog de transferencia interna:", auditError);
+      }
+    }
+
+    // Construir la respuesta JSON a partir de los datos retornados por la transacción
+    const responsePayload: Record<string, unknown> = { success: true, message: txResult.message };
+    if (txResult.queued) responsePayload.queued = true;
+    return NextResponse.json(responsePayload);
 
   } catch (error: any) {
     logger.error(

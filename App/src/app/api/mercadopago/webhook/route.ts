@@ -10,6 +10,7 @@ import { MercadoPagoConfig, Payment } from "mercadopago";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { logger } from "@/lib/logger";
+import { processReferralCommission } from "@/lib/services/referral.service";
 
 // Inicializar cliente de Mercado Pago con token de acceso
 const client = new MercadoPagoConfig({
@@ -133,7 +134,7 @@ export async function POST(req: NextRequest) {
 
         // 4. Actualizar balance de la primera cuenta del usuario y crear transacción
         // Nota: MercadoPago no envía accountId, así que usamos la primera cuenta por defecto
-        await prisma.$transaction(async (tx) => {
+        const depositResult = await prisma.$transaction(async (tx) => {
           // Buscar primera cuenta del usuario
           const account = await tx.account.findFirst({
             where: { userId },
@@ -154,7 +155,7 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          await tx.transaction.create({
+          const depositTx = await tx.transaction.create({
             data: {
               userId,
               accountId: account.id,
@@ -163,10 +164,39 @@ export async function POST(req: NextRequest) {
               status: "COMPLETED",
               paymentId: String(id),
             },
+            select: { id: true },
           });
+
+          return { transactionId: depositTx.id };
         });
 
         logger.debug("✅ Balance actualizado exitosamente");
+
+        // 5. Procesar comisión de referido (C-1)
+        // IMPORTANTE: Fuera del $transaction principal.
+        // Si la comisión falla, el depósito ya se confirmó y NO debe revertirse.
+        try {
+          const commissionResult = await processReferralCommission(depositResult.transactionId);
+          if (commissionResult.success) {
+            logger.debug(
+              `[REFERRAL_COMMISSION] ✅ Comisión acreditada — transactionId: ${depositResult.transactionId}, ` +
+              `amount: ${commissionResult.commissionAmount}, currency: ${commissionResult.currency}, ` +
+              `creditedAccountId: ${commissionResult.creditedAccountId}, activated: ${commissionResult.referralActivated}`
+            );
+          } else {
+            // NO_REFERRAL y ALREADY_PROCESSED son resultados normales, no errores
+            if (commissionResult.reason === "NO_REFERRAL") {
+              logger.debug(`[REFERRAL_COMMISSION] Sin referido para userId: ${userId}`);
+            } else if (commissionResult.reason === "ALREADY_PROCESSED") {
+              logger.warn(`[REFERRAL_COMMISSION] ⚠️ Comisión ya procesada para transactionId: ${depositResult.transactionId}`);
+            } else {
+              logger.warn(`[REFERRAL_COMMISSION] ⚠️ Comisión no procesada — reason: ${commissionResult.reason}, detail: ${commissionResult.detail ?? ""}`);
+            }
+          }
+        } catch (commissionError) {
+          // El error se logea pero NO rompe el webhook ni revierte el depósito
+          logger.error("[REFERRAL_COMMISSION_ERROR] ❌ Error al procesar comisión de referido:", commissionError);
+        }
       }
     }
 

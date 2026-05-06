@@ -24,7 +24,7 @@ export default async function DashboardLayout({
 
   // TEMPORAL — diagnóstico: confirmar que role está disponible en auth()
   // Eliminar una vez verificado el redirect correcto.
-  console.log("[DashboardLayout] session.user.role =", session?.user?.role ?? "NO SESSION");
+
 
   // Redirect server-side — antes de que CUALQUIER componente del dashboard
   // (incluyendo DashboardClientLayout) se monte en el cliente.

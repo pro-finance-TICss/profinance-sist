@@ -134,20 +134,11 @@ export function InternalTransferModal({
     const sourceAccountId = sourceAccount.id;
     const destinationAccountId = destinationAccount.id;
 
-    // Debug log temporal (requerido por la tarea)
-    console.log("TRANSFER DEBUG", {
-      sourceAccountId,
-      destinationAccountId,
-      amount: numAmount,
-    });
-
     setIsLoading(true);
     setError(null);
     setSuccessMsg(null);
 
     try {
-      console.log("DEBUG: Enviando dinero a la cuenta ID:", selectedInvestmentId);
-
       const res = await fetch("/api/wallet/transfer-internal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
