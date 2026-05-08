@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
       id: acc.id,
       name: acc.name,
       userId: acc.userId,
+      type: acc.type ?? "SAVINGS",
       role: acc.role,
       investedCapital: decimalToNumber(acc.investedCapital),
       withdrawalLimitByDate: acc.withdrawalLimitByDate
@@ -76,13 +77,74 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const existingCount = await prisma.account.count({
-      where: { userId: session.user.id },
+    // ── FUENTE DE VERDAD: obtener user.role desde DB ──────────────────────────
+    // NUNCA usar session.user.role para asignar account.role — puede estar
+    // desactualizado si el SUPER_ADMIN cambió el rol sin que el usuario
+    // cerrara sesión. Se consulta directamente la DB.
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, role: true },
     });
 
-    if (existingCount >= 10) {
+    if (!dbUser) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+
+    // Las cuentas solo tienen roles USER o SOCIO (los roles de backoffice no aplican)
+    const accountRole = (dbUser.role === "SOCIO") ? "SOCIO" : "USER";
+
+    // Verificar si ya existe una cuenta de Ahorros (solo puede haber 1 por usuario)
+    const existingSavings = await prisma.account.findFirst({
+      where: { userId: session.user.id, type: "SAVINGS" },
+    });
+
+    if (!existingSavings) {
+      // Esta situación no debería ocurrir (el usuario nace con 1 cuenta de Ahorros),
+      // pero por seguridad lo manejamos creando la cuenta de Ahorros.
+      const account = await prisma.account.create({
+        data: {
+          userId: session.user.id,
+          name,
+          type: "SAVINGS",
+          role: accountRole, // ← sincronizado con user.role
+          investedCapital: 0,
+        },
+      });
+
+      // Protección defensiva: garantizar que todas las cuentas del usuario
+      // estén sincronizadas con user.role (por si quedaron desincronizadas)
+      await prisma.account.updateMany({
+        where: { userId: session.user.id },
+        data: { role: accountRole },
+      });
+
+      logger.debug(
+        `✅ Nueva cuenta de Ahorro creada: "${account.name}" para usuario ${session.user.id} con role: ${accountRole}`
+      );
+
       return NextResponse.json(
-        { error: "Has alcanzado el límite máximo de 10 cuentas" },
+        {
+          id: account.id,
+          name: account.name,
+          userId: account.userId,
+          type: account.type ?? "SAVINGS",
+          role: account.role,
+          investedCapital: 0,
+          withdrawalLimitByDate: null,
+          createdAt: account.createdAt.toISOString(),
+        },
+        { status: 201 }
+      );
+    }
+
+    // El usuario ya tiene cuenta de Ahorros → la nueva cuenta es de INVERSIÓN
+    const existingInvestmentCount = await prisma.account.count({
+      where: { userId: session.user.id, type: "INVESTMENT" },
+    });
+
+    if (existingInvestmentCount >= 9) {
+      return NextResponse.json(
+        { error: "Has alcanzado el límite máximo de 9 cuentas de inversión" },
         { status: 400 }
       );
     }
@@ -101,17 +163,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Nueva cuenta → siempre es de Inversión (INVESTMENT)
     const account = await prisma.account.create({
       data: {
         userId: session.user.id,
         name,
-        role: "USER",
+        type: "INVESTMENT",
+        role: accountRole, // ← sincronizado con user.role
         investedCapital: 0,
       },
     });
 
+    // Protección defensiva: sincronizar TODAS las cuentas del usuario al role correcto.
+    // Esto corrige cualquier cuenta que pudiera haberse quedado con role incorrecto.
+    await prisma.account.updateMany({
+      where: { userId: session.user.id },
+      data: { role: accountRole },
+    });
+
     logger.debug(
-      `✅ Nueva cajita creada: "${account.name}" para usuario ${session.user.id}`
+      `✅ Nueva cuenta de Inversión creada: "${account.name}" para usuario ${session.user.id} con role: ${accountRole}`
     );
 
     return NextResponse.json(
@@ -119,6 +190,7 @@ export async function POST(req: NextRequest) {
         id: account.id,
         name: account.name,
         userId: account.userId,
+        type: account.type ?? "INVESTMENT",
         role: account.role,
         investedCapital: 0,
         withdrawalLimitByDate: null,
@@ -134,3 +206,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+

@@ -15,6 +15,9 @@ interface Transaction {
   amount: number;
   status: string;
   createdAt: string;
+  account?: {
+    type: string;
+  };
 }
 
 interface TransactionHistoryProps {
@@ -73,7 +76,14 @@ export function TransactionHistory({
     }
   };
 
-  const getTypeIcon = (type: string) => {
+  const getTypeIcon = (type: string, amount: number) => {
+    if (type === "PROFIT") {
+      return amount >= 0 ? (
+        <ArrowDownLeft size={20} color="#4caf50" />
+      ) : (
+        <ArrowUpRight size={20} color="#f44336" />
+      );
+    }
     return type === "DEPOSIT" || type === "REFUND" || type === "COMMISSION" ? (
       <ArrowDownLeft size={20} color="#4caf50" />
     ) : (
@@ -89,6 +99,8 @@ export function TransactionHistory({
         return "Reembolso";
       case "COMMISSION":
         return "Comisión de Referido";
+      case "PROFIT":
+        return "PROFIT";
       default:
         return "Retiro";
     }
@@ -171,11 +183,11 @@ export function TransactionHistory({
                     height: "44px",
                     borderRadius: "12px",
                     background:
-                      tx.type === "DEPOSIT" || tx.type === "REFUND" || tx.type === "COMMISSION"
+                      (tx.type === "PROFIT" && tx.amount >= 0) || tx.type === "DEPOSIT" || tx.type === "REFUND" || tx.type === "COMMISSION"
                         ? "rgba(76, 175, 80, 0.1)"
                         : "rgba(244, 67, 54, 0.1)",
                     border:
-                      tx.type === "DEPOSIT" || tx.type === "REFUND" || tx.type === "COMMISSION"
+                      (tx.type === "PROFIT" && tx.amount >= 0) || tx.type === "DEPOSIT" || tx.type === "REFUND" || tx.type === "COMMISSION"
                         ? "1px solid rgba(76, 175, 80, 0.3)"
                         : "1px solid rgba(244, 67, 54, 0.3)",
                     display: "flex",
@@ -183,7 +195,7 @@ export function TransactionHistory({
                     justifyContent: "center",
                   }}
                 >
-                  {getTypeIcon(tx.type)}
+                  {getTypeIcon(tx.type, tx.amount)}
                 </div>
 
                 <div>
@@ -193,9 +205,17 @@ export function TransactionHistory({
                       fontSize: "0.95rem",
                       fontWeight: "600",
                       margin: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px"
                     }}
                   >
                     {getTypeText(tx.type)}
+                    {tx.account?.type && (
+                      <span style={{ fontSize: "0.65rem", padding: "2px 8px", borderRadius: "10px", background: "rgba(189, 142, 72, 0.15)", color: "#bd8e48", textTransform: "uppercase" }}>
+                        {tx.account.type === "SAVINGS" ? "Ahorros" : "Inversión"}
+                      </span>
+                    )}
                   </p>
                   <p
                     style={{
@@ -220,7 +240,7 @@ export function TransactionHistory({
                 <p
                   style={{
                     color:
-                      tx.type === "DEPOSIT" || tx.type === "REFUND" || tx.type === "COMMISSION"
+                      (tx.type === "PROFIT" && tx.amount >= 0) || tx.type === "DEPOSIT" || tx.type === "REFUND" || tx.type === "COMMISSION"
                         ? "#4caf50"
                         : "#f44336",
                     fontSize: "1.1rem",
@@ -228,8 +248,14 @@ export function TransactionHistory({
                     margin: 0,
                   }}
                 >
-                  {tx.type === "DEPOSIT" || tx.type === "REFUND" || tx.type === "COMMISSION" ? "+" : "-"}
-                  {formatCurrency(tx.amount)}
+                  {tx.type === "DEPOSIT" || tx.type === "REFUND" || tx.type === "COMMISSION" 
+                    ? "+" 
+                    : tx.type === "PROFIT" 
+                      ? (tx.amount > 0 ? "+" : "-") 
+                      : "-"}
+                  {tx.type === "PROFIT" && tx.amount < 0 
+                    ? formatCurrency(Math.abs(tx.amount)) 
+                    : formatCurrency(tx.amount)}
                 </p>
               </div>
 

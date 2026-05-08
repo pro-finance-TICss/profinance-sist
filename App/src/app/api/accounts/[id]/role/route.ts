@@ -76,12 +76,24 @@ export async function PATCH(
       });
     }
 
-    // 7. Actualizar rol
+    // 7. Actualizar rol de la cuenta solicitada
     const updated = await prisma.account.update({
       where: { id: accountId },
       data: { role },
       select: { id: true, name: true, role: true, userId: true },
     });
+
+    // FASE PRE-1: Propagar el cambio a user.role y a TODAS las cuentas del usuario
+    // para mantener la invariante: account.role === user.role
+    await prisma.user.update({
+      where: { id: updated.userId },
+      data: { role },
+    });
+    const { count } = await prisma.account.updateMany({
+      where: { userId: updated.userId, id: { not: accountId } }, // las demás cuentas
+      data: { role },
+    });
+    console.log(`[ROLE SYNC] PATCH /api/accounts/${accountId}/role — user.role actualizado + ${count} cuentas adicionales sincronizadas a: ${role}`);
 
     logger.debug(
       `✅ SUPER_ADMIN cambió rol de cuenta "${updated.name}" (${updated.id}): ` +
@@ -100,6 +112,7 @@ export async function PATCH(
           previousRole: account.role,
           newRole: updated.role,
           accountUserId: updated.userId,
+          additionalAccountsSynced: count,
         }),
       },
     });

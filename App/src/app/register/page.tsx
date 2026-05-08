@@ -34,55 +34,12 @@ interface TotpSetupData {
 // COMPONENTE PRINCIPAL DE REGISTRO
 // ============================================================================
 
-// ============================================================================
-// FLAG: Controla si el registro de nuevos usuarios está habilitado.
-// Cambiar a `true` para reabrir el registro.
-// ============================================================================
-const REGISTRATIONS_OPEN = false;
-
 export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const referralCode = searchParams.get("ref") ?? undefined;
-
-  // Si el registro está cerrado, mostrar mensaje amigable
-  if (!REGISTRATIONS_OPEN) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.brandingSection}>
-          <div className={styles.brandingContent}>
-            <h1 className={styles.brandingTitle}>PRO-FINANCE</h1>
-            <img
-              src="/Background-recortado.png"
-              alt="ProFinance Logo"
-              className={styles.logo}
-              style={{ borderRadius: "20%" }}
-            />
-            <p className={styles.brandingTagline}>
-              Empoderando tu futuro financiero
-            </p>
-          </div>
-        </div>
-        <div className={styles.formSection}>
-          <div className={styles.formContainer} style={{ maxWidth: "550px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ textAlign: "center", padding: "2.5rem 2rem" }}>
-              <div style={{ fontSize: "3.5rem", marginBottom: "1.5rem" }}>🔒</div>
-              <h2 style={{ fontSize: "1.6rem", fontWeight: 700, color: "#333", marginBottom: "1rem" }}>
-                Registro cerrado
-              </h2>
-              <p style={{ color: "rgba(0,0,0,0.6)", fontSize: "1rem", lineHeight: 1.6, marginBottom: "2rem" }}>
-                No se aceptan nuevos registros por el momento.<br />
-                ¡Estate al tanto de nuestras redes sociales!
-              </p>
-              <Link href="/login" className={styles.link} style={{ fontWeight: 600, fontSize: "1rem" }}>
-                ← Iniciar Sesión
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // El ref del query param se usa SOLO para mostrar el badge visual.
+  // La seguridad real está en el middleware y la cookie pf_ref (HttpOnly).
+  const hasInvitation = !!searchParams.get("ref");
 
   // Estados del flujo
   const [step, setStep] = useState<RegisterStep | "recovery">("personal-info");
@@ -102,8 +59,7 @@ export default function RegisterPage() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       firstName: "",
-      paternalSurname: "",
-      maternalSurname: "",
+      lastNames: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -123,8 +79,7 @@ export default function RegisterPage() {
     // Primero validar los campos con Zod
     const isValid = await trigger([
       "firstName",
-      "paternalSurname",
-      "maternalSurname",
+      "lastNames",
       "email",
     ]);
 
@@ -167,7 +122,9 @@ export default function RegisterPage() {
     setServerError(null);
 
     try {
-      const result = await registerUser(data, referralCode);
+      // El referralCode NO se pasa desde el cliente.
+      // El backend lo lee exclusivamente de la cookie HttpOnly pf_ref.
+      const result = await registerUser(data);
 
       if (!result.success) {
         if (result.errors) {
@@ -274,6 +231,27 @@ export default function RegisterPage() {
                 </a>
               </div>
               <h2 className={styles.title}>Registrarse</h2>
+              {/* Badge: invitación detectada */}
+              {hasInvitation && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    marginTop: "0.75rem",
+                    padding: "0.5rem 1rem",
+                    borderRadius: "8px",
+                    background: "linear-gradient(135deg, rgba(189,142,72,0.15), rgba(189,142,72,0.05))",
+                    border: "1px solid rgba(189,142,72,0.4)",
+                    fontSize: "0.85rem",
+                    color: "#8B6914",
+                    fontWeight: 600,
+                  }}
+                >
+                  <span style={{ fontSize: "1.1rem" }}>🎟️</span>
+                  <span>Invitación válida detectada</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -301,25 +279,17 @@ export default function RegisterPage() {
                       />
                     </div>
 
-                    <div style={{ display: "flex", gap: "1rem" }}>
-                      <div className={styles.inputWrapper} style={{ flex: 1 }}>
-                        <Input
-                          label="Apellido Paterno"
-                          type="text"
-                          placeholder="Paterno"
-                          {...register("paternalSurname")}
-                          error={errors.paternalSurname?.message}
-                        />
-                      </div>
-                      <div className={styles.inputWrapper} style={{ flex: 1 }}>
-                        <Input
-                          label="Apellido Materno"
-                          type="text"
-                          placeholder="Materno"
-                          {...register("maternalSurname")}
-                          error={errors.maternalSurname?.message}
-                        />
-                      </div>
+                    <div className={styles.inputWrapper}>
+                      <Input
+                        label="Apellidos"
+                        type="text"
+                        placeholder="Paterno Materno"
+                        {...register("lastNames")}
+                        error={errors.lastNames?.message}
+                      />
+                      <p style={{ fontSize: "0.75rem", color: "rgba(0,0,0,0.4)", margin: "4px 0 0 2px" }}>
+                        Escribe ambos apellidos separados por un espacio.
+                      </p>
                     </div>
 
                     <div className={styles.inputWrapper}>
@@ -364,9 +334,6 @@ export default function RegisterPage() {
                         <option value="MX">México (MXN)</option>
                         <option value="US">Estados Unidos (USD)</option>
                         <option value="ES">España (EUR)</option>
-                        <option value="DE">Alemania (EUR)</option>
-                        <option value="Gb">Reino Unido (GBP)</option>
-                        <option value="OTRO">Otro (USD)</option>
                       </select>
                       {errors.country && (
                         <p style={{ color: "#dc3545", fontSize: "0.8rem", marginTop: "0.25rem" }}>

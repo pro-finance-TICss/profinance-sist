@@ -3,11 +3,16 @@
 // ============================================================================
 // Acciones del servidor para registro de usuarios y configuración TOTP.
 // Utiliza Prisma para persistencia y bcrypt para hashing seguro.
+//
+// SEGURIDAD: El referralCode NUNCA se acepta desde el cliente.
+// Se lee exclusivamente de la cookie HttpOnly pf_ref, establecida por
+// el middleware tras validar el código en la base de datos.
 // ============================================================================
 
 "use server";
 
 import bcrypt from "bcryptjs";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validations/auth";
 import type { RegisterFormData } from "@/lib/validations/auth";
@@ -18,6 +23,8 @@ import {
   verifyTotpToken,
 } from "@/lib/totp";
 import { generateUniqueReferralCode } from "@/lib/services/referral.service";
+import { getQuotaForRole } from "@/app/api/referrals/validate/route";
+import { REFERRAL_COOKIE_NAME } from "@/proxy";
 import { logger } from "@/lib/logger";
 
 
@@ -83,8 +90,7 @@ const BCRYPT_SALT_ROUNDS = 12;
  * @returns Resultado con datos para configurar TOTP
  */
 export async function registerUser(
-  formData: RegisterFormData,
-  referralCode?: string
+  formData: RegisterFormData
 ): Promise<RegisterResponse> {
   try {
     // ================================================================
@@ -109,15 +115,105 @@ export async function registerUser(
       };
     }
 
-    const { email, password, firstName, paternalSurname, maternalSurname, country, baseCurrency } =
+    const { email, password, firstName, lastNames, country, baseCurrency } =
       validatedFields.data;
 
+    // Separar apellidos: primera palabra = paterno, el resto = materno
+    const lastNameParts = lastNames.trim().split(/\s+/);
+    const paternalSurname = lastNameParts[0] || "";
+    const maternalSurname = lastNameParts.slice(1).join(" ") || "";
+
     // ================================================================
-    // PASO 2: Verificar si el email ya existe
+    // PASO 2: Leer el referral code EXCLUSIVAMENTE de la cookie segura
+    // SECURITY: El código NUNCA se acepta desde el cliente.
+    // El middleware valida el código y lo almacena en una cookie HttpOnly.
     // ================================================================
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
+    const cookieStore = await cookies();
+    const rawReferralCode = cookieStore.get(REFERRAL_COOKIE_NAME)?.value;
+
+    if (!rawReferralCode) {
+      logger.warn(`[registerUser] Attempt without valid pf_ref cookie from email: ${email}`);
+      return {
+        success: false,
+        message: "Acceso denegado. Se requiere una invitación válida.",
+      };
+    }
+
+    const normalizedCode = rawReferralCode.trim().toUpperCase();
+
+    // ================================================================
+    // PASO 3: Re-validar el código en DB (defense-in-depth)
+    // La cookie puede haber sido forjada o el referrer puede haber
+    // alcanzado su cuota entre el tiempo de visita y el registro.
+    // ================================================================
+    const referrer = await prisma.user.findUnique({
+      where: { referralCode: normalizedCode },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        _count: {
+          select: {
+            referrals: {
+              where: { status: { in: ["PENDING", "ACTIVE"] } },
+            },
+          },
+        },
+      },
     });
+
+    if (!referrer) {
+      logger.warn(`[registerUser] Invalid referral code from cookie: ${normalizedCode}`);
+      return {
+        success: false,
+        message: "El código de invitación no es válido. Solicita un nuevo link.",
+      };
+    }
+
+    // ── 3a. Anti-fraude: self-referral ────────────────────────────────────
+    if (referrer.email.toLowerCase() === email.toLowerCase()) {
+      logger.warn(`[registerUser] Self-referral attempt blocked for: ${email}`);
+      return {
+        success: false,
+        message: "No puedes usar tu propio código de referido.",
+      };
+    }
+
+    // ── 3b. Doble validación de cuota (defense-in-depth) ─────────────────
+    const maxQuota = getQuotaForRole(referrer.role);
+    if (referrer._count.referrals >= maxQuota) {
+      logger.warn(
+        `[registerUser] Quota exceeded for referrer ${referrer.id}: ${referrer._count.referrals}/${maxQuota}`
+      );
+      return {
+        success: false,
+        message: "El usuario que te invitó ha alcanzado su límite de referencias.",
+      };
+    }
+
+    // ── 3c. Anti-fraude: detección de referencia circular (A → B → A) ────
+    // Verificar si el referrer fue referido por el email que se intenta registrar.
+    // (En este punto el usuario nuevo no existe aún, pero verificamos por email)
+    const circularCheck = await prisma.referral.findFirst({
+      where: {
+        referrerId: referrer.id,
+        referred: { email: email.toLowerCase() },
+      },
+      select: { id: true },
+    });
+
+    if (circularCheck) {
+      logger.warn(`[registerUser] Circular referral detected: ${email} ↔ ${referrer.email}`);
+      return {
+        success: false,
+        message: "No se permiten referencias circulares.",
+      };
+    }
+
+    // ================================================================
+    // PASO 4: Verificar si el email ya existe
+    // ================================================================
+    const existingUser = await prisma.user.findUnique({ where: { email } });
 
     if (existingUser) {
       return {
@@ -130,17 +226,17 @@ export async function registerUser(
     }
 
     // ================================================================
-    // PASO 3: Hashear contraseña con bcrypt
+    // PASO 5: Hashear contraseña con bcrypt
     // ================================================================
     const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
     // ================================================================
-    // PASO 4: Generar secreto TOTP
+    // PASO 6: Generar secreto TOTP
     // ================================================================
     const totpSecret = generateTotpSecret();
 
     // ================================================================
-    // PASO 4.5: Determinar moneda base
+    // PASO 6.5: Determinar moneda base
     // ================================================================
     let finalBaseCurrency = baseCurrency || "COP";
 
@@ -150,39 +246,13 @@ export async function registerUser(
     }
 
     // ================================================================
-    // PASO 5: Validar código de referido (si existe)
-    // ================================================================
-    let referrer: { id: string; email: string } | null = null;
-
-    if (referralCode && referralCode.trim().length > 0) {
-      const normalizedCode = referralCode.trim().toUpperCase();
-
-      const foundReferrer = await prisma.user.findUnique({
-        where: { referralCode: normalizedCode },
-        select: { id: true, email: true },
-      });
-
-      if (foundReferrer && foundReferrer.email !== email) {
-        // Código válido y no es autoreferido
-        referrer = foundReferrer;
-        logger.debug(`✅ Código de referido válido: ${normalizedCode} → referrer ${foundReferrer.id}`);
-      } else if (foundReferrer && foundReferrer.email === email) {
-        // Autoreferido: ignorar silenciosamente (no bloquear el registro)
-        logger.debug(`⚠️ Autoreferido detectado para ${email}, ignorando código`);
-      } else {
-        // Código no encontrado: ignorar silenciosamente
-        logger.debug(`⚠️ Código de referido no encontrado: ${normalizedCode}`);
-      }
-    }
-
-    // ================================================================
-    // PASO 6: Crear usuario + referido de forma atómica
+    // PASO 7: Crear usuario + referido de forma atómica
     // ================================================================
     const newUser = await prisma.$transaction(async (tx) => {
       // Generar código de referido único para el nuevo usuario
       const newUserReferralCode = await generateUniqueReferralCode(tx);
 
-      // Crear el usuario
+      // Crear el usuario con su propio referralCode único
       const user = await tx.user.create({
         data: {
           email,
@@ -195,30 +265,47 @@ export async function registerUser(
           totpSecret,
           totpEnabled: false,
           referralCode: newUserReferralCode,
+          // Crear cuenta de Ahorro (SAVINGS) por defecto
+          // FASE PRE-1: account.role sincronizado con user.role
+          // Los usuarios que se registran por el flujo público siempre son USER,
+          // pero usamos el campo explícito para mantener la invariante.
+          accounts: {
+            create: {
+              name: "Mi Cuenta de Ahorro",
+              type: "SAVINGS",
+              role: "USER", // Los nuevos registros públicos siempre son USER por definición del schema
+              investedCapital: 0,
+            },
+          },
         },
       });
 
-      // Si hay referrer válido, crear la relación de referido
-      if (referrer) {
-        await tx.referral.create({
-          data: {
-            referrerId: referrer.id,
-            referredId: user.id,
-            referralCodeUsed: referralCode!.trim().toUpperCase(),
-            status: "PENDING",
-          },
-        });
-        logger.debug(`✅ Relación de referido creada: ${referrer.id} → ${user.id}`);
-      }
+      // Crear la relación de referido (obligatoria en invite-only)
+      await tx.referral.create({
+        data: {
+          referrerId: referrer.id,
+          referredId: user.id,
+          referralCodeUsed: normalizedCode,
+          status: "PENDING",
+        },
+      });
+
+      logger.debug(`[registerUser] ✅ Referral created: ${referrer.id} → ${user.id}`);
 
       return user;
     });
 
-    logger.debug("✅ Usuario registrado exitosamente:", email);
-    logger.debug("🔐 Esperando configuración de TOTP...");
+    logger.debug(`[registerUser] ✅ User registered: ${email}`);
 
     // ================================================================
-    // PASO 7: Generar QR para configuración de autenticador
+    // PASO 8: Eliminar la cookie pf_ref tras registro exitoso
+    // ================================================================
+    cookieStore.delete(REFERRAL_COOKIE_NAME);
+
+    logger.debug("[registerUser] 🍪 pf_ref cookie deleted after successful registration");
+
+    // ================================================================
+    // PASO 9: Generar QR para configuración de autenticador
     // ================================================================
     const uri = generateTotpUri(email, totpSecret);
     const qrCode = await generateQrDataUrl(uri);
@@ -233,12 +320,11 @@ export async function registerUser(
       },
     };
   } catch (error) {
-    logger.error("❌ Error al registrar usuario:", error);
+    logger.error("[registerUser] ❌ Error:", error);
 
     return {
       success: false,
-      message:
-        "Ocurrió un error al crear la cuenta. Por favor intenta de nuevo.",
+      message: "Ocurrió un error al crear la cuenta. Por favor intenta de nuevo.",
     };
   }
 }

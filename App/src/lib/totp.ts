@@ -39,19 +39,25 @@ export function generateTotpSecret(): string {
 
 /**
  * Genera la URL otpauth:// para registrar en una app de autenticación.
+ * Formato: otpauth://totp/Issuer:email?secret=...&issuer=Issuer
+ * El prefijo "Issuer:" en el accountName hace que apps como Google Authenticator
+ * muestren el email como identificador de la cuenta.
  * @param email - Email del usuario (usado como identificador)
  * @param secret - Secreto TOTP base32
  * @returns URL compatible con Google Authenticator
  */
 export function generateTotpUri(email: string, secret: string): string {
-  return otplib.generateURI({
+  // Encodificar correctamente para URI
+  // Formato "Issuer:email" como label hace que Google Authenticator muestre el correo
+  const label = encodeURIComponent(`${APP_NAME}:${email}`);
+  const params = new URLSearchParams({
     secret,
     issuer: APP_NAME,
-    accountName: email,
-    type: "totp",
-    digits: TOTP_OPTIONS.digits,
-    period: TOTP_OPTIONS.period,
-  }) as string;
+    algorithm: "SHA1",
+    digits: String(TOTP_OPTIONS.digits),
+    period: String(TOTP_OPTIONS.period),
+  });
+  return `otpauth://totp/${label}?${params.toString()}`;
 }
 
 /**

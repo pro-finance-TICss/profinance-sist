@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { BalanceCard } from "./BalanceCard";
 import { DepositModal } from "./DepositModal";
 import { WithdrawModal } from "./WithdrawModal";
+import { InternalTransferModal } from "./InternalTransferModal";
 import { BankAccountList } from "./BankAccountList";
 import { Wallet, Banknote, ArrowRight, Lock } from "lucide-react";
 import {
@@ -20,6 +21,7 @@ interface BalanceData {
 
 interface WithdrawalRequest {
   id: string;
+  accountId?: string;
   amount: number;
   status: string;
   requestedAt: string;
@@ -41,6 +43,8 @@ export function WalletView() {
   // Estados de modales
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [isInternalTransferOpen, setIsInternalTransferOpen] = useState(false);
+  const [internalTransferDirection, setInternalTransferDirection] = useState<"TO_INVESTMENT" | "TO_SAVINGS">("TO_INVESTMENT");
   const [withdrawalWindow, setWithdrawalWindow] = useState<{
     isOpen: boolean;
     reason?: string;
@@ -93,8 +97,10 @@ export function WalletView() {
 
   // Calcular retiros pendientes
   const pendingWithdrawal = withdrawals
-    .filter((w) => w.status === "PENDING")
+    .filter((w) => w.status === "PENDING" && w.accountId === activeAccount?.id)
     .reduce((acc, curr) => acc + Number(curr.amount), 0);
+  
+  const isInvestment = activeAccount?.type === "INVESTMENT";
 
   return (
 
@@ -125,9 +131,15 @@ export function WalletView() {
             height: "100%",
           }}
         >
-          {/* Botón Depositar */}
           <button
-            onClick={() => setIsDepositModalOpen(true)}
+            onClick={() => {
+              if (isInvestment) {
+                setInternalTransferDirection("TO_INVESTMENT");
+                setIsInternalTransferOpen(true);
+              } else {
+                setIsDepositModalOpen(true);
+              }
+            }}
             className="action-card"
             style={{
               display: "flex",
@@ -167,7 +179,7 @@ export function WalletView() {
                     margin: 0,
                   }}
                 >
-                  Depositar Fondos
+                  {isInvestment ? "Aportar de Ahorros" : "Depositar Fondos"}
                 </h4>
                 <p
                   style={{
@@ -176,7 +188,7 @@ export function WalletView() {
                     margin: "4px 0 0 0",
                   }}
                 >
-                  Carga capital a tu cuenta
+                  {isInvestment ? "Pasa fondos para invertirlos" : "Carga capital a tu cuenta"}
                 </p>
               </div>
             </div>
@@ -196,36 +208,32 @@ export function WalletView() {
             </div>
           </button>
 
-          {/* Botón Retirar */}
+          {/* Botón Retirar / Pasar a Ahorros */}
           <button
             onClick={() => {
-              if (withdrawalWindow.isOpen) {
-                setIsWithdrawModalOpen(true);
+              if (isInvestment) {
+                setInternalTransferDirection("TO_SAVINGS");
+                setIsInternalTransferOpen(true);
+              } else {
+                setIsWithdrawModalOpen(true); // SAVINGS siempre puede retirar según nuevas reglas
               }
             }}
-            className={`action-card ${!withdrawalWindow.isOpen ? "disabled" : ""
-              }`}
+            className="action-card"
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               width: "100%",
               padding: "24px",
-              background: withdrawalWindow.isOpen
-                ? "rgba(255, 255, 255, 0.03)"
-                : "rgba(255, 255, 255, 0.01)", // Más oscuro si disabled
+              background: "rgba(255, 255, 255, 0.03)",
               border: "1px solid rgba(255, 255, 255, 0.1)",
               borderRadius: "20px",
-              cursor: withdrawalWindow.isOpen ? "pointer" : "not-allowed",
+              cursor: "pointer",
               transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
               textAlign: "left",
-              opacity: withdrawalWindow.isOpen ? 1 : 0.6,
+              opacity: 1,
             }}
-            title={
-              !withdrawalWindow.isOpen
-                ? withdrawalWindow.reason
-                : "Solicitar retiro"
-            }
+            title={isInvestment ? "Pasar dinero a Cajita de Ahorros" : "Solicitar retiro al Banco"}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
               <div
@@ -233,35 +241,25 @@ export function WalletView() {
                   width: "48px",
                   height: "48px",
                   borderRadius: "12px",
-                  background: withdrawalWindow.isOpen
-                    ? "rgba(255, 255, 255, 0.1)"
-                    : "rgba(255, 255, 255, 0.05)",
+                  background: "rgba(255, 255, 255, 0.1)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: withdrawalWindow.isOpen
-                    ? "#fff"
-                    : "rgba(255,255,255,0.4)",
+                  color: "#fff",
                 }}
               >
-                {withdrawalWindow.isOpen ? (
                   <Banknote size={24} strokeWidth={1.5} />
-                ) : (
-                  <Lock size={24} strokeWidth={1.5} />
-                )}
               </div>
               <div>
                 <h4
                   style={{
-                    color: withdrawalWindow.isOpen
-                      ? "#fff"
-                      : "rgba(255,255,255,0.5)",
+                    color: "#fff",
                     fontSize: "1.1rem",
                     fontWeight: "700",
                     margin: 0,
                   }}
                 >
-                  Retirar Ganancias
+                  {isInvestment ? "Mover a Ahorros" : "Retirar al Banco"}
                 </h4>
                 <p
                   style={{
@@ -270,28 +268,24 @@ export function WalletView() {
                     margin: "4px 0 0 0",
                   }}
                 >
-                  {!withdrawalWindow.isOpen
-                    ? "Periodo cerrado"
-                    : "Liquida a tu cuenta bancaria"}
+                  {isInvestment ? "Liquida fondos de tu Inversión" : "Liquida a tu cuenta bancaria"}
                 </p>
               </div>
             </div>
-            {withdrawalWindow.isOpen && (
-              <div
-                style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "50%",
-                  background: "rgba(255, 255, 255, 0.05)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "rgba(255, 255, 255, 0.5)",
-                }}
-              >
-                <ArrowRight size={16} />
-              </div>
-            )}
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                background: "rgba(255, 255, 255, 0.05)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "rgba(255, 255, 255, 0.5)",
+              }}
+            >
+              <ArrowRight size={16} />
+            </div>
           </button>
         </div>
       </div>
@@ -313,6 +307,14 @@ export function WalletView() {
         onClose={() => setIsWithdrawModalOpen(false)}
         availableBalance={balance.investedCapital}
         accountId={activeAccount?.id || ""}
+        onSuccess={fetchData}
+      />
+
+      <InternalTransferModal
+        isOpen={isInternalTransferOpen}
+        onClose={() => setIsInternalTransferOpen(false)}
+        direction={internalTransferDirection}
+        isBlocked={!withdrawalWindow.isOpen}
         onSuccess={fetchData}
       />
 

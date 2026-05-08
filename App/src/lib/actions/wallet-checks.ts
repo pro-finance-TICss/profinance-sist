@@ -10,7 +10,7 @@
 
 import { auth } from "@/lib/auth";
 import {
-  isWithdrawalWindowOpen,
+  isInvestmentWindowOpen,
   WITHDRAWAL_END_DAY,
 } from "@/lib/logic/withdrawal-window";
 import {
@@ -19,7 +19,7 @@ import {
 import { prisma } from "@/lib/prisma";
 
 export async function checkWithdrawalWindowStatus() {
-  return await isWithdrawalWindowOpen();
+  return await isInvestmentWindowOpen();
 }
 
 /**

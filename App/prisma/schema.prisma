@@ -151,12 +151,25 @@ model User {
   sessions               Session[]
 }
 
-// ============================================================================
-// MODELO DE CUENTAS FINANCIERAS ("CAJITAS")
-// ============================================================================
-/// Cada usuario puede tener múltiples cuentas ("cajitas"), cada una con
-/// su propio balance y rol. El nombre es definido por el usuario.
-/// Solo SUPER_ADMIN puede cambiar el rol de una cuenta (USER ↔ SOCIO).
+/// MODELO DE CUENTAS FINANCIERAS ("CAJITAS")
+/// ─────────────────────────────────────────────────────────────────────────
+/// Una cuenta tiene TRES dimensiones independientes:
+///
+///   1. type  (account.type)      → ¿Qué tipo de cuenta es?
+///      SAVINGS    = Cuenta de Ahorro. Nace con el usuario, no se puede eliminar.
+///      INVESTMENT = Cuenta de Inversión. Afectada por el % de rendimiento.
+///
+///   2. role  (account.role)      → ¿Cuál es el rol del usuario propietario?
+///      Campo "espejo" de user.role. Solo puede ser USER o SOCIO.
+///      Se sincroniza automáticamente cuando el SUPER_ADMIN cambia user.role.
+///      NO indica si la cuenta es Alto Riesgo.
+///
+///   3. isHighRisk (account.isHighRisk) → ¿Es esta cuenta de Inversión Alto Riesgo?
+///      Solo aplica cuando type = INVESTMENT.
+///      Solo puede ser true si el usuario tiene user.role = SOCIO.
+///      Si true, la cuenta recibe rendimientos normales (USER) + rendimientos AR (SOCIO).
+///      Si false, la cuenta recibe solo rendimientos normales (USER).
+/// ─────────────────────────────────────────────────────────────────────────
 model Account {
   /// Identificador único de la cuenta
   id                  String   @id @default(cuid())
@@ -170,9 +183,23 @@ model Account {
   /// Nombre personalizado de la cuenta (definido por el usuario)
   name                String
 
-  /// Rol de la cuenta: USER | SOCIO
-  /// Solo SUPER_ADMIN puede modificar este campo
+  /// Tipo de cuenta (dimensión 1):
+  ///   SAVINGS    = Cuenta de Ahorro (creada automáticamente al registrarse, única e inamovible)
+  ///   INVESTMENT = Cuenta de Inversión (puede haber varias, afectadas por rendimientos)
+  type                String   @default("SAVINGS")
+
+  /// Rol del usuario propietario (dimensión 2, espejo de user.role):
+  ///   USER  = el usuario es Usuario normal
+  ///   SOCIO = el usuario es Socio
+  /// ⚠️ Este campo NO indica si la cuenta es Alto Riesgo. Ver isHighRisk.
   role                String   @default("USER")
+
+  /// Bandera de Alto Riesgo (dimensión 3):
+  ///   false (default) = Inversión normal — recibe solo rendimientos USER
+  ///   true            = Inversión AR     — recibe rendimientos USER + AR (SOCIO)
+  /// Solo puede ser true si type = INVESTMENT y user.role = SOCIO.
+  /// Solo SUPER_ADMIN puede modificar este campo.
+  isHighRisk          Boolean  @default(false)
 
   /// Capital invertido en esta cuenta (balance principal)
   investedCapital     Decimal  @default(0)
@@ -199,9 +226,14 @@ model Account {
   /// Comisiones de referidos acreditadas en esta cuenta
   referralRewards     ReferralReward[]
 
+  /// Snapshots históricos de rendimiento aplicados a esta cuenta (Fase 1)
+  performanceSnapshots AccountPerformanceSnapshot[]
+
   /// Índice para búsquedas eficientes por usuario
   @@index([userId])
+  @@index([type])
   @@index([isDefaultReward])
+  @@index([isHighRisk])
 }
 
 // ============================================================================
@@ -566,17 +598,24 @@ model Performance {
   currency1 String
   currency2 String
   type      String   // COMPRA | VENTA
-  percentage Decimal
-  date      DateTime @default(now())
+  percentage Decimal?
+  
+  startDate DateTime @default(now())
+  endDate   DateTime?
+  status    String   @default("PENDING")
 
   // Target audience role (USER or SOCIO)
   targetRole String // USER | SOCIO
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
+  /// Snapshots históricos de rendimiento por cuenta (Fase 1)
+  snapshots AccountPerformanceSnapshot[]
+
   @@index([targetRole])
-  @@index([date])
+  @@index([startDate])
+  @@index([status])
 }
 
 // ============================================================================
@@ -663,4 +702,49 @@ model ReferralReward {
   @@index([creditedAccountId])
   @@index([status])
   @@index([createdAt])
+}
+
+// ============================================================================
+// FASE 1: SNAPSHOT DE RENDIMIENTO POR CUENTA
+// ============================================================================
+/// Registra, de forma inmutable y auditable, el rendimiento aplicado
+/// a cada cuenta individual en cada ciclo de Performance.
+/// Permite construir gráficos históricos deterministas sin recalcular.
+/// percentageRaw = porcentaje REAL del admin (sin la reducción del 50%).
+/// El frontend NUNCA recibe percentageRaw; solo recibe userPercentage = raw * 0.5.
+model AccountPerformanceSnapshot {
+  /// Identificador único del snapshot
+  id            String   @id @default(cuid())
+
+  /// Cuenta a la que pertenece este snapshot
+  accountId     String
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  /// Registro de Performance global que originó este snapshot
+  performanceId String
+  performance   Performance @relation(fields: [performanceId], references: [id], onDelete: Cascade)
+
+  /// Inicio del periodo de rendimiento
+  periodStart   DateTime
+
+  /// Fin del periodo de rendimiento
+  periodEnd     DateTime
+
+  /// Porcentaje REAL (del admin, sin reducción).
+  /// El usuario ve percentageRaw * 0.5 — NUNCA este valor directamente.
+  percentageRaw Decimal
+
+  /// Capital base al momento de aplicar el rendimiento
+  capitalBase   Decimal
+
+  /// Monto ganado (positivo) o perdido (negativo)
+  gainAmount    Decimal
+
+  /// Fecha y hora en que se aplicó el rendimiento
+  appliedAt     DateTime @default(now())
+
+  /// Índices para consultas eficientes de gráficos y auditoría
+  @@index([accountId])
+  @@index([periodStart])
+  @@index([accountId, periodStart]) // compuesto para gráfico por cuenta
 }

@@ -33,6 +33,8 @@ export async function GET(req: NextRequest) {
         requestedAt: true,
         processedAt: true,
         notes: true,
+        bankAccountId: true,
+        accountId: true,
       },
     });
 

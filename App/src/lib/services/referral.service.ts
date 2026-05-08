@@ -5,7 +5,7 @@
 // idempotentes y seguras para ejecución concurrente.
 //
 // REGLA DE COMISIÓN:
-//   5% del monto del primer depósito COMPLETED del referido.
+//   8.1% del monto del primer depósito COMPLETED del referido.
 //   Sin tope máximo. Sin mínimo de inversión.
 //
 // IDEMPOTENCIA:
@@ -16,13 +16,14 @@
 
 import { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 // ============================================================================
 // CONSTANTES
 // ============================================================================
 
 /** Porcentaje de comisión aplicado sobre el monto del depósito del referido */
-const COMMISSION_PERCENTAGE = 0.05;
+const COMMISSION_PERCENTAGE = 0.081;
 
 /** Caracteres permitidos para el código de referido (sin I, O, 0, 1 para evitar confusión) */
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -268,7 +269,7 @@ export async function processReferralCommission(
         });
 
         // b. Crear el registro de auditoría ReferralReward
-        await tx.referralReward.create({
+        const rewardRecord = await tx.referralReward.create({
             data: {
                 referralId: referral.id,
                 sourceTransactionId,
@@ -279,6 +280,7 @@ export async function processReferralCommission(
                 currency,
                 status: "CREDITED",
             },
+            select: { id: true },
         });
 
         // c. Incrementar el balance de la cuenta destino del referrer
@@ -305,9 +307,41 @@ export async function processReferralCommission(
 
         return {
             commissionTxId: commissionTx.id,
+            rewardId: rewardRecord.id,
             wasActivated,
         };
     });
+
+    // ── AuditLog (C-4) ────────────────────────────────────────────────────────────
+    // Fuera del $transaction: si el log falla, la comisión ya se acreditó.
+    // NO se usa logAudit() de security.ts: opera en contexto webhook (sin sesión),
+    // y logAudit() llama a auth() internamente, lo que devolvería null aquí.
+    // userId = referrerId: el referrer es el beneficiado y actor del evento.
+    try {
+        await prisma.auditLog.create({
+            data: {
+                action: "REFERRAL_COMMISSION_CREDITED",
+                entityType: "ReferralReward",
+                entityId: result.rewardId,
+                userId: referral.referrerId,
+                details: JSON.stringify({
+                    referralId: referral.id,
+                    referredUserId: sourceTx.userId,
+                    sourceTransactionId,
+                    commissionAmount: commissionAmount.toNumber(),
+                    commissionPercentage: COMMISSION_PERCENTAGE,
+                    currency,
+                    creditedAccountId: rewardAccount.id,
+                    rewardTransactionId: result.commissionTxId,
+                    referralActivated: result.wasActivated,
+                    trigger: "MERCADOPAGO_WEBHOOK",
+                }),
+            },
+        });
+    } catch (auditError) {
+        // El AuditLog no puede revertir una comisión ya acreditada
+        logger.error("[AUDIT_ERROR] ❌ Error al registrar AuditLog de comisión de referido:", auditError);
+    }
 
     return {
         success: true,

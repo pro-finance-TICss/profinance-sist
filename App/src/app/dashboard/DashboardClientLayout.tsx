@@ -34,17 +34,12 @@ function DashboardLayoutContent({
   const router = useRouter();
   const { isMobile, isTablet, isSidebarOpen, closeSidebar, isCollapsed } =
     useDashboard();
-  const { activeAccount, isLoading: isLoadingAccount } = useAccount();
+  const { isLoading: isLoadingAccount } = useAccount();
 
   useSessionValidator(30000);
 
-  React.useEffect(() => {
-    if (!isLoadingAccount && !activeAccount) {
-      router.replace("/select-account");
-    }
-  }, [activeAccount, isLoadingAccount, router]);
 
-  if (isLoadingAccount || !activeAccount) {
+  if (isLoadingAccount) {
     return (
       <div
         style={{
@@ -139,9 +134,6 @@ function DashboardLayoutContent({
         >
           <div
             style={{
-              marginTop: isMobile
-                ? "var(--header-height-mobile)"
-                : "var(--header-height-desktop)",
               backgroundColor: "transparent",
               position: "relative",
               flex: "1 0 auto",
@@ -176,6 +168,8 @@ function DashboardLayoutContent({
 
 function getTitle(path: string) {
   if (path === "/dashboard") return "Resumen Financiero";
+  if (path.startsWith("/dashboard/cuentas/")) return "Detalle de Cuenta";
+  if (path === "/dashboard/cuentas") return "Mis Cuentas";
   if (path.includes("/productos")) return "Productos";
   if (path.includes("/billetera")) return "Mi Billetera";
   if (path.includes("/ajustes/dispositivos"))
@@ -184,5 +178,6 @@ function getTitle(path: string) {
   if (path.includes("/soporte")) return "Soporte";
   if (path.includes("/inversiones")) return "Inversiones";
   if (path.includes("/transacciones")) return "Transacciones";
+  if (path.includes("/referidos")) return "Referidos";
   return "Dashboard";
 }

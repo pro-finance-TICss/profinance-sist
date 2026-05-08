@@ -16,6 +16,35 @@ import styles from "./login.module.css";
 import { logger } from "@/lib/logger";
 
 // ============================================================================
+// HELPER: REDIRECCIÓN BASADA EN ROL
+// ============================================================================
+// Consulta la sesión recién establecida para obtener el rol y redirige
+// al panel correcto sin hardcodear /dashboard para todos los roles.
+// ============================================================================
+
+type AppRouter = ReturnType<typeof useRouter>;
+
+async function redirectByRole(router: AppRouter): Promise<void> {
+  try {
+    const res = await fetch("/api/auth/session");
+    const session = await res.json();
+    const role = session?.user?.role;
+
+    if (role === "SUPER_ADMIN") {
+      router.replace("/superadmin");
+    } else if (role === "ADMIN") {
+      router.replace("/admin");
+    } else {
+      // USER, SOCIO, o rol desconocido → dashboard financiero
+      router.replace("/dashboard");
+    }
+  } catch {
+    // Fallback seguro si falla la consulta de sesión
+    router.replace("/dashboard");
+  }
+}
+
+// ============================================================================
 // TIPOS
 // ============================================================================
 type LoginStep = "credentials" | "twoFactor";
@@ -106,9 +135,8 @@ function LoginForm2FAStep({
           // No bloquear login si falla
         }
       }
-
-      // CAMBIO: Redirigir a /select-account para resolución de contexto
-      router.replace("/select-account");
+      // Redirigir según el rol del usuario
+      await redirectByRole(router);
       router.refresh();
     } catch (error) {
       logger.error("Error en Auth:", error);
@@ -341,8 +369,8 @@ function LoginContent() {
         return;
       }
 
-      // CAMBIO: Redirigir a /select-account para resolución de contexto
-      router.replace("/select-account");
+      // Redirigir según el rol del usuario
+      await redirectByRole(router);
       router.refresh();
     } catch (error) {
       logger.error("Error en login:", error);

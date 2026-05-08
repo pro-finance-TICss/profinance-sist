@@ -13,7 +13,8 @@ export default async function SuperAdminLayout({
     // STRICT CHECK: Only SuperAdmin
     await requireRole(UserRole.SUPER_ADMIN);
   } catch (e) {
-    redirect("/admin");
+    // [M-2] Redirect directo a /dashboard — evita el doble salto /admin → /dashboard
+    redirect("/dashboard");
   }
 
   return (
@@ -59,23 +60,6 @@ export default async function SuperAdminLayout({
         <AdminHeader title="Super Admin Zone" role="SUPER_ADMIN" />
 
         <main style={{ flex: 1, padding: "30px 40px", overflowY: "auto" }}>
-          {/* ALERTA DE ZONA SUPER ADMIN MANTENIDA PERO MEJORADA */}
-          <div
-            style={{
-              padding: "10px 20px",
-              background: "rgba(189,142,72,0.1)",
-              border: "1px solid #bd8e48",
-              borderRadius: "8px",
-              marginBottom: "30px",
-              color: "#bd8e48",
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-            }}
-          >
-            <span>🛡️</span> <strong>ZONA DE SUPER ADMIN</strong> - Acceso con
-            privilegios elevados.
-          </div>
           {children}
         </main>
       </div>

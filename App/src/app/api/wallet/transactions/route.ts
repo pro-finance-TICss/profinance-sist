@@ -51,6 +51,11 @@ export async function GET(req: NextRequest) {
           amount: true,
           status: true,
           createdAt: true,
+          account: {
+            select: {
+              type: true
+            }
+          }
         },
       }),
       prisma.transaction.count({ where }),

@@ -10,15 +10,29 @@ import { logger } from "@/lib/logger";
 // ANÁLISIS DE INVERSIONES PARA SUPER ADMIN - PRO-FINANCE
 // ============================================================================
 // Proporciona datos analíticos de capital invertido por rol (USER/SOCIO)
-// con gráficos temporales y resúmenes mensuales comparativos.
+// con gráficos temporales, resúmenes mensuales y variación diaria %.
 // ============================================================================
 
-/** Punto de datos para el gráfico temporal */
+/** Punto de datos para el gráfico de capital absoluto */
 interface ChartDataPoint {
   /** Fecha en formato ISO */
   date: string;
   /** Capital invertido total acumulado en este punto */
   total: number;
+}
+
+/** Punto de datos para el gráfico de variación diaria % */
+export interface DailyChangePoint {
+  /** Fecha del día en ISO (solo fecha) */
+  date: string;
+  /** Capital total al cierre de ese día */
+  total: number;
+  /** Variación % respecto al día anterior (null si no hay referencia) */
+  changePercent: number | null;
+  /** Variación absoluta respecto al día anterior */
+  changeAmount: number | null;
+  /** GAIN | LOSS | NEUTRAL */
+  type: "GAIN" | "LOSS" | "NEUTRAL";
 }
 
 /** Resumen mensual de capital invertido */
@@ -39,8 +53,10 @@ interface MonthlyTotal {
 interface AnalyticsData {
   /** Total actual de capital invertido */
   currentTotal: number;
-  /** Datos para el gráfico temporal */
+  /** Datos para el gráfico temporal (capital absoluto) */
   chartData: ChartDataPoint[];
+  /** Datos para el gráfico de variación diaria % */
+  dailyChanges: DailyChangePoint[];
   /** Resúmenes mensuales con comparación */
   monthlyTotals: MonthlyTotal[];
 }
@@ -62,8 +78,6 @@ function getMonthName(monthIndex: number): string {
 
 /**
  * Filtra datos del gráfico según el rango de tiempo seleccionado.
- * @param data - Datos completos del gráfico
- * @param timeRange - Rango: 1 día, 1 semana, 1 mes o todos
  */
 function filterByTimeRange(
   data: ChartDataPoint[],
@@ -143,6 +157,86 @@ function calculateMonthlyTotals(data: ChartDataPoint[]): MonthlyTotal[] {
   return monthlyTotals;
 }
 
+function getLocalDayKey(dateString: string): string {
+  // Ajuste a GMT-6 para la agrupación diaria y evitar que transacciones de noche pasen a UTC "mañana"
+  const date = new Date(dateString);
+  const localDate = new Date(date.getTime() - 6 * 60 * 60 * 1000);
+  return localDate.toISOString().split("T")[0];
+}
+
+/**
+ * Construye una serie de variación diaria % a partir del timeline absoluto.
+ * Lógica:
+ *   - Se agrupa el timeline en días calendario (usando la última lectura del día)
+ *   - Por cada día N, el % de cambio se calcula contra el día N-1
+ *   - Si no hay dato del día anterior, changePercent = null
+ */
+function buildDailyChangeSeries(
+  timeline: ChartDataPoint[],
+  timeRange: "1D" | "1W" | "1M" | "ALL"
+): DailyChangePoint[] {
+  if (timeline.length === 0) return [];
+
+  // Agrupar por fecha calendario → tomar la última lectura del día
+  const dailyMap = new Map<string, number>();
+  timeline.forEach((point) => {
+    const dayKey = getLocalDayKey(point.date);
+    dailyMap.set(dayKey, point.total); // sobrescribimos → queda la última del día
+  });
+
+  // Ordenar días cronológicamente
+  const sortedDays = Array.from(dailyMap.entries()).sort((a, b) =>
+    a[0].localeCompare(b[0])
+  );
+
+  // Construir serie de cambio diario
+  const result: DailyChangePoint[] = [];
+
+  for (let i = 0; i < sortedDays.length; i++) {
+    const [day, total] = sortedDays[i];
+    const prevTotal = i > 0 ? sortedDays[i - 1][1] : null;
+
+    let changePercent: number | null = null;
+    let changeAmount: number | null = null;
+    let type: "GAIN" | "LOSS" | "NEUTRAL" = "NEUTRAL";
+
+    if (prevTotal !== null && prevTotal !== 0) {
+      changeAmount = total - prevTotal;
+      changePercent = ((total - prevTotal) / prevTotal) * 100;
+      type = changePercent > 0 ? "GAIN" : changePercent < 0 ? "LOSS" : "NEUTRAL";
+    } else if (prevTotal !== null) {
+      // prevTotal === 0
+      changeAmount = total - prevTotal;
+      changePercent = 0;
+    }
+
+    // Usamos el mismo día para no mostrar fechas en el futuro
+    result.push({
+      date: day,
+      total,
+      changePercent,
+      changeAmount,
+      type,
+    });
+  }
+
+  // Filtrar por rango de tiempo
+  const now = new Date();
+  let cutoffDate: Date | null = null;
+  switch (timeRange) {
+    case "1D": cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); break;
+    case "1W": cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+    case "1M": cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+  }
+
+  const filtered = cutoffDate
+    ? result.filter((p) => new Date(p.date) >= cutoffDate!)
+    : result;
+
+  // Solo incluir puntos que tienen referencia (i.e. changePercent !== null)
+  return filtered.filter((p) => p.changePercent !== null);
+}
+
 // ============================================================================
 // FUNCIÓN PRINCIPAL DE ANÁLISIS
 // ============================================================================
@@ -154,15 +248,22 @@ function calculateMonthlyTotals(data: ChartDataPoint[]): MonthlyTotal[] {
  */
 export async function getInvestmentAnalytics(
   role: "USER" | "SOCIO",
-  timeRange: "1D" | "1W" | "1M" | "ALL" = "1M"
+  timeRange: "1D" | "1W" | "1M" | "ALL" = "1M",
+  baseCurrency?: string // Filtra por la moneda base del usuario propietario
 ): Promise<{ success: boolean; data?: AnalyticsData; message?: string }> {
   try {
     // Requiere rol SUPER_ADMIN
     await requireRole(UserRole.SUPER_ADMIN);
 
-    // 1. Obtener todas las cuentas (cajitas) con el rol especificado
+    // 1. Obtener todas las cuentas (cajitas) con el rol especificado,
+    //    opcionalmente filtradas por la moneda base del usuario propietario.
     const accounts = await prisma.account.findMany({
-      where: { role },
+      where: {
+        role,
+        ...(baseCurrency
+          ? { user: { baseCurrency: baseCurrency.toUpperCase() } }
+          : {}),
+      },
       select: {
         id: true,
         investedCapital: true,
@@ -176,12 +277,26 @@ export async function getInvestmentAnalytics(
       0
     );
 
-    // 3. Obtener todas las transacciones asociadas a estas cuentas específicas
+    // 3. Obtener transacciones filtradas por fecha + límite de seguridad
     const accountIds = accounts.map((acc) => acc.id);
+
+    // [M-4] Calcular cutoff de fecha según el rango solicitado para evitar carga masiva en memoria.
+    // Para "ALL" usamos 1 año como límite de seguridad razonable.
+    const now = new Date();
+    let queryCutoffDate: Date;
+    switch (timeRange) {
+      case "1D": queryCutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); break;
+      case "1W": queryCutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+      case "1M": queryCutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+      case "ALL":
+      default:   queryCutoffDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); break;
+    }
+
     const transactions = await prisma.transaction.findMany({
       where: {
         accountId: { in: accountIds },
         status: "COMPLETED",
+        createdAt: { gte: queryCutoffDate }, // [M-4] Filtro de fecha — evita carga masiva
       },
       select: {
         accountId: true,
@@ -190,6 +305,7 @@ export async function getInvestmentAnalytics(
         createdAt: true,
       },
       orderBy: { createdAt: "asc" },
+      take: 5000, // [M-4] Límite de seguridad — nunca cargar toda la tabla en memoria
     });
 
     // 4. Construir línea temporal agregada
@@ -229,12 +345,10 @@ export async function getInvestmentAnalytics(
       });
     });
 
-    // Si no hay transacciones pero hay capital actual (e.g. migración inicial o datos manuales),
-    // crear una línea plana.
+    // Si no hay transacciones pero hay capital actual, crear línea plana.
     if (aggregatedTimeline.length === 0) {
       const now = new Date();
       if (currentTotal > 0) {
-        // Asumimos que el capital ha estado ahí al menos el último mes si no hay historial
         aggregatedTimeline.push({
           date: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(),
           total: currentTotal,
@@ -245,25 +359,27 @@ export async function getInvestmentAnalytics(
         total: currentTotal,
       });
     } else {
-      // Agregar punto actual al final para asegurar que la gráfica llegue hasta "ahora"
       aggregatedTimeline.push({
         date: new Date().toISOString(),
-        total: currentTotal, // Debería coincidir con runningTotal si las transacciones están completas
+        total: currentTotal,
       });
     }
 
-    // 5. Filtrar por rango de tiempo seleccionado
+    // 5. Filtrar datos del gráfico de capital por rango de tiempo
     const filteredData = filterByTimeRange(aggregatedTimeline, timeRange);
 
-    // 6. Calcular resúmenes mensuales (usando la línea de tiempo agregada completa)
-    // Nota: calculateMonthlyTotals necesita lógica para agrupar por mes
+    // 6. Calcular resúmenes mensuales (usando la línea completa)
     const monthlyTotals = calculateMonthlyTotals(aggregatedTimeline);
+
+    // 7. Calcular serie de variación diaria %
+    const dailyChanges = buildDailyChangeSeries(aggregatedTimeline, timeRange);
 
     return {
       success: true,
       data: {
         currentTotal,
         chartData: filteredData,
+        dailyChanges,
         monthlyTotals: monthlyTotals.slice(0, 6), // Últimos 6 meses
       },
     };

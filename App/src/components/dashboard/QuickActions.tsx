@@ -16,29 +16,30 @@ interface QuickActionsProps {
         isOpen: boolean;
         reason?: string;
     };
+    isInvestment?: boolean;
 }
 
-export function QuickActions({ onActionClick, withdrawalWindow }: QuickActionsProps) {
+export function QuickActions({ onActionClick, withdrawalWindow, isInvestment = false }: QuickActionsProps) {
     const router = useRouter(); // Hook para navegación fluida
 
     const actions = [
         {
             id: 'deposit',
-            title: 'Depositar',
-            desc: 'Cargar capital',
-            info: 'Inicia un fondeo seguro vía USDT o Transferencia Directa.',
+            title: isInvestment ? 'Aportar de Ahorros' : 'Depositar',
+            desc: isInvestment ? 'Aportar a Inversión' : 'Cargar capital',
+            info: isInvestment ? 'Pasa fondos de ahorros para invertirlos.' : 'Inicia un fondeo seguro vía USDT o Transferencia Directa.',
             icon: <Wallet size={32} strokeWidth={1.2} />,
             disabled: false,
         },
         {
             id: 'withdraw',
-            title: 'Retirar',
-            desc: 'Liquidar a banco',
-            info: withdrawalWindow?.isOpen
+            title: isInvestment ? 'Mover a Ahorros' : 'Retirar',
+            desc: isInvestment ? 'A Ahorros' : 'Liquidar a banco',
+            info: isInvestment ? 'Liquida fondos de tu Inversión hacia tu cuenta de ahorros.' : (withdrawalWindow?.isOpen
                 ? 'Solicita la liquidación de tus rendimientos a tu cuenta preferida.'
-                : (withdrawalWindow?.reason || 'Periodo cerrado'),
+                : (withdrawalWindow?.reason || 'Periodo cerrado')),
             icon: <Banknote size={32} strokeWidth={1.2} />,
-            disabled: !withdrawalWindow?.isOpen,
+            disabled: !isInvestment && !withdrawalWindow?.isOpen, // No hay disabled por periodo en la UI principal para Inversión xq igual manda a Cola
         },
         {
             id: 'transfer',

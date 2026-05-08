@@ -103,7 +103,7 @@ export default function ReferidosPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
             <PageHeader
                 title="Referidos"
-                subtitle="Invita amigos y gana el 5% de su primera inversión."
+                subtitle="Invita a tus Socios y gana comisiones por sus Inversiones."
             />
 
             {/* ── SECCIÓN: LINK DE REFERIDO ──────────────────────────────────── */}
@@ -125,7 +125,7 @@ export default function ReferidosPage() {
                         margin: "0 0 20px 0",
                     }}
                 >
-                    Tu Enlace de Referido
+                    Tu Enlace de Referido : (Recuerda que tu enlace es unico y privado)
                 </h3>
 
                 {data?.referralLink ? (

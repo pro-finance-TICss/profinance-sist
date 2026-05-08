@@ -2,23 +2,20 @@
 import React, { useState } from "react";
 import {
   LayoutDashboard,
-  BarChart3,
   Wallet,
   History,
-  ShieldCheck,
   Settings2,
   LogOut,
   Package,
   LifeBuoy,
-  ArrowLeftRight,
+  Landmark,
   Users,
 } from "lucide-react";
 
 import { signOut } from "next-auth/react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useDashboard } from "@/contexts/DashboardContext";
-import { useAccount } from "@/contexts/AccountContext";
 
 interface SidebarProps {
   onNavigate?: () => void;
@@ -31,11 +28,9 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     isTablet,
     isDesktop,
     isCollapsed,
-    toggleCollapse // <- Esta es la pieza clave que nos faltaba
+    toggleCollapse
   } = useDashboard();
   const pathname = usePathname();
-  const router = useRouter();
-  const { clearActiveAccount } = useAccount();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   // Nota: width, position, left, zIndex ahora controlados por CSS vía clases
@@ -52,17 +47,18 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       label: "Productos",
       href: "/dashboard/productos",
     },
-    /* {
-      icon: <BarChart3 size={22} />,
-      label: "Inversiones",
-      href: "/dashboard/inversiones",  fuera de produccion por ahora.
-    }, 
-    */
+    {
+      icon: <Landmark size={22} />,
+      label: "Cuentas",
+      href: "/dashboard/cuentas",
+    },
+    /*
     {
       icon: <Wallet size={22} />,
       label: "Mi Billetera",
       href: "/dashboard/billetera",
     },
+    */
     {
       icon: <History size={22} />,
       label: "Transacciones",
@@ -334,44 +330,6 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         </ul>
       </nav>
 
-      {/* BOTÓN CAMBIAR CAJITA */}
-      <div style={{ padding: "0 15px", marginBottom: "8px" }}>
-        <button
-          onClick={() => {
-            window.location.href = "/select-account?switch=true";
-          }}
-          title={isCollapsed && !isMobile ? "Cambiar Cajita" : ""}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: isCollapsed && !isMobile ? "center" : "flex-start",
-            gap: isCollapsed && !isMobile ? "0" : "15px",
-            width: "100%",
-            minWidth: "0px",
-            overflow: "hidden",
-            padding: isCollapsed && !isMobile ? "12px" : "12px 20px",
-            backgroundColor: "transparent",
-            border: "1px solid rgba(189, 142, 72, 0.25)",
-            color: "#bd8e48",
-            cursor: "pointer",
-            borderRadius: "12px",
-            transition: "all 0.3s",
-            fontSize: "0.95rem",
-            fontWeight: 500,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "rgba(189, 142, 72, 0.1)";
-            e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.5)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "transparent";
-            e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.25)";
-          }}
-        >
-          <ArrowLeftRight size={20} />
-          {(!isCollapsed || isMobile) && <span>Cambiar Cajita</span>}
-        </button>
-      </div>
 
       {/* BOTÓN DE LOGOUT */}
       <div style={{ padding: "0 15px" }}>
