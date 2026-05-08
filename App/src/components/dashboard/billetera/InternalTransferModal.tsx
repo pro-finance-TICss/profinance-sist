@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { X, ArrowRight, Wallet, ArrowDownToLine, AlertTriangle, ChevronDown } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/currency";
 import { useAccount } from "@/contexts/AccountContext";
@@ -54,6 +54,11 @@ export function InternalTransferModal({
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // [FIX-1] Guard principal anti doble submit
+  const isSubmittingRef = useRef(false);
+  // [FIX-2] Ref para el cooldown post-success — permite cancelarlo si el componente se desmonta
+  const cooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const isInvesting = direction === "TO_INVESTMENT";
 
   // ── Inicializar selectedInvestmentId cuando cambian las cuentas ─────────
@@ -66,6 +71,13 @@ export function InternalTransferModal({
       setSelectedInvestmentId(preferred?.id ?? investmentAccounts[0].id);
     }
   }, [investmentAccounts, selectedInvestmentId, defaultInvestmentAccountId]);
+
+  // [FIX-2] Limpieza del cooldown si el componente se desmonta inesperadamente
+  useEffect(() => {
+    return () => {
+      if (cooldownRef.current) clearTimeout(cooldownRef.current);
+    };
+  }, []);
 
   // ── Resolver cuentas origen/destino según dirección ─────────────────────
   // Esto es la única fuente de verdad para el payload — nunca el backend decide.
@@ -116,28 +128,66 @@ export function InternalTransferModal({
   // ── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!numAmount || numAmount <= 0) return;
-    if (isOverBalance) return;
-    if (isInvesting && isBlocked) return;
 
-    // Validaciones pre-envío
-    if (!sourceAccount || !destinationAccount) {
-      setError("No se encontraron las cuentas necesarias. Recarga la página.");
+    // ── [FIX-1] Lock REAL anti doble click
+    // isSubmittingRef se activa síncronamente — ANTES de cualquier await o setState.
+    // setIsLoading va inmediatamente después para bloquear visualmente.
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setIsLoading(true);
+
+    // ── Flag local para distinguir éxito vs error en el finally
+    // En éxito → cooldown post-success (1500ms)
+    // En error → liberación inmediata para permitir reintento
+    let transferSuccess = false;
+
+    // ── Validaciones síncronas post-lock
+    // Si alguna falla → liberar lock inmediatamente (no hay fetch)
+    if (!numAmount || numAmount <= 0) {
+      setIsLoading(false);
+      isSubmittingRef.current = false;
+      return;
+    }
+    if (isOverBalance) {
+      setIsLoading(false);
+      isSubmittingRef.current = false;
+      return;
+    }
+    if (isInvesting && isBlocked) {
+      setIsLoading(false);
+      isSubmittingRef.current = false;
       return;
     }
 
+    // ── [FIX-6] Validación de cuentas — dentro del lock, antes del fetch
+    if (!sourceAccount || !destinationAccount) {
+      setError("No se encontraron las cuentas necesarias. Recarga la página.");
+      setIsLoading(false);
+      isSubmittingRef.current = false;
+      return;
+    }
     if (sourceAccount.id === destinationAccount.id) {
       setError("La cuenta de origen y destino no pueden ser la misma.");
+      setIsLoading(false);
+      isSubmittingRef.current = false;
       return;
     }
 
     const sourceAccountId = sourceAccount.id;
     const destinationAccountId = destinationAccount.id;
 
-    setIsLoading(true);
     setError(null);
     setSuccessMsg(null);
 
+    // ── [FIX-5] Verificar conexión justo antes del fetch
+    if (!navigator.onLine) {
+      setError("Sin conexión a internet. Verifica tu red antes de reintentar.");
+      setIsLoading(false);
+      isSubmittingRef.current = false;
+      return;
+    }
+
+    // ── Fetch — solo llega aquí si pasó TODAS las validaciones
     try {
       const res = await fetch("/api/wallet/transfer-internal", {
         method: "POST",
@@ -147,8 +197,7 @@ export function InternalTransferModal({
           amount: numAmount,
           sourceAccountId,
           destinationAccountId,
-          // direction sigue siendo necesario para la lógica de ventana de inversión
-          // en el backend (isInvestmentWindowOpen). Se mantiene solo por eso.
+          // direction requerido por backend para isInvestmentWindowOpen
           direction,
         }),
       });
@@ -156,24 +205,53 @@ export function InternalTransferModal({
       const data = await res.json();
 
       if (res.ok) {
+        transferSuccess = true; // Señal para que finally aplique el cooldown
         if (data.queued) {
           setSuccessMsg("Puesto en Cola (Periodo cerrado)");
         } else {
           setSuccessMsg("¡Transferencia Exitosa!");
         }
-        setTimeout(() => {
+        // Cierre del modal — siempre con delay para mostrar el mensaje
+        cooldownRef.current = setTimeout(() => {
           onSuccess();
           onClose();
           setAmount("");
           setSuccessMsg(null);
         }, 1500);
       } else {
-        setError(data.error || "Hubo un error al procesar.");
+        // [FIX-7] Mensaje genérico — NO exponer data.error ni detalles internos
+        setError("Error al procesar la transferencia. Intenta nuevamente.");
       }
-    } catch {
-      setError("Error de red. Intenta nuevamente.");
+    } catch (networkError) {
+      // [FIX-4] Detección granular: TypeError de fetch = fallo de red real
+      if (
+        networkError instanceof TypeError &&
+        (networkError.message.includes("fetch") || networkError.message.includes("Failed"))
+      ) {
+        setError(
+          "Error de red: No se pudo contactar al servidor. Verifica tu conexión antes de reintentar."
+        );
+      } else if (!navigator.onLine) {
+        setError("Sin conexión a internet.");
+      } else {
+        setError("Error al procesar la transferencia. Intenta nuevamente.");
+      }
     } finally {
-      setIsLoading(false);
+      if (transferSuccess) {
+        // ── [FIX-2] COOLDOWN POST-SUCCESS ────────────────────────────────────
+        // Si la respuesta fue exitosa NO liberamos el lock inmediatamente.
+        // Esperamos 1500ms para cubrir la ventana de timing de baja latencia.
+        // Esto impide múltiples transferencias incluso si el servidor responde
+        // en <50ms y el usuario sigue haciendo click spam.
+        cooldownRef.current = setTimeout(() => {
+          setIsLoading(false);
+          isSubmittingRef.current = false;
+        }, 1500);
+      } else {
+        // En caso de error → liberar inmediatamente para permitir reintento
+        setIsLoading(false);
+        isSubmittingRef.current = false;
+      }
     }
   };
 
@@ -309,11 +387,12 @@ export function InternalTransferModal({
 
             <button
               type="submit"
-              disabled={isLoading || !amount || parseFloat(amount) <= 0 || isOverBalance || (isInvesting && isBlocked)}
-              style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: (isInvesting && isBlocked) ? "rgba(189,142,72,0.1)" : "#bd8e48", color: (isInvesting && isBlocked) ? "rgba(255,255,255,0.5)" : "#000", fontWeight: "700", fontSize: "1.05rem", cursor: (isLoading || isOverBalance || (isInvesting && isBlocked)) ? "not-allowed" : "pointer", opacity: isLoading ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", transition: "all 0.2s" }}
+              // [M-1] disabled incluye isSubmittingRef.current para bloqueo inmediato en doble click
+              disabled={isLoading || isSubmittingRef.current || !amount || parseFloat(amount) <= 0 || isOverBalance || (isInvesting && isBlocked)}
+              style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: (isInvesting && isBlocked) ? "rgba(189,142,72,0.1)" : "#bd8e48", color: (isInvesting && isBlocked) ? "rgba(255,255,255,0.5)" : "#000", fontWeight: "700", fontSize: "1.05rem", cursor: (isLoading || isSubmittingRef.current || isOverBalance || (isInvesting && isBlocked)) ? "not-allowed" : "pointer", opacity: (isLoading || isSubmittingRef.current) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", transition: "all 0.2s" }}
             >
-              {isLoading ? "Procesando..." : isOverBalance ? "Saldo Insuficiente" : (isInvesting && isBlocked) ? "Operación Bloqueada" : "Confirmar Transferencia"}
-              {(!isLoading && !isOverBalance && !(isInvesting && isBlocked)) && <ArrowRight size={20} />}
+              {(isLoading || isSubmittingRef.current) ? "Procesando..." : isOverBalance ? "Saldo Insuficiente" : (isInvesting && isBlocked) ? "Operación Bloqueada" : "Confirmar Transferencia"}
+              {(!isLoading && !isSubmittingRef.current && !isOverBalance && !(isInvesting && isBlocked)) && <ArrowRight size={20} />}
             </button>
           </form>
         </div>

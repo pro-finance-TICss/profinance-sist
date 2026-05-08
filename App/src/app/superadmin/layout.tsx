@@ -13,7 +13,8 @@ export default async function SuperAdminLayout({
     // STRICT CHECK: Only SuperAdmin
     await requireRole(UserRole.SUPER_ADMIN);
   } catch (e) {
-    redirect("/admin");
+    // [M-2] Redirect directo a /dashboard — evita el doble salto /admin → /dashboard
+    redirect("/dashboard");
   }
 
   return (

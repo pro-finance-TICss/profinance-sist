@@ -594,6 +594,16 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
 
     // NUEVO LOGICA: Si se está Abriendo el periodo, procesar retiros pendientes
     if (isEnabled) {
+      // [M-6] Timestamp de inicio para calcular duración total del proceso
+      const startedAt = new Date();
+
+      // Contadores para el AuditLog final
+      let totalAccountsProcessed = 0;
+      let totalGainApplied = 0;
+      let performancesApplied = 0;
+      let skippedAccounts = 0;
+      const processedWithdrawalIds: string[] = [];
+
       await prisma.$transaction(async (tx) => {
         // ── PASO 1: Aplicar rendimientos acumulados del periodo ──────────────────
         // Buscar todas las cuentas de inversión
@@ -657,6 +667,12 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
                 paymentId: `PERIOD-APPLY-${account.id}-${Date.now()}`,
               },
             });
+
+            // [M-6] Acumular contadores para AuditLog
+            totalGainApplied += gain;
+            totalAccountsProcessed++;
+          } else {
+            skippedAccounts++;
           }
 
           // Crear un snapshot por cada performance aplicada (marca como "ya aplicado")
@@ -675,9 +691,8 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
             });
           }
 
-          console.log(
-            `[PERIOD APPLY] Cuenta ${account.id} | ${unappliedPerfs.length} perf(s) | % total raw: ${totalPercentageRaw} | base: $${baseCapital} | ganancia: $${gain.toFixed(4)}`
-          );
+          // [M-6] Acumular número de performances aplicadas
+          performancesApplied += unappliedPerfs.length;
         }
 
         // ── PASO 2: Procesar retiros pendientes ──────────────────────────────────
@@ -768,11 +783,65 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
               notes: requestedAmt > currentInv ? "Aprobado automáticamente (Ajustado por balance final topado)" : "Aprobado automáticamente al abrir periodo",
             }
           });
+
+          // [M-6] Registrar ID para AuditLog de retiros procesados
+          processedWithdrawalIds.push(req.id);
         }
       }, {
         maxWait: 10000,
-        timeout: 60000, // 60s para cubrir muchas cuentas y rendimientos
+        timeout: 120000, // [M-5] Aumentado de 60s a 120s para cubrir datasets grandes sin riesgo de timeout
       });
+
+      // ── [M-6] AuditLog post-transaction: PERIOD_YIELDS_APPLIED ──────────────
+      // Se inserta FUERA del $transaction para no romper la operación si el log falla.
+      const finishedAt = new Date();
+      const durationMs = finishedAt.getTime() - startedAt.getTime();
+
+      const session = await auth();
+      try {
+        await prisma.auditLog.create({
+          data: {
+            action: "PERIOD_YIELDS_APPLIED",
+            entityType: "SystemSetting",
+            entityId: WITHDRAWAL_GLOBAL_SETTING_KEY,
+            userId: session?.user?.id ?? "SYSTEM",
+            details: JSON.stringify({
+              totalAccountsProcessed,
+              totalGainApplied,
+              performancesApplied,
+              skippedAccounts,
+              executedBy: session?.user?.id ?? "SYSTEM",   // Trazabilidad: quién abrió el periodo
+              startedAt: startedAt.toISOString(),           // Marca de inicio exacta
+              finishedAt: finishedAt.toISOString(),         // Marca de fin exacta
+              durationMs,                                   // Duración total del proceso
+            }),
+          },
+        });
+      } catch (auditErr) {
+        // El AuditLog no puede romper el proceso financiero ya confirmado
+        logger.error("[AUDIT_ERROR] PERIOD_YIELDS_APPLIED — fallo al crear AuditLog:", auditErr);
+      }
+
+      // ── [M-6] AuditLog de retiros procesados automáticamente ───────────────
+      if (processedWithdrawalIds.length > 0) {
+        try {
+          await prisma.auditLog.createMany({
+            data: processedWithdrawalIds.map((withdrawalId) => ({
+              action: "QUEUED_WITHDRAWAL_PROCESSED",
+              entityType: "WithdrawalRequest",
+              entityId: withdrawalId,
+              userId: session?.user?.id ?? "SYSTEM",
+              details: JSON.stringify({
+                processedAt: finishedAt.toISOString(),
+                processedBy: session?.user?.id ?? "SYSTEM",
+                trigger: "PERIOD_OPEN",
+              }),
+            })),
+          });
+        } catch (auditBatchErr) {
+          logger.error("[AUDIT_ERROR] QUEUED_WITHDRAWAL_PROCESSED — fallo en createMany:", auditBatchErr);
+        }
+      }
 
     }
 

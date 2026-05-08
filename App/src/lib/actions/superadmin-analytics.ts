@@ -277,12 +277,26 @@ export async function getInvestmentAnalytics(
       0
     );
 
-    // 3. Obtener todas las transacciones asociadas a estas cuentas específicas
+    // 3. Obtener transacciones filtradas por fecha + límite de seguridad
     const accountIds = accounts.map((acc) => acc.id);
+
+    // [M-4] Calcular cutoff de fecha según el rango solicitado para evitar carga masiva en memoria.
+    // Para "ALL" usamos 1 año como límite de seguridad razonable.
+    const now = new Date();
+    let queryCutoffDate: Date;
+    switch (timeRange) {
+      case "1D": queryCutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); break;
+      case "1W": queryCutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+      case "1M": queryCutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+      case "ALL":
+      default:   queryCutoffDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); break;
+    }
+
     const transactions = await prisma.transaction.findMany({
       where: {
         accountId: { in: accountIds },
         status: "COMPLETED",
+        createdAt: { gte: queryCutoffDate }, // [M-4] Filtro de fecha — evita carga masiva
       },
       select: {
         accountId: true,
@@ -291,6 +305,7 @@ export async function getInvestmentAnalytics(
         createdAt: true,
       },
       orderBy: { createdAt: "asc" },
+      take: 5000, // [M-4] Límite de seguridad — nunca cargar toda la tabla en memoria
     });
 
     // 4. Construir línea temporal agregada

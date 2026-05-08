@@ -151,8 +151,15 @@ export async function POST(req: NextRequest) {
         // ── Fallback TEMPORAL: cliente no envió IDs explícitos ───────────────
         // Se resuelven por tipo. Seguro únicamente cuando el usuario tiene
         // exactamente 1 SAVINGS y 1 INVESTMENT. Loggear para forzar actualización.
-        logger.warn(
-          `[transfer-internal] ⚠️ FALLBACK TEMPORAL ACTIVO: sourceAccountId/destinationAccountId no provistos por el cliente (userId: ${userId}, direction: ${direction}). Actualizar InternalTransferModal para enviar IDs explícitos.`
+        // [M-3] FALLBACK ACTIVO — nivel ERROR para visibilidad máxima en logs
+        // El sistema sigue funcionando, pero esto DEBE eliminarse antes de producción.
+        logger.error(
+          `[transfer-internal] FALLBACK ACTIVADO — esto debe eliminarse antes de producción`,
+          {
+            userId,
+            direction,
+            note: "sourceAccountId/destinationAccountId no fueron provistos por el cliente. Actualizar InternalTransferModal.",
+          }
         );
 
         const savingsAcc = await tx.account.findFirst({
