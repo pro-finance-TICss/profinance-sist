@@ -95,18 +95,10 @@ export const registerSchema = z
       .max(50, { message: "El nombre no puede exceder 50 caracteres." })
       .transform(sanitizeString),
 
-    paternalSurname: z
+    lastNames: z
       .string()
-      .min(1, { message: "El apellido paterno es requerido." })
-      .min(2, { message: "El apellido debe tener al menos 2 caracteres." })
-      .max(50, { message: "El apellido no puede exceder 50 caracteres." })
-      .transform(sanitizeString),
-
-    maternalSurname: z
-      .string()
-      .min(1, { message: "El apellido materno es requerido." })
-      .min(2, { message: "El apellido debe tener al menos 2 caracteres." })
-      .max(50, { message: "El apellido no puede exceder 50 caracteres." })
+      .min(1, { message: "Los apellidos son requeridos." })
+      .max(100, { message: "Los apellidos no pueden exceder 100 caracteres." })
       .transform(sanitizeString),
 
     email: z

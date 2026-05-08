@@ -115,8 +115,13 @@ export async function registerUser(
       };
     }
 
-    const { email, password, firstName, paternalSurname, maternalSurname, country, baseCurrency } =
+    const { email, password, firstName, lastNames, country, baseCurrency } =
       validatedFields.data;
+
+    // Separar apellidos: primera palabra = paterno, el resto = materno
+    const lastNameParts = lastNames.trim().split(/\s+/);
+    const paternalSurname = lastNameParts[0] || "";
+    const maternalSurname = lastNameParts.slice(1).join(" ") || "";
 
     // ================================================================
     // PASO 2: Leer el referral code EXCLUSIVAMENTE de la cookie segura

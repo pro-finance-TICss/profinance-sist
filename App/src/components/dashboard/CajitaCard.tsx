@@ -44,20 +44,20 @@ const SIZE_CONFIG: Record<
   }
 > = {
   large: {
-    padding: "28px 32px",
-    nameSize: "1rem",
-    capitalSize: "2.2rem",
-    iconSize: 22,
-    labelSize: "0.72rem",
-    minHeight: "160px",
+    padding: "24px 28px",
+    nameSize: "0.95rem",
+    capitalSize: "2rem",
+    iconSize: 20,
+    labelSize: "0.7rem",
+    minHeight: "150px",
   },
   medium: {
-    padding: "22px 26px",
-    nameSize: "0.9rem",
-    capitalSize: "1.7rem",
-    iconSize: 18,
-    labelSize: "0.68rem",
-    minHeight: "140px",
+    padding: "24px 28px",
+    nameSize: "0.95rem",
+    capitalSize: "2rem",
+    iconSize: 20,
+    labelSize: "0.7rem",
+    minHeight: "150px",
   },
   small: {
     padding: "18px 22px",
@@ -161,11 +161,12 @@ export function CajitaCard({
         overflow: "hidden",
         width: "100%",
       }}
-      className="cajita-card"
+      className={`cajita-card cajita-card-${account.type.toLowerCase()}`}
     >
       {/* Glow de fondo sutil */}
       <div
         aria-hidden="true"
+        className="cajita-glow"
         style={{
           position: "absolute",
           top: 0,
@@ -175,6 +176,8 @@ export function CajitaCard({
           background: `radial-gradient(ellipse at top left, ${typeConf.accentColorDim} 0%, transparent 65%)`,
           pointerEvents: "none",
           borderRadius: "20px",
+          opacity: 1,
+          transition: "opacity 0.35s ease",
         }}
       />
 
@@ -263,10 +266,39 @@ export function CajitaCard({
 
       {/* Estilos de hover — inyectados una sola vez */}
       <style>{`
+        /* — Hover base — */
         .cajita-card:hover {
           transform: translateY(-3px);
-          box-shadow: 0 8px 30px rgba(0,0,0,0.5);
         }
+        .cajita-card:active {
+          transform: scale(0.975) !important;
+        }
+
+        /* — Glow interno al hover: amplifica el gradiente de fondo — */
+        .cajita-card-savings:hover .cajita-glow {
+          opacity: 2.8;
+        }
+        .cajita-card-investment:hover .cajita-glow {
+          opacity: 2.8;
+        }
+
+        /* — Halo exterior por tipo: sombra coloreada GPU-composited — */
+        .cajita-card-savings:hover {
+          box-shadow:
+            0 10px 36px rgba(0, 0, 0, 0.55),
+            0 0 28px rgba(0, 201, 122, 0.18),
+            0 0 0 1px rgba(0, 201, 122, 0.45) inset;
+          border-color: rgba(0, 201, 122, 0.55) !important;
+        }
+        .cajita-card-investment:hover {
+          box-shadow:
+            0 10px 36px rgba(0, 0, 0, 0.55),
+            0 0 28px rgba(189, 142, 72, 0.18),
+            0 0 0 1px rgba(189, 142, 72, 0.45) inset;
+          border-color: rgba(189, 142, 72, 0.55) !important;
+        }
+
+        /* — Focus accesible — */
         .cajita-card:focus-visible {
           outline: 2px solid ${TYPE_CONFIG.SAVINGS.accentColor};
           outline-offset: 2px;

@@ -15,7 +15,6 @@ import { useDashboard } from "@/contexts/DashboardContext";
 import { useAccount } from "@/contexts/AccountContext";
 import { CajitasGrid } from "@/components/dashboard/CajitasGrid";
 import { ActivitySection } from "@/components/dashboard/ActivitySection";
-import { QuickActions } from "@/components/dashboard/QuickActions";
 
 import { ActionModal } from "@/components/dashboard/ActionModal";
 import { DepositForm } from "@/components/dashboard/DepositForm";
@@ -128,22 +127,8 @@ export function DashboardContent() {
         {/* 2. Cajitas — visión multi-cuenta */}
         <CajitasGrid />
 
-        {/* 3. Actividad reciente + Acciones rápidas */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "1fr auto",
-            gap: "24px",
-            alignItems: "start",
-          }}
-        >
-          <ActivitySection />
-          <QuickActions
-            onActionClick={handleOpenModal}
-            withdrawalWindow={withdrawalWindow}
-            isInvestment={activeAccount?.type === "INVESTMENT"}
-          />
-        </div>
+        {/* 3. Actividad reciente */}
+        <ActivitySection />
 
         {/* 4. Tabla de rendimiento */}
         <PerformanceTable />

@@ -59,8 +59,7 @@ export default function RegisterPage() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       firstName: "",
-      paternalSurname: "",
-      maternalSurname: "",
+      lastNames: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -80,8 +79,7 @@ export default function RegisterPage() {
     // Primero validar los campos con Zod
     const isValid = await trigger([
       "firstName",
-      "paternalSurname",
-      "maternalSurname",
+      "lastNames",
       "email",
     ]);
 
@@ -281,25 +279,17 @@ export default function RegisterPage() {
                       />
                     </div>
 
-                    <div style={{ display: "flex", gap: "1rem" }}>
-                      <div className={styles.inputWrapper} style={{ flex: 1 }}>
-                        <Input
-                          label="Apellido Paterno"
-                          type="text"
-                          placeholder="Paterno"
-                          {...register("paternalSurname")}
-                          error={errors.paternalSurname?.message}
-                        />
-                      </div>
-                      <div className={styles.inputWrapper} style={{ flex: 1 }}>
-                        <Input
-                          label="Apellido Materno"
-                          type="text"
-                          placeholder="Materno"
-                          {...register("maternalSurname")}
-                          error={errors.maternalSurname?.message}
-                        />
-                      </div>
+                    <div className={styles.inputWrapper}>
+                      <Input
+                        label="Apellidos"
+                        type="text"
+                        placeholder="Paterno Materno"
+                        {...register("lastNames")}
+                        error={errors.lastNames?.message}
+                      />
+                      <p style={{ fontSize: "0.75rem", color: "rgba(0,0,0,0.4)", margin: "4px 0 0 2px" }}>
+                        Escribe ambos apellidos separados por un espacio.
+                      </p>
                     </div>
 
                     <div className={styles.inputWrapper}>

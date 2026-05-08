@@ -271,6 +271,9 @@ export async function addCapitalToAccount(accountId: string, amount: number) {
       return { success: false, message: "Cuenta no encontrada" };
     }
 
+    // Capturar el ID de la transaction para el trigger de referidos (post-transaction)
+    let createdTransactionId: string | null = null;
+
     // Usar transacción de Prisma para asegurar consistencia
     await prisma.$transaction(async (tx) => {
       // 1. Actualizar balance de la cuenta
@@ -280,7 +283,7 @@ export async function addCapitalToAccount(accountId: string, amount: number) {
       });
 
       // 2. Crear registro de transacción
-      await tx.transaction.create({
+      const createdTx = await tx.transaction.create({
         data: {
           userId: account.userId,
           accountId: accountId,
@@ -290,6 +293,7 @@ export async function addCapitalToAccount(accountId: string, amount: number) {
           paymentId: `ADMIN-ADD-${Date.now()}-${Math.random().toString(36).substring(7)}`, // ID único para rastreo
         },
       });
+      createdTransactionId = createdTx.id;
 
       // 3. Log de auditoría
       await logAudit("ADMIN_ADDED_FUNDS", "Account", accountId, {
@@ -301,6 +305,32 @@ export async function addCapitalToAccount(accountId: string, amount: number) {
       maxWait: 5000, // default: 2000
       timeout: 20000, // default: 5000
     });
+
+    // ── Trigger de comisión de referidos ─────────────────────────────────────
+    // FUERA del $transaction: si el servicio de referidos falla, el depósito ya
+    // está confirmado y no se revierte. La idempotencia está garantizada por
+    // ReferralReward.sourceTransactionId (@unique en DB).
+    if (createdTransactionId) {
+      try {
+        const commissionResult = await processReferralCommission(createdTransactionId);
+        if (commissionResult.success) {
+          logger.info(
+            `[REFERRAL_COMMISSION_ADMIN_FLOW] ✅ Comisión generada: $${commissionResult.commissionAmount} → cuenta ${commissionResult.creditedAccountId} (transacción fuente: ${createdTransactionId})`
+          );
+        } else if (
+          commissionResult.reason !== "NO_REFERRAL" &&
+          commissionResult.reason !== "ALREADY_PROCESSED"
+        ) {
+          // NO_REFERRAL y ALREADY_PROCESSED son casos normales — no se loguean como error
+          logger.warn(
+            `[REFERRAL_COMMISSION_ADMIN_FLOW] ⚠️ reason=${commissionResult.reason}`,
+            commissionResult.detail
+          );
+        }
+      } catch (error) {
+        logger.error("[REFERRAL_COMMISSION_ADMIN_FLOW] ❌ Error inesperado al procesar comisión:", error);
+      }
+    }
 
     revalidatePath("/superadmin/users");
     revalidatePath("/dashboard");
@@ -502,6 +532,7 @@ import { decryptAccountNumber } from "@/lib/utils/encryption";
 import { getSystemSettingBoolean, setSystemSetting } from "@/lib/config";
 import { WITHDRAWAL_GLOBAL_SETTING_KEY } from "@/lib/logic/withdrawal-window";
 import { logger } from "@/lib/logger";
+import { processReferralCommission } from "@/lib/services/referral.service";
 
 export async function getWithdrawals() {
   await requireRole(UserRole.SUPER_ADMIN);

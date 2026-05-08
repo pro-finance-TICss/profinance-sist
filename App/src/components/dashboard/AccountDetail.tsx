@@ -697,15 +697,17 @@ export function AccountDetail({ accountId }: AccountDetailProps) {
               setIsTransferOpen(true);
             }}
           />
-          {/* Retirar: pasa accountId explícito al modal */}
-          <ActionButton
-            label="Retirar"
-            icon={ArrowUpRight}
-            accentColor="rgba(255,255,255,0.55)"
-            dimColor="rgba(255,255,255,0.03)"
-            borderColor="rgba(255,255,255,0.08)"
-            onClick={() => setIsWithdrawOpen(true)}
-          />
+          {/* Retirar: solo disponible en cuentas de Ahorros */}
+          {data.type === "SAVINGS" && (
+            <ActionButton
+              label="Retirar"
+              icon={ArrowUpRight}
+              accentColor="rgba(255,255,255,0.55)"
+              dimColor="rgba(255,255,255,0.03)"
+              borderColor="rgba(255,255,255,0.08)"
+              onClick={() => setIsWithdrawOpen(true)}
+            />
+          )}
         </div>
       </div>
 

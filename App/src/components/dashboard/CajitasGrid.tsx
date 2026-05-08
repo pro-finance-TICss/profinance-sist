@@ -98,82 +98,142 @@ export function CajitasGrid() {
   return (
     <div
       style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "24px",
-        width: "100%",
+        position: "relative",
+        padding: "20px 24px 24px",
+        borderRadius: "24px",
+        background: "#080808",
+        border: "1px solid rgba(189, 142, 72, 0.3)",
+        boxShadow:
+          "0 10px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.35) inset",
+        overflow: "hidden",
       }}
     >
-      {/* — FILA SUPERIOR: Ahorro (large) + Inversión principal (medium) — */}
+      {/* ── Escarcha: noise grain ─────────────────────────────────────────── */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: "url('https://www.transparenttextures.com/patterns/stardust.png')",
+          opacity: 0.13,
+          pointerEvents: "none",
+          borderRadius: "24px",
+          zIndex: 0,
+        }}
+      />
+
+      {/* ── Escarcha: shimmer diagonal ────────────────────────────────────── */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(135deg, rgba(255,255,255,0.025) 0%, transparent 45%, rgba(189,142,72,0.04) 100%)",
+          pointerEvents: "none",
+          borderRadius: "24px",
+          zIndex: 0,
+        }}
+      />
+
+      {/* ── Glow dorado esquina superior izquierda ────────────────────────── */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "60%",
+          height: "100%",
+          background:
+            "radial-gradient(ellipse at top left, rgba(189,142,72,0.09) 0%, transparent 68%)",
+          pointerEvents: "none",
+          borderRadius: "24px",
+          zIndex: 0,
+        }}
+      />
+
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: savingsAccount
-            ? primaryInvestmentAccount
-              ? "1fr 1fr"
-              : "1fr"
-            : primaryInvestmentAccount
-              ? "1fr"
-              : "1fr",
-          gap: "20px",
-          alignItems: "stretch",
+          position: "relative",
+          zIndex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: "24px",
+          width: "100%",
         }}
       >
-        {/* Cuenta de Ahorro — fallback defensivo (no crash si no existe) */}
-        {savingsAccount && (
-          <div>
-            <SectionLabel>Cuenta Principal</SectionLabel>
-            <CajitaCard
-              account={savingsAccount}
-              size="large"
-            //onClick={() => setViewedAccount(savingsAccount.id)}
-            />
-          </div>
-        )}
-
-        {/* Inversión Principal */}
-        {primaryInvestmentAccount && (
-          <div>
-            <SectionLabel>Inversión Principal</SectionLabel>
-            <CajitaCard
-              account={primaryInvestmentAccount}
-              size="medium"
-            //onClick={() => setViewedAccount(primaryInvestmentAccount.id)} ///////////////////////////////////
-            />
-          </div>
-        )}
-
-        {/* Fallback: ninguna cuenta existe */}
-        {!savingsAccount && !primaryInvestmentAccount && <EmptyState />}
-      </div>
-
-      {/* — FILA INFERIOR: Otras inversiones (small) — */}
-      {hasAnyInvestment && secondaryInvestments.length > 0 && (
-        <div>
-          <SectionLabel>Otras Inversiones</SectionLabel>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-              gap: "16px",
-            }}
-          >
-            {secondaryInvestments.map((acc) => (
+        {/* — FILA SUPERIOR: Ahorro (large) + Inversión principal (medium) — */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: savingsAccount
+              ? primaryInvestmentAccount
+                ? "1fr 1fr"
+                : "1fr"
+              : primaryInvestmentAccount
+                ? "1fr"
+                : "1fr",
+            gap: "20px",
+            alignItems: "stretch",
+          }}
+        >
+          {/* Cuenta de Ahorro — fallback defensivo (no crash si no existe) */}
+          {savingsAccount && (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <SectionLabel>Cuenta Principal</SectionLabel>
               <CajitaCard
-                key={acc.id}
-                account={acc}
-                size="small"
-              //onClick={() => setViewedAccount(acc.id)}
+                account={savingsAccount}
+                size="large"
+              //onClick={() => setViewedAccount(savingsAccount.id)}
               />
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
+          )}
 
-      {/* Estado vacío: hay savingsAccount pero cero inversiones */}
-      {savingsAccount && !hasAnyInvestment && (
-        <EmptyState />
-      )}
+          {/* Inversión Principal */}
+          {primaryInvestmentAccount && (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <SectionLabel>Inversión Principal</SectionLabel>
+              <CajitaCard
+                account={primaryInvestmentAccount}
+                size="medium"
+              //onClick={() => setViewedAccount(primaryInvestmentAccount.id)} ///////////////////////////////////
+              />
+            </div>
+          )}
+
+          {/* Fallback: ninguna cuenta existe */}
+          {!savingsAccount && !primaryInvestmentAccount && <EmptyState />}
+        </div>
+
+        {/* — FILA INFERIOR: Otras inversiones (small) — */}
+        {hasAnyInvestment && secondaryInvestments.length > 0 && (
+          <div>
+            <SectionLabel>Otras Inversiones</SectionLabel>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                gap: "16px",
+              }}
+            >
+              {secondaryInvestments.map((acc) => (
+                <CajitaCard
+                  key={acc.id}
+                  account={acc}
+                  size="small"
+                //onClick={() => setViewedAccount(acc.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Estado vacío: hay savingsAccount pero cero inversiones */}
+        {savingsAccount && !hasAnyInvestment && (
+          <EmptyState />
+        )}
+      </div>
     </div>
   );
 }
