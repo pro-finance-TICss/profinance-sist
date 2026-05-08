@@ -12,6 +12,7 @@ import type { NextAuthConfig } from "next-auth";
  * Se usa en middleware.ts para validación ligera de autenticación.
  */
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
   // ================================================================
   // PÁGINAS PERSONALIZADAS
   // ================================================================
