@@ -128,7 +128,8 @@ export async function GET(
       },
     });
 
-    if (false && snapshots.length > 0) {
+    /*
+    if (snapshots.length > 0) {
       // ── Camino principal: snapshots exactos por cuenta ────────────────────
       const data: ChartPoint[] = snapshots.map((snap) => {
         const gainAmount = decimalToNumber(snap.gainAmount);
@@ -155,9 +156,10 @@ export async function GET(
         timeframe,
         source: "snapshots",
         data,
-        meta: { totalPoints: data.length, investedCapital: decimalToNumber(account.investedCapital) },
+        meta: { totalPoints: data.length, investedCapital: decimalToNumber(account?.investedCapital) },
       });
     }
+    */
 
     // ── 5. Fallback: Performance global (mientras no hay snapshots) ───────────────
     // isHighRisk de la cuenta determina el targetRole exclusivo:
