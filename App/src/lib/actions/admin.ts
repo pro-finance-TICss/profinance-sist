@@ -551,6 +551,7 @@ export async function getWithdrawals() {
         account: {
           select: {
             investedCapital: true,
+            type: true,
           },
         },
         bankAccount: {
@@ -581,6 +582,7 @@ export async function getWithdrawals() {
         paternalSurname: w.user.paternalSurname,
         maternalSurname: w.user.maternalSurname,
       },
+      accountType: w.account?.type ?? null,
       bankAccount: w.bankAccount
         ? {
           id: w.bankAccount.id,
@@ -656,15 +658,16 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
         });
 
         for (const account of investmentAccounts) {
-          // isHighRisk determina si la cuenta es Alto Riesgo (AR).
-          // AR = recibe rendimientos normales (targetRole USER) + rendimientos AR (targetRole SOCIO).
-          // Normal = recibe solo rendimientos normales (targetRole USER).
-          const targetRolesForAccount = account.isHighRisk ? ["USER", "SOCIO"] : ["USER"];
+          // isHighRisk define el tipo de rendimiento que recibe la cuenta:
+          // Cuenta Normal (isHighRisk=false) → solo rendimientos targetRole="USER"
+          // Cuenta AR     (isHighRisk=true)  → solo rendimientos targetRole="SOCIO"
+          // Son tipos completamente separados: no hay acumulación cruzada.
+          const targetRoleForAccount = account.isHighRisk ? "SOCIO" : "USER";
 
-          // Filtrar en JS: rendimientos del tipo correcto y que aún no tienen snapshot para esta cuenta
+          // Filtrar en JS: rendimientos del tipo exclusivo de esta cuenta y no aplicados aún
           const unappliedPerfs = allCompletedPerfs.filter(
             (p) =>
-              targetRolesForAccount.includes(p.targetRole) &&
+              p.targetRole === targetRoleForAccount &&
               !appliedSet.has(`${account.id}::${p.id}`)
           );
 

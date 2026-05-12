@@ -30,38 +30,26 @@ export interface CreatePerformanceInput {
 /**
  * Obtiene los registros de rendimiento para el dashboard del usuario actual.
  *
- * FASE PRE-1 — Unificación de roles:
- * `accountRole` se mantiene en la firma por compatibilidad con callers existentes
- * (PerformanceTable.tsx lo pasa) pero se IGNORA deliberadamente.
- * La fuente de verdad es SIEMPRE `session.user.role` (user.role en DB).
+ * La cuenta activa determina qué rendimientos se muestran:
+ *   - Cuenta Normal (isHighRisk = false) → solo Performance con targetRole="USER"
+ *   - Cuenta AR     (isHighRisk = true)  → solo Performance con targetRole="SOCIO"
  *
- * Los usuarios USER ven registros USER.
- * Los usuarios SOCIO ven registros USER + SOCIO (acumulativo).
+ * Son tipos completamente separados: las cuentas AR ya NO acumulan rendimientos USER.
+ *
+ * @param isHighRisk - Si la cuenta activa es de Alto Riesgo (AR)
  */
-export async function getDashboardPerformances(accountRole?: string) {
+export async function getDashboardPerformances(isHighRisk?: boolean) {
   const session = await auth();
   if (!session?.user) return [];
 
-  // ── FUENTE ÚNICA DE VERDAD: session.user.role ──────────────────────────────
-  // accountRole se recibe pero no se usa para decisiones financieras.
-  // Si hay discrepancia entre accountRole y user.role, logueamos una advertencia
-  // para detectar cuentas desincronizadas sin interrumpir el flujo.
-  if (accountRole && accountRole !== session.user.role) {
-    console.warn(
-      `[ROLE SYNC WARNING] getDashboardPerformances — accountRole ("${accountRole}") !== user.role ("${session.user.role}") para userId: ${session.user.id}. Usando user.role como fuente de verdad.`
-    );
-  }
-
-  const userRole = session.user.role; // única fuente de verdad
-  let targetRoles = ["USER"];
-
-  if (userRole === UserRole.SOCIO) {
-    targetRoles = ["USER", "SOCIO"];
-  }
+  // isHighRisk define exclusivamente qué rendimientos ve esta cuenta:
+  // false / undefined → targetRole USER (cuenta normal)
+  // true              → targetRole SOCIO (cuenta AR)
+  const targetRole = isHighRisk ? "SOCIO" : "USER";
 
   const perfs = await prisma.performance.findMany({
     where: {
-      targetRole: { in: targetRoles },
+      targetRole,
       status: "COMPLETED"
     },
     orderBy: { startDate: "desc" },

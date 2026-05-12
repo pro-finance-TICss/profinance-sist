@@ -220,9 +220,14 @@ export function CajitaCard({
             border: `1px solid ${typeConf.borderColor}`,
             borderRadius: "6px",
             padding: "3px 10px",
+            ...(account.type === "INVESTMENT" && account.isHighRisk ? {
+              boxShadow: `0 0 14px ${typeConf.accentColorDim}, inset 0 0 6px ${typeConf.accentColorDim}`,
+              border: `1px solid ${typeConf.accentColor}`,
+              textShadow: `0 0 10px ${typeConf.accentColorDim}`
+            } : {})
           }}
         >
-          {typeConf.badgeLabel}
+          {account.type === "INVESTMENT" && account.isHighRisk ? "Inversión AR" : typeConf.badgeLabel}
         </span>
       </div>
 

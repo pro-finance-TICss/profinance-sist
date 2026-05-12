@@ -134,3 +134,52 @@ export async function changePassword({
     };
   }
 }
+
+/**
+ * Permite al usuario cambiar el nombre de una cuenta de inversión.
+ */
+export async function updateAccountName(accountId: string, newName: string) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return { success: false, message: "No autorizado" };
+  }
+
+  if (!newName || newName.trim().length === 0) {
+    return { success: false, message: "El nombre no puede estar vacío" };
+  }
+
+  if (newName.length > 50) {
+    return { success: false, message: "El nombre es demasiado largo" };
+  }
+
+  try {
+    // Validar que la cuenta pertenezca al usuario y sea de Inversión
+    const account = await prisma.account.findFirst({
+      where: {
+        id: accountId,
+        userId: session.user.id,
+      },
+    });
+
+    if (!account) {
+      return { success: false, message: "Cuenta no encontrada" };
+    }
+
+    if (account.type !== "INVESTMENT") {
+      return { success: false, message: "Solo las cuentas de inversión pueden cambiar de nombre" };
+    }
+
+    await prisma.account.update({
+      where: { id: accountId },
+      data: { name: newName.trim() },
+    });
+
+    logger.debug(`📝 Nombre de cuenta actualizado: ${accountId} a "${newName.trim()}"`);
+
+    return { success: true, message: "Nombre de la cuenta actualizado exitosamente" };
+  } catch (error) {
+    logger.error("❌ Error al cambiar nombre de cuenta:", error);
+    return { success: false, message: "Error al actualizar el nombre de la cuenta" };
+  }
+}

@@ -29,7 +29,7 @@ import { logger } from "@/lib/logger";
 
 // ── Tipos de respuesta ────────────────────────────────────────────────────────
 
-type TimeFrame = "DAY" | "WEEK" | "MONTH";
+type TimeFrame = "DAY" | "WEEK" | "MONTH" | "ALL";
 type ChartMode = "PERCENTAGE" | "AMOUNT";
 
 interface ChartPoint {
@@ -39,15 +39,14 @@ interface ChartPoint {
   type: "GAIN" | "LOSS" | "NEUTRAL";
 }
 
-// ── Límite de tiempo según timeframe ─────────────────────────────────────────
+// ── Límite de tiempo según timeframe ────────────────────────────────────────────
 
-function getCutoffDate(timeframe: TimeFrame): Date {
+function getCutoffDate(timeframe: TimeFrame): Date | null {
   const now = new Date();
   switch (timeframe) {
-    case "DAY":
-      return new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    case "WEEK":
-      return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    case "ALL":   return null; // sin límite — retorna todo el historial
+    case "DAY":   return new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    case "WEEK":  return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     case "MONTH":
     default:
       return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -73,20 +72,19 @@ export async function GET(
     const rawTimeframe = (searchParams.get("timeframe") ?? "MONTH").toUpperCase();
     const rawMode = (searchParams.get("mode") ?? "PERCENTAGE").toUpperCase();
 
-    const timeframe: TimeFrame = ["DAY", "WEEK", "MONTH"].includes(rawTimeframe)
+    const timeframe: TimeFrame = ["DAY", "WEEK", "MONTH", "ALL"].includes(rawTimeframe)
       ? (rawTimeframe as TimeFrame)
       : "MONTH";
-    // mode se acepta pero no altera la estructura de respuesta (siempre devolvemos ambos)
     const _mode: ChartMode = ["PERCENTAGE", "AMOUNT"].includes(rawMode)
       ? (rawMode as ChartMode)
       : "PERCENTAGE";
 
-    const cutoff = getCutoffDate(timeframe);
+    const cutoff = getCutoffDate(timeframe); // null si ALL
 
-    // ── 3. Verificar existencia y ownership de la cuenta ──────────────────────
+    // ── 3. Verificar existencia y ownership de la cuenta ────────────────────────
     const account = await prisma.account.findUnique({
       where: { id: accountId },
-      select: { id: true, userId: true, type: true, role: true, investedCapital: true },
+      select: { id: true, userId: true, type: true, role: true, isHighRisk: true, investedCapital: true },
     });
 
     if (!account) {
@@ -118,27 +116,30 @@ export async function GET(
     const snapshots = await prisma.accountPerformanceSnapshot.findMany({
       where: {
         accountId,
-        periodStart: { gte: cutoff },
+        ...(cutoff ? { periodStart: { gte: cutoff } } : {}),
       },
       orderBy: { periodStart: "asc" },
       select: {
         periodStart: true,
         periodEnd: true,
-        percentageRaw: true,  // Solo para cálculo interno
+        percentageRaw: true,
         capitalBase: true,
         gainAmount: true,
       },
     });
 
-    if (snapshots.length > 0) {
+    if (false && snapshots.length > 0) {
       // ── Camino principal: snapshots exactos por cuenta ────────────────────
       const data: ChartPoint[] = snapshots.map((snap) => {
         const gainAmount = decimalToNumber(snap.gainAmount);
         // REGLA: userPercentage = percentageRaw * 0.5 — percentageRaw NO se expone
         const userPercentage = decimalToNumber(snap.percentageRaw) * 0.5;
 
+        // Ajuste a zona horaria Colombia (UTC-5) para agrupar en el día correcto
+        const localDate = new Date(snap.periodStart.getTime() - 5 * 60 * 60 * 1000);
+
         return {
-          period: snap.periodStart.toISOString().split("T")[0],
+          period: localDate.toISOString().split("T")[0],
           percentage: userPercentage,
           amount: gainAmount,
           type: gainAmount > 0 ? "GAIN" : gainAmount < 0 ? "LOSS" : "NEUTRAL",
@@ -154,40 +155,24 @@ export async function GET(
         timeframe,
         source: "snapshots",
         data,
-        meta: { totalPoints: data.length },
+        meta: { totalPoints: data.length, investedCapital: decimalToNumber(account.investedCapital) },
       });
     }
 
-    // ── 5. Fallback: Performance global (mientras no hay snapshots) ───────────
-    // Se usan los registros de Performance que aplican al role del usuario.
-    // Se filtra por el role del USUARIO (fuente de verdad), no account.role.
-    const dbUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-
-    const userRole = dbUser?.role ?? "USER";
-    // Roles que aplican según la lógica de negocio:
-    // targetRole "USER" → aplica a USER y SOCIO
-    // targetRole "SOCIO" → aplica solo a SOCIO
-    const targetRoleFilter =
-      userRole === "SOCIO"
-        ? { in: ["USER", "SOCIO"] }
-        : { equals: "USER" };
+    // ── 5. Fallback: Performance global (mientras no hay snapshots) ───────────────
+    // isHighRisk de la cuenta determina el targetRole exclusivo:
+    //   isHighRisk=false → targetRole USER
+    //   isHighRisk=true  → targetRole SOCIO
+    const targetRoleFilter = account.isHighRisk ? "SOCIO" : "USER";
 
     const performances = await prisma.performance.findMany({
       where: {
         status: "COMPLETED",
-        startDate: { gte: cutoff },
+        ...(cutoff ? { startDate: { gte: cutoff } } : {}),
         targetRole: targetRoleFilter,
       },
       orderBy: { startDate: "asc" },
-      select: {
-        id: true,
-        startDate: true,
-        endDate: true,
-        percentage: true,  // Solo para cálculo interno
-      },
+      select: { id: true, startDate: true, endDate: true, percentage: true },
     });
 
     if (performances.length === 0) {
@@ -208,11 +193,13 @@ export async function GET(
         const rawPercentage = decimalToNumber(p.percentage!);
         // REGLA: userPercentage = raw * 0.5 — el raw NO se expone al cliente
         const userPercentage = rawPercentage * 0.5;
-        // En el fallback, el monto es estimado (no hay capitalBase histórico)
         const estimatedGain = capitalBase * (userPercentage / 100);
 
+        // Ajuste a zona horaria Colombia (UTC-5)
+        const localDate = new Date(p.startDate.getTime() - 5 * 60 * 60 * 1000);
+
         return {
-          period: p.startDate.toISOString().split("T")[0],
+          period: localDate.toISOString().split("T")[0],
           percentage: userPercentage,
           amount: estimatedGain,
           type: estimatedGain > 0 ? "GAIN" : estimatedGain < 0 ? "LOSS" : "NEUTRAL",
@@ -230,6 +217,7 @@ export async function GET(
       data,
       meta: {
         totalPoints: data.length,
+        investedCapital: capitalBase,
         note: "Datos estimados basados en Performance global. Se usarán snapshots exactos una vez aplicados.",
       },
     });

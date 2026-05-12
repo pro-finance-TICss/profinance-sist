@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
       userId: acc.userId,
       type: acc.type ?? "SAVINGS",
       role: acc.role,
+      isHighRisk: acc.isHighRisk ?? false,
       investedCapital: decimalToNumber(acc.investedCapital),
       withdrawalLimitByDate: acc.withdrawalLimitByDate
         ? decimalToNumber(acc.withdrawalLimitByDate)
@@ -129,6 +130,7 @@ export async function POST(req: NextRequest) {
           userId: account.userId,
           type: account.type ?? "SAVINGS",
           role: account.role,
+          isHighRisk: false,
           investedCapital: 0,
           withdrawalLimitByDate: null,
           createdAt: account.createdAt.toISOString(),
@@ -192,6 +194,7 @@ export async function POST(req: NextRequest) {
         userId: account.userId,
         type: account.type ?? "INVESTMENT",
         role: account.role,
+        isHighRisk: false,
         investedCapital: 0,
         withdrawalLimitByDate: null,
         createdAt: account.createdAt.toISOString(),

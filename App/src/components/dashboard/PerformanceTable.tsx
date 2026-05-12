@@ -1,9 +1,28 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+// ============================================================================
+// TABLA DE RENDIMIENTOS — PRO-FINANCE
+// ============================================================================
+// Muestra los movimientos de rendimiento de una cuenta de inversión.
+//
+// Props:
+//   isHighRisk   — determina qué targetRole se consulta (USER | SOCIO)
+//   selectedMonth — "YYYY-MM" — filtra los movimientos por mes
+//
+// Diseño:
+//   - Columnas: Par, Divisas, Tipo, Fecha, %
+//   - Filtrado por mes en frontend (datos cargados una vez)
+//   - Totalizador del mes filtrado
+// ============================================================================
+
+import React, { useEffect, useState, useMemo } from "react";
 import { getDashboardPerformances } from "@/lib/actions/performance";
-import { useAccount } from "@/contexts/AccountContext";
 import * as Flags from "country-flag-icons/react/3x2";
+import { TrendingUp } from "lucide-react";
+
+// ============================================================================
+// TIPOS
+// ============================================================================
 
 interface Performance {
   id: string;
@@ -11,247 +30,301 @@ interface Performance {
   currency2: string;
   type: string;
   percentage: number;
-  date: Date;
+  startDate: string; // ISO string serializado
+  endDate?: string | null;
+  status: string;
+  targetRole: string;
 }
 
+// ============================================================================
+// CONSTANTES
+// ============================================================================
+
 const CURRENCY_TO_COUNTRY: Record<string, string> = {
-  USD: "US",
-  EUR: "EU",
-  GBP: "GB",
-  JPY: "JP",
-  CAD: "CA",
-  AUD: "AU",
-  CHF: "CH",
-  CNY: "CN",
-  NZD: "NZ",
-  MXN: "MX",
-  COP: "CO",
-  BRL: "BR",
-  ARS: "AR",
-  CLP: "CL",
-  PEN: "PE",
+  USD: "US", EUR: "EU", GBP: "GB", JPY: "JP", CAD: "CA",
+  AUD: "AU", CHF: "CH", CNY: "CN", NZD: "NZ", MXN: "MX",
+  COP: "CO", BRL: "BR", ARS: "AR", CLP: "CL", PEN: "PE",
 };
 
-export function PerformanceTable() {
-  const [data, setData] = useState<Performance[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { activeAccount } = useAccount();
+// ============================================================================
+// HELPERS
+// ============================================================================
 
-  // Re-fetch cuando cambie la cuenta activa (puede tener distinto rol)
+function getFlag(currency: string) {
+  const countryCode = CURRENCY_TO_COUNTRY[currency];
+  if (!countryCode) return null;
+  const FlagComponent = (Flags as any)[countryCode];
+  return FlagComponent ? (
+    <FlagComponent style={{ width: 22, borderRadius: 2, flexShrink: 0 }} />
+  ) : null;
+}
+
+function formatDate(isoStr: string): string {
+  const date = new Date(isoStr);
+  return date.toLocaleDateString("es-CO", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+
+// ============================================================================
+// PROPS
+// ============================================================================
+
+interface PerformanceTableProps {
+  /** Flag de la cuenta activa: true = AR (targetRole SOCIO), false = Normal (targetRole USER) */
+  isHighRisk: boolean;
+  /** Mes seleccionado "YYYY-MM" — controlado por el padre para que afecte la gráfica también */
+  selectedMonth: string;
+  /** Callback cuando el usuario cambia el mes */
+  onMonthChange: (month: string) => void;
+}
+
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
+
+export function PerformanceTable({ isHighRisk, selectedMonth, onMonthChange }: PerformanceTableProps) {
+  const [allData, setAllData] = useState<Performance[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Cargar todos los rendimientos (sin filtrar — lo hacemos en JS)
   useEffect(() => {
     setLoading(true);
-    const accountRole = activeAccount?.role;
-    getDashboardPerformances(accountRole).then((res) => {
-      const parsed = res.map((r: any) => ({
-        ...r,
-        date: new Date(r.date),
-      }));
-      setData(parsed);
+    getDashboardPerformances(isHighRisk).then((res: any[]) => {
+      setAllData(
+        res.map((r) => ({
+          ...r,
+          startDate: r.startDate instanceof Date ? r.startDate.toISOString() : String(r.startDate),
+          endDate: r.endDate
+            ? r.endDate instanceof Date
+              ? r.endDate.toISOString()
+              : String(r.endDate)
+            : null,
+        }))
+      );
       setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [isHighRisk]);
+
+  // Filtrar por mes seleccionado
+  const filteredData = useMemo(() => {
+    return allData.filter((item) => {
+      const d = new Date(item.startDate);
+      const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      return ym === selectedMonth;
     });
-  }, [activeAccount]);
+  }, [allData, selectedMonth]);
 
-  const getFlag = (currency: string) => {
-    const countryCode = CURRENCY_TO_COUNTRY[currency];
-    if (!countryCode) return null;
-    const FlagComponent = (Flags as any)[countryCode];
-    return FlagComponent ? (
-      <FlagComponent style={{ width: 24, borderRadius: 2 }} />
-    ) : null;
-  };
-
-  // Calculate total percentage
-  const totalPercentage = data.reduce((sum, item) => sum + item.percentage, 0);
-
-  // Get current month date range (15th to 15th)
-  const getMonthRange = () => {
-    const now = new Date();
-    const currentDay = now.getDate();
-    
-    let startDate, endDate;
-    
-    if (currentDay >= 15) {
-      // From 15th of current month to 15th of next month
-      startDate = new Date(now.getFullYear(), now.getMonth(), 15);
-      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 15);
-    } else {
-      // From 15th of previous month to 15th of current month
-      startDate = new Date(now.getFullYear(), now.getMonth() - 1, 15);
-      endDate = new Date(now.getFullYear(), now.getMonth(), 15);
-    }
-    
-    const formatDate = (date: Date) => {
-      const day = date.getDate().toString().padStart(2, '0');
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const year = date.getFullYear();
-      return `${day}/${month}/${year}`;
-    };
-    
-    return `${formatDate(startDate)} - ${formatDate(endDate)}`;
-  };
-
-  if (loading)
-    return (
-      <div
-        style={{
-          background: "#080808",
-          borderRadius: "24px",
-          border: "1px solid rgba(189, 142, 72, 0.3)",
-          padding: "30px",
-          marginTop: "24px",
-          textAlign: "center",
-          color: "rgba(255, 255, 255, 0.5)",
-        }}
-      >
-        Cargando rendimientos...
-      </div>
-    );
+  // Total del mes
+  const totalPercentage = filteredData.reduce((sum, item) => sum + (item.percentage || 0), 0);
+  const isPositive = totalPercentage >= 0;
 
   return (
     <div
       style={{
         background: "#080808",
-        borderRadius: "24px",
-        border: "1px solid rgba(189, 142, 72, 0.3)",
-        padding: "30px",
-        marginTop: "24px",
-        position: "relative",
+        borderRadius: "20px",
+        border: "1px solid rgba(189,142,72,0.2)",
         overflow: "hidden",
       }}
     >
-      <div style={{ marginBottom: "20px" }}>
-        <h3
-          style={{
-            color: "rgba(189, 142, 72, 0.8)",
-            fontSize: "0.9rem",
-            fontWeight: "600",
-            textTransform: "uppercase",
-            letterSpacing: "1px",
-            marginBottom: "8px",
-          }}
-        >
-          Rendimiento del mes ({getMonthRange()})
-        </h3>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            marginTop: "12px",
-          }}
-        >
+      {/* ── Encabezado ── */}
+      <div
+        style={{
+          padding: "20px 24px",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        {/* Título + total */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <TrendingUp size={16} color="rgba(189,142,72,0.8)" />
           <span
             style={{
-              color: "rgba(255, 255, 255, 0.6)",
-              fontSize: "0.85rem",
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "1.1px",
+              color: "rgba(255,255,255,0.25)",
             }}
           >
-            Rendimiento Total:
+            Movimientos de Rendimiento
           </span>
-          <span
-            style={{
-              fontSize: "1.5rem",
-              fontWeight: "bold",
-              color: totalPercentage >= 0 ? "#10b981" : "#ef4444",
-            }}
-          >
-            {totalPercentage > 0 ? "+" : ""}
-            {totalPercentage.toFixed(2)}%
-          </span>
+          {!loading && (
+            <span
+              style={{
+                fontSize: "1.1rem",
+                fontWeight: 800,
+                color: isPositive ? "#10b981" : "#ef4444",
+                marginLeft: "4px",
+              }}
+            >
+              {totalPercentage > 0 ? "+" : ""}
+              {totalPercentage.toFixed(2)}%
+            </span>
+          )}
         </div>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "separate",
-            borderSpacing: "0 8px",
-          }}
-        >
-          <thead>
-            <tr
-              style={{
-                textAlign: "left",
-                color: "rgba(255, 255, 255, 0.5)",
-                fontSize: "0.8rem",
-                textTransform: "uppercase",
-              }}
-            >
-              <th style={{ padding: "8px" }}>Par</th>
-              <th style={{ padding: "8px" }}>Divisas</th>
-              <th style={{ padding: "8px" }}>Tipo</th>
-              <th style={{ padding: "8px" }}>%</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.length === 0 ? (
+      {/* ── Tabla ── */}
+      {loading ? (
+        <div style={{ padding: "40px", textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: "0.875rem" }}>
+          Cargando rendimientos…
+        </div>
+      ) : filteredData.length === 0 ? (
+        <div style={{ padding: "40px", textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: "0.875rem" }}>
+          Sin movimientos de rendimiento en este mes.
+        </div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "separate",
+              borderSpacing: "0",
+            }}
+          >
+            <thead>
               <tr>
-                <td
-                  colSpan={4}
-                  style={{
-                    textAlign: "center",
-                    padding: "20px",
-                    color: "#666",
-                  }}
-                >
-                  No hay registros recientes.
-                </td>
-              </tr>
-            ) : (
-              data.map((item) => (
-                <tr
-                  key={item.id}
-                  style={{
-                    background: "rgba(255, 255, 255, 0.03)",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <td
+                {["Par", "Divisas", "Tipo", "Fecha", "%"].map((h, i) => (
+                  <th
+                    key={h}
                     style={{
-                      padding: "12px",
-                      display: "flex",
-                      gap: "8px",
-                      alignItems: "center",
+                      padding: "10px 16px",
+                      textAlign: i >= 3 ? "center" : "left",
+                      color: "rgba(255,255,255,0.3)",
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.8px",
+                      borderBottom: "1px solid rgba(255,255,255,0.06)",
+                      whiteSpace: "nowrap",
                     }}
                   >
-                    {getFlag(item.currency1)}
-                    {getFlag(item.currency2)}
-                  </td>
-                  <td style={{ padding: "12px", color: "white", fontWeight: 500 }}>
-                    {item.currency1} <span style={{ color: "rgba(255,255,255,0.4)", margin: "0 4px" }}>/</span> {item.currency2}
-                  </td>
-                  <td style={{ padding: "12px" }}>
-                    <span
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredData.map((item, idx) => {
+                const pct = item.percentage;
+                const isGain = pct > 0;
+                const isLoss = pct < 0;
+                const pctColor = isGain ? "#10b981" : isLoss ? "#ef4444" : "rgba(255,255,255,0.4)";
+                const isLast = idx === filteredData.length - 1;
+
+                return (
+                  <tr
+                    key={item.id}
+                    style={{
+                      transition: "background 0.12s ease",
+                    }}
+                    className="perf-row"
+                  >
+                    {/* Par (banderas) */}
+                    <td
                       style={{
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        background: "rgba(255, 255, 255, 0.1)",
-                        color: "#fff",
-                        fontSize: "0.75rem",
-                        fontWeight: "bold",
-                        textTransform: "uppercase",
+                        padding: "12px 16px",
+                        borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.04)",
                       }}
                     >
-                      {item.type}
-                    </span>
-                  </td>
-                  <td
-                    style={{
-                      padding: "12px",
-                      fontWeight: "bold",
-                      color: item.percentage >= 0 ? "#10b981" : "#ef4444",
-                    }}
-                  >
-                    {item.percentage > 0 ? "+" : ""}
-                    {item.percentage}%
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                      <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                        {getFlag(item.currency1)}
+                        {getFlag(item.currency2)}
+                      </div>
+                    </td>
+
+                    {/* Divisas */}
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        color: "#fff",
+                        fontWeight: 500,
+                        fontSize: "0.875rem",
+                        borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.04)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {item.currency1}
+                      <span style={{ color: "rgba(255,255,255,0.3)", margin: "0 5px" }}>/</span>
+                      {item.currency2}
+                    </td>
+
+                    {/* Tipo */}
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.04)",
+                      }}
+                    >
+                      <span
+                        style={{
+                          padding: "3px 8px",
+                          borderRadius: "5px",
+                          background: "rgba(255,255,255,0.07)",
+                          color: "rgba(255,255,255,0.7)",
+                          fontSize: "0.72rem",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.4px",
+                        }}
+                      >
+                        {item.type}
+                      </span>
+                    </td>
+
+                    {/* Fecha */}
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        color: "rgba(255,255,255,0.4)",
+                        fontSize: "0.8rem",
+                        textAlign: "center",
+                        borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.04)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatDate(item.startDate)}
+                    </td>
+
+                    {/* Porcentaje */}
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        textAlign: "center",
+                        borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.04)",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "0.95rem",
+                          fontWeight: 800,
+                          color: pctColor,
+                        }}
+                      >
+                        {isGain ? "+" : isLoss ? "−" : ""}
+                        {Math.abs(pct).toFixed(2)}%
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <style>{`
+        .perf-row:hover td { background: rgba(255,255,255,0.025); }
+      `}</style>
     </div>
   );
 }

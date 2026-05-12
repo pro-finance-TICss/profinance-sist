@@ -18,7 +18,6 @@ import { ActivitySection } from "@/components/dashboard/ActivitySection";
 
 import { ActionModal } from "@/components/dashboard/ActionModal";
 import { DepositForm } from "@/components/dashboard/DepositForm";
-import { PerformanceTable } from "@/components/dashboard/PerformanceTable";
 import { WithdrawModal } from "@/components/dashboard/billetera/WithdrawModal";
 import { InternalTransferModal } from "@/components/dashboard/billetera/InternalTransferModal";
 import { checkWithdrawalWindowStatus } from "@/lib/actions/wallet-checks";
@@ -129,9 +128,6 @@ export function DashboardContent() {
 
         {/* 3. Actividad reciente */}
         <ActivitySection />
-
-        {/* 4. Tabla de rendimiento */}
-        <PerformanceTable />
       </div>
 
       {/* ── MODALES (sin cambios) ── */}

@@ -39,6 +39,10 @@ export interface Account {
     /// Tipo de cuenta: SAVINGS (Ahorro, default) | INVESTMENT (Inversión)
     type: AccountType;
     role: AccountRole;
+    /// Si la cuenta de inversión es de Alto Riesgo (AR)
+    /// false = cuenta normal → recibe rendimientos targetRole="USER"
+    /// true  = cuenta AR     → recibe rendimientos targetRole="SOCIO"
+    isHighRisk: boolean;
     investedCapital: number;
     withdrawalLimitByDate: number | null;
     createdAt?: string;

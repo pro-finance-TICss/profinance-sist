@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 import { useAccount } from "@/contexts/AccountContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
+import { PerformanceTable } from "@/components/dashboard/PerformanceTable";
 import { DepositModal } from "@/components/dashboard/billetera/DepositModal";
 import { WithdrawModal } from "@/components/dashboard/billetera/WithdrawModal";
 import { InternalTransferModal } from "@/components/dashboard/billetera/InternalTransferModal";
@@ -41,7 +42,10 @@ import {
   XCircle,
   MinusCircle,
   X,
+  Pencil,
+  Check,
 } from "lucide-react";
+import { updateAccountName } from "@/lib/actions/user-settings";
 
 // ============================================================================
 // TIPOS — espejo del contrato de GET /api/accounts/[id]/detail
@@ -64,6 +68,7 @@ interface AccountDetailData {
   name: string;
   type: AccountType;
   role: AccountRole;
+  isHighRisk: boolean;
   userId: string;
   investedCapital: number;
   withdrawalLimitByDate: number | null;
@@ -410,6 +415,12 @@ export function AccountDetail({ accountId }: AccountDetailProps) {
   const [transferDirection, setTransferDirection] = useState<"TO_INVESTMENT" | "TO_SAVINGS">("TO_INVESTMENT");
   const [withdrawalWindow, setWithdrawalWindow] = useState<{ isOpen: boolean; reason?: string }>({ isOpen: true });
 
+  // ── Estado del mes seleccionado (afecta tabla y gráfica) ──────────────────
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+
   // ── Estado de toast inline ─────────────────────────────────────────────────
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -417,6 +428,30 @@ export function AccountDetail({ accountId }: AccountDetailProps) {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   }, []);
+
+  // ── Estado de edición de nombre ─────────────────────────────────────────────
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [isSavingName, setIsSavingName] = useState(false);
+
+  const handleSaveName = async () => {
+    if (!newName.trim() || newName.trim() === data?.name) {
+      setIsEditingName(false);
+      return;
+    }
+    setIsSavingName(true);
+    const res = await updateAccountName(accountId, newName.trim());
+    setIsSavingName(false);
+    
+    if (res.success) {
+      showToast(res.message, "success");
+      setData((prev) => prev ? { ...prev, name: newName.trim() } : prev);
+      refreshAccounts();
+      setIsEditingName(false);
+    } else {
+      showToast(res.message, "error");
+    }
+  };
 
   // ── Sincronización con contexto (CRÍTICO) ──────────────────────────────────
   // Garantiza que modales de transferencia/retiro usen esta cuenta como activa.
@@ -620,17 +655,87 @@ export function AccountDetail({ accountId }: AccountDetailProps) {
 
           {/* Nombre */}
           <div>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "1.5rem",
-                fontWeight: 800,
-                color: "#FFFFFF",
-                letterSpacing: "-0.4px",
-              }}
-            >
-              {data.name}
-            </h1>
+            {isEditingName ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  disabled={isSavingName}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveName();
+                    if (e.key === "Escape") setIsEditingName(false);
+                  }}
+                  style={{
+                    fontSize: "1.5rem",
+                    fontWeight: 800,
+                    color: "#FFFFFF",
+                    letterSpacing: "-0.4px",
+                    background: "transparent",
+                    border: "none",
+                    borderBottom: `2px solid ${typeMeta.color}`,
+                    outline: "none",
+                    padding: 0,
+                    margin: 0,
+                    width: "100%",
+                    maxWidth: "300px",
+                  }}
+                />
+                <button
+                  onClick={handleSaveName}
+                  disabled={isSavingName}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: "4px" }}
+                >
+                  <Check size={20} color="#00c97a" />
+                </button>
+                <button
+                  onClick={() => setIsEditingName(false)}
+                  disabled={isSavingName}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: "4px" }}
+                >
+                  <X size={20} color="rgba(255,255,255,0.4)" />
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <h1
+                  style={{
+                    margin: 0,
+                    fontSize: "1.5rem",
+                    fontWeight: 800,
+                    color: "#FFFFFF",
+                    letterSpacing: "-0.4px",
+                  }}
+                >
+                  {data.name}
+                </h1>
+                {data.type === "INVESTMENT" && (
+                  <button
+                    onClick={() => {
+                      setNewName(data.name);
+                      setIsEditingName(true);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: "4px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: 0.5,
+                      transition: "opacity 0.2s",
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = "0.5"}
+                    title="Editar nombre de la cuenta"
+                  >
+                    <Pencil size={16} color="#FFFFFF" />
+                  </button>
+                )}
+              </div>
+            )}
             <p style={{ margin: "4px 0 0", fontSize: "0.8rem", color: "rgba(255,255,255,0.3)", fontWeight: 400 }}>
               Creada el {createdAt}
             </p>
@@ -666,7 +771,18 @@ export function AccountDetail({ accountId }: AccountDetailProps) {
       <PerformanceChart
         accountId={accountId}
         accountType={data.type}
+        selectedMonth={selectedMonth}
+        onMonthChange={data.type === "INVESTMENT" ? setSelectedMonth : undefined}
       />
+
+      {/* ══ TABLA DE RENDIMIENTOS — solo Inversión ══ */}
+      {data.type === "INVESTMENT" && (
+        <PerformanceTable
+          isHighRisk={!!data.isHighRisk}
+          selectedMonth={selectedMonth}
+          onMonthChange={setSelectedMonth}
+        />
+      )}
 
       {/* ══ ACCIONES — Fase 4.4 ══ */}
       <div>

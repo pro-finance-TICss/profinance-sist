@@ -7,7 +7,23 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "ProFinance - App",
-  description: "App financiera - ProFinance",
+  description: "App ProFinance",
+  openGraph: {
+    title: "ProFinance - App",
+    description: "App ProFinance",
+    url: "https://app.profinance.com.co",
+    siteName: "ProFinance",
+    images: [
+      {
+        url: "/Background-recortado.png",
+        width: 1200,
+        height: 630,
+        alt: "ProFinance Logo",
+      },
+    ],
+    locale: "es_CO",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
