@@ -891,10 +891,18 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
 
     // NUEVO LOGICA: Notificar a todos los usuarios
     const allUsers = await prisma.user.findMany({ select: { id: true } });
-    const notificationTitle = isEnabled ? "🟢 Periodo de Inversión Abierto" : "🔒 Periodo de Inversión Iniciado (En Curso)";
+
+    // Determinar el ciclo que corresponde usando la lógica de ciclos
+    const { getInvestmentCycleInfo } = await import("@/lib/logic/investment-cycles");
+    const cycleInfo = getInvestmentCycleInfo();
+
+    const notificationTitle = isEnabled
+      ? "🟢 Ventana de Inversión Abierta"
+      : `🔒 ${cycleInfo.cycleLabel ?? "Ciclo de Inversión"} Iniciado`;
+
     const notificationMessage = isEnabled
-      ? "¡El periodo ha finalizado y las cuentas de inversión se han abierto! Ya puedes aportar, mover fondos y ver tus nuevos rendimientos concretados."
-      : "Se ha iniciado un nuevo bloqueo de capital. Tus fondos de inversión están operando en el mercado y las cuentas de inversión han sido congeladas temporalmente.";
+      ? `¡El ciclo de inversión ha concluido y la ventana de movimiento está abierta! Ya puedes aportar fondos, solicitar retiros y ver tus rendimientos del periodo aplicados a tu saldo.`
+      : `El ciclo de inversión ha comenzado. Tus fondos están operando en el mercado y los movimientos de capital quedan suspendidos${cycleInfo.lockEnd ? ` hasta el ${cycleInfo.lockEnd.toLocaleDateString("es-CO", { day: "numeric", month: "long" })}` : ""}.`;
 
     // Create notifications in batch using raw prisma directly (or just execute them via map)
     const notificationData = allUsers.map(user => ({

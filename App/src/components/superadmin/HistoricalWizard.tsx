@@ -11,7 +11,6 @@ interface AccountInfo {
   id: string;
   name: string;
   investedCapital: number;
-  /** ISO string de la fecha de creación actual de la cuenta */
   createdAt: string;
 }
 
@@ -24,6 +23,11 @@ interface PrefillMonth {
   suggestedCapitalBase: number;
   suggestedGainAmount: number;
   suggestedCapitalEnd: number;
+  // Campos del modelo de ciclos
+  cycleNumber: number | null;
+  cycleLabel: string | null;
+  isCycleStart: boolean;
+  isCycleEnd: boolean;
 }
 
 interface Props {
@@ -45,7 +49,7 @@ const fmt = (n: number) =>
 export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
   const [step, setStep]             = useState<1 | 2 | 3>(1);
   const [fromMonth, setFromMonth]   = useState("");
-  const [fromDay, setFromDay]       = useState("1"); // día de inicio dentro del primer mes
+  const [fromDay, setFromDay]       = useState("1");
   const baseCapital = Math.round(account.investedCapital * 100) / 100;
   const [initialCapital, setInitialCapital] = useState(baseCapital);
   const [localCapitalStr, setLocalCapitalStr] = useState(String(baseCapital));
@@ -55,11 +59,10 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
   const [error, setError]           = useState<string | null>(null);
   const [result, setResult]         = useState<{ snapshotsCreated: number; capitalFinal: number } | null>(null);
 
-  // ¿El mes elegido es anterior al mes de creación actual?
-  const accountCreatedYM = account.createdAt.substring(0, 7); // "YYYY-MM"
+  const accountCreatedYM = account.createdAt.substring(0, 7);
   const isBackdating = fromMonth !== "" && fromMonth < accountCreatedYM;
 
-  // ── Paso 1 → 2: cargar prefill desde la API ──────────────────────────────
+  // ── Paso 1 → 2: cargar prefill (modelo ciclos) ───────────────────────────
   const handleLoadPrefill = useCallback(async () => {
     setError(null);
     if (!fromMonth) { setError("Selecciona el mes de inicio"); return; }
@@ -69,33 +72,50 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
       const json = await res.json();
       if (!res.ok) { setError(json.error ?? "Error al cargar datos"); setLoading(false); return; }
 
-      // Construir RowState desde el prefill, usando initialCapital en el primer mes
       const prefillMonths: PrefillMonth[] = json.months;
-      const built: RowState[] = prefillMonths.map((m, i) => {
-        const suggestedCapital = i === 0 ? initialCapital : 0; // se recalcula abajo
+
+      // El capitalBase de todos los meses de un ciclo es FIJO al inicio del ciclo.
+      // Solo cambia al inicio de cada nuevo ciclo (con la ganancia acumulada del anterior).
+      let cycleCapitalBase = initialCapital;
+      let cycleAccPct = 0;
+      let prevCycleNumber: number | null = null;
+
+      const built: RowState[] = prefillMonths.map((m) => {
+        if (m.isCycleStart) {
+          // Cerrar ciclo anterior: aplicar ganancia acumulada
+          if (prevCycleNumber !== null) {
+            cycleCapitalBase = Math.round((cycleCapitalBase + cycleCapitalBase * (cycleAccPct / 100)) * 100) / 100;
+          }
+          cycleAccPct = 0;
+          prevCycleNumber = m.cycleNumber;
+        } else if (m.cycleNumber === null && prevCycleNumber !== null) {
+          // Saliendo de ciclo hacia periodo libre
+          cycleCapitalBase = Math.round((cycleCapitalBase + cycleCapitalBase * (cycleAccPct / 100)) * 100) / 100;
+          cycleAccPct = 0;
+          prevCycleNumber = null;
+        }
+
+        cycleAccPct = Math.round((cycleAccPct + m.totalUserPercentage) * 10000) / 10000;
+
         return {
           month: m.month,
           periodStart: m.periodStart,
           periodEnd: m.periodEnd,
           performances: m.performances,
           userPercentage: m.totalUserPercentage,
-          capitalBase: m.suggestedCapitalBase,
-          suggestedCapital: m.suggestedCapitalBase,
+          capitalBase:      cycleCapitalBase,
+          suggestedCapital: cycleCapitalBase,
           isManualCapital: false,
           note: "",
+          cycleNumber:  m.cycleNumber,
+          cycleLabel:   m.cycleLabel,
+          isCycleStart: m.isCycleStart,
+          isCycleEnd:   m.isCycleEnd,
+          cycleAccumulatedPct: cycleAccPct,
         };
       });
 
-      // Recalcular con el capitalInicial ingresado por el superadmin
-      let running = initialCapital;
-      const recalculated = built.map((row) => {
-        const base = Math.round(running * 100) / 100;
-        const gain = base * (row.userPercentage / 100);
-        running = Math.round((base + gain) * 100) / 100;
-        return { ...row, capitalBase: base, suggestedCapital: base };
-      });
-
-      setRows(recalculated);
+      setRows(built);
       setStep(2);
     } catch {
       setError("Error de conexión al cargar el prefill");
@@ -104,29 +124,52 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
     }
   }, [account.id, fromMonth, initialCapital]);
 
-  // ── Cambio de fila en el paso 2 ──────────────────────────────────────────
+  // ── Cambio de fila en el paso 2 (modelo ciclos) ──────────────────────────
   const handleRowChange = useCallback((index: number, updated: Partial<RowState>) => {
     setRows((prev) => {
       const next = [...prev];
-      const oldRow = next[index];
-      next[index] = { ...oldRow, ...updated };
+      next[index] = { ...next[index], ...updated };
 
-      // Si solo se actualizó la nota o algún campo que no afecta el balance,
-      // evitamos recalcular todas las filas siguientes (ahorro de renders)
-      const needsPropagation = 
-        updated.capitalBase !== undefined || 
+      const needsPropagation =
+        updated.capitalBase !== undefined ||
         updated.userPercentage !== undefined;
 
       if (!needsPropagation) return next;
 
-      // Propagar el capital hacia adelante si NO están marcados como manual
-      let running = Math.round((next[index].capitalBase + next[index].capitalBase * (next[index].userPercentage / 100)) * 100) / 100;
-      for (let i = index + 1; i < next.length; i++) {
-        if (!next[i].isManualCapital) {
-          next[i] = { ...next[i], capitalBase: running, suggestedCapital: running };
+      // Recalcular todos los acumulados desde el inicio (ciclo a ciclo)
+      let currentCycleNum: number | null = null;
+      let cycleCapital = next[0].capitalBase;
+      let cycleAccPct  = 0;
+
+      for (let i = 0; i < next.length; i++) {
+        const row = next[i];
+        const inNewCycle = row.cycleNumber !== null && row.cycleNumber !== currentCycleNum;
+        const leftCycle  = row.cycleNumber === null && currentCycleNum !== null;
+
+        if (inNewCycle) {
+          if (currentCycleNum !== null) {
+            cycleCapital = Math.round((cycleCapital + cycleCapital * (cycleAccPct / 100)) * 100) / 100;
+          }
+          currentCycleNum = row.cycleNumber;
+          if (row.isManualCapital) {
+            cycleCapital = next[i].capitalBase;
+          } else {
+            next[i] = { ...next[i], capitalBase: cycleCapital, suggestedCapital: cycleCapital };
+          }
+          cycleAccPct = 0;
+        } else if (leftCycle) {
+          cycleCapital = Math.round((cycleCapital + cycleCapital * (cycleAccPct / 100)) * 100) / 100;
+          currentCycleNum = null;
+          cycleAccPct = 0;
+          next[i] = { ...next[i], capitalBase: cycleCapital, suggestedCapital: cycleCapital };
+        } else if (row.cycleNumber !== null && !row.isManualCapital) {
+          next[i] = { ...next[i], capitalBase: cycleCapital, suggestedCapital: cycleCapital };
         }
-        running = Math.round((next[i].capitalBase + next[i].capitalBase * (next[i].userPercentage / 100)) * 100) / 100;
+
+        cycleAccPct = Math.round((cycleAccPct + next[i].userPercentage) * 10000) / 10000;
+        next[i] = { ...next[i], cycleAccumulatedPct: cycleAccPct };
       }
+
       return next;
     });
   }, []);
@@ -136,24 +179,33 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
     setLoading(true);
     setError(null);
 
-    // Limpiar campos UI-only antes de enviar al server action
-    // Next.js no puede serializar objetos con campos extra no serializables
-    const entries = rows.map((r) => ({
-      month: r.month,
-      periodStart: r.periodStart,
-      periodEnd: r.periodEnd,
-      capitalBase: r.capitalBase,
-      userPercentage: r.userPercentage,
-      gainAmount: r.capitalBase * (r.userPercentage / 100),
-      performanceIds: r.performances?.map((p) => p.performanceId) ?? [],
-      note: r.note ?? undefined,
-    }));
+    // Determinar si el último ciclo está abierto (sin terminar)
+    const lastR = rows.length > 0 ? rows[rows.length - 1] : null;
+    const lastIsOpen = lastR !== null && lastR.cycleNumber !== null && !lastR.isCycleEnd;
+
+    const entries = rows.map((r) => {
+      // Filas dentro de un ciclo SIN terminar: la ganancia aún no se aplica
+      // (el ciclo se cierra al final del período, no en el medio).
+      // Solo registramos el % para tenerlo histórico, pero gainAmount = 0.
+      const inOpenCycle = lastIsOpen && r.cycleNumber === lastR?.cycleNumber;
+      return {
+        month: r.month,
+        periodStart: r.periodStart,
+        periodEnd: r.periodEnd,
+        capitalBase: r.capitalBase,
+        userPercentage: r.userPercentage,
+        gainAmount: inOpenCycle
+          ? 0
+          : r.capitalBase * ((r.cycleAccumulatedPct ?? r.userPercentage) / 100),
+        performanceIds: r.performances?.map((p) => p.performanceId) ?? [],
+        note: r.note ?? undefined,
+      };
+    });
 
     const res = await saveHistoricalSnapshots(
       account.id,
       entries,
       updateCapital,
-      // Si se está retrocediendo la fecha, pasar la nueva fecha de creación
       isBackdating && fromMonth
         ? `${fromMonth}-${String(Math.min(Math.max(parseInt(fromDay) || 1, 1), 31)).padStart(2, "0")}T05:00:00.000Z`
         : undefined
@@ -164,17 +216,33 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
     setStep(3);
   }, [account.id, rows, updateCapital, isBackdating, fromMonth, fromDay]);
 
-  // ── Totales para resumen ─────────────────────────────────────────────────
-  const totalGain    = rows.reduce((s, r) => s + r.capitalBase * (r.userPercentage / 100), 0);
-  const lastCapital  = rows.length > 0
-    ? rows[rows.length - 1].capitalBase + rows[rows.length - 1].capitalBase * (rows[rows.length - 1].userPercentage / 100)
+  // ── Totales para resumen (por ciclos) ────────────────────────────────────
+  const totalGain = rows.reduce((s, r) => {
+    if (r.isCycleEnd || r.cycleNumber === null) {
+      return s + Math.round(r.capitalBase * ((r.cycleAccumulatedPct ?? r.userPercentage) / 100) * 100) / 100;
+    }
+    return s;
+  }, 0);
+  const lastRow = rows.length > 0 ? rows[rows.length - 1] : null;
+
+  // Un ciclo está "sin terminar" si el último mes del dataset no es el mes de cierre del ciclo
+  // (isCycleEnd=false y cycleNumber!=null). En ese caso el capital real de la cuenta
+  // sigue siendo el capitalBase del ciclo, no la proyección con interés acumulado.
+  const lastCycleIsOpen = lastRow !== null && lastRow.cycleNumber !== null && !lastRow.isCycleEnd;
+
+  const lastCapital = lastRow
+    ? lastCycleIsOpen
+      // Ciclo en curso → el capital actual es el base del ciclo (sin aplicar ganancia aún)
+      ? lastRow.capitalBase
+      // Ciclo cerrado o periodo libre → aplicar ganancia acumulada
+      : Math.round((lastRow.capitalBase + lastRow.capitalBase * ((lastRow.cycleAccumulatedPct ?? lastRow.userPercentage) / 100)) * 100) / 100
     : 0;
 
   // ── Estilos reutilizables ─────────────────────────────────────────────────
   const card: React.CSSProperties = {
     position: "fixed", inset: 0, zIndex: 3000,
     display: "flex", alignItems: "center", justifyContent: "center",
-    background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)",
+    background: "rgba(0,0,0,0.85)",
   };
   const modal: React.CSSProperties = {
     background: "#0e0e0f",
@@ -217,7 +285,6 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
         <p style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "#fff" }}>Carga Histórica</p>
         <p style={{ margin: 0, fontSize: "0.78rem", color: "rgba(255,255,255,0.35)" }}>{account.name} · Paso {step} de 3</p>
       </div>
-      {/* Indicador de pasos */}
       <div style={{ display: "flex", gap: 6 }}>
         {[1, 2, 3].map((s) => (
           <div key={s} style={{ width: 28, height: 4, borderRadius: 2, background: s <= step ? GOLD : "rgba(255,255,255,0.1)", transition: "background 0.3s" }} />
@@ -236,7 +303,8 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
         {Header}
         <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
           <p style={{ margin: 0, color: "rgba(255,255,255,0.5)", fontSize: "0.875rem", lineHeight: 1.6 }}>
-            Define desde qué mes comenzar a cargar el historial y el capital inicial de ese primer mes.
+            Define desde qué mes comenzar a cargar el historial y el capital inicial de ese primer ciclo.
+            El % de cada mes se acumula dentro del ciclo y la ganancia se aplica al final del ciclo.
           </p>
 
           <div>
@@ -249,7 +317,6 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
               style={{ ...inputStyle, marginTop: 6 }} />
           </div>
 
-          {/* Día de creación: solo aparece cuando se retrocede la fecha de la cuenta */}
           {isBackdating && (
             <div style={{ padding: "14px", background: "rgba(189,142,72,0.07)", border: "1px solid rgba(189,142,72,0.25)", borderRadius: 10 }}>
               <p style={{ margin: "0 0 10px", fontSize: "0.78rem", color: "rgba(189,142,72,0.9)", lineHeight: 1.5 }}>
@@ -279,7 +346,7 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
 
           <div>
             <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
-              Capital al inicio de ese primer mes (USD)
+              Capital al inicio del primer ciclo (USD)
             </label>
             <input type="number" min={0} step={0.01} value={localCapitalStr}
               onChange={(e) => setLocalCapitalStr(e.target.value)}
@@ -323,14 +390,14 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
           <div style={{ padding: "14px 24px", background: "rgba(189,142,72,0.04)", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", gap: 24, flexWrap: "wrap" }}>
             <div><p style={{ margin: 0, fontSize: "0.7rem", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Meses</p><p style={{ margin: 0, fontWeight: 700, color: "#fff" }}>{rows.length}</p></div>
             <div><p style={{ margin: 0, fontSize: "0.7rem", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Capital inicial</p><p style={{ margin: 0, fontWeight: 700, color: "#fff" }}>${fmt(initialCapital)}</p></div>
-            <div><p style={{ margin: 0, fontSize: "0.7rem", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Ganancia total</p><p style={{ margin: 0, fontWeight: 700, color: totalGain >= 0 ? GREEN : RED }}>{totalGain >= 0 ? "+" : ""}${fmt(totalGain)}</p></div>
+            <div><p style={{ margin: 0, fontSize: "0.7rem", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Ganancia por ciclos</p><p style={{ margin: 0, fontWeight: 700, color: totalGain >= 0 ? GREEN : RED }}>{totalGain >= 0 ? "+" : ""}${fmt(totalGain)}</p></div>
             <div><p style={{ margin: 0, fontSize: "0.7rem", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Capital final</p><p style={{ margin: 0, fontWeight: 700, color: GOLD }}>${fmt(lastCapital)}</p></div>
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-                  {["Mes", "Capital base ($)", "% Usuario", "$ Ganado", "Capital final", "Nota"].map((h) => (
+                  {["Mes", "Capital base ($)", "% Mes", "$ Acumulado", "Capital final ciclo"].map((h) => (
                     <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: "0.7rem", fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -381,7 +448,7 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
           <div>
             <p style={{ margin: 0, fontSize: "1.2rem", fontWeight: 800, color: "#fff" }}>¡Historial cargado!</p>
             <p style={{ margin: "8px 0 0", fontSize: "0.875rem", color: "rgba(255,255,255,0.4)" }}>
-              {result?.snapshotsCreated} mes{result?.snapshotsCreated !== 1 ? "es" : ""} registrado{result?.snapshotsCreated !== 1 ? "s" : ""} exitosamente
+              {result?.snapshotsCreated} mes{result?.snapshotsCreated !== 1 ? "es" : ""} registrados en el historial de ciclos
             </p>
           </div>
           <div style={{ display: "flex", gap: 24, padding: "16px 24px", background: "rgba(189,142,72,0.06)", border: "1px solid rgba(189,142,72,0.2)", borderRadius: 12, width: "100%" }}>
@@ -391,7 +458,7 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
             </div>
           </div>
           <p style={{ margin: 0, fontSize: "0.78rem", color: "rgba(255,255,255,0.3)", lineHeight: 1.5 }}>
-            La gráfica de tendencia del usuario ahora mostrará su historial completo de rendimientos.
+            La gráfica del usuario ahora mostrará el historial completo de rendimientos por ciclo.
           </p>
           <button style={{ ...btnPrimary, width: "100%", justifyContent: "center" }} onClick={() => { onSuccess(); onClose(); }}>
             <Check size={16} /> Cerrar

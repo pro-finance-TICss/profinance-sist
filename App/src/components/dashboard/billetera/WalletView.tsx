@@ -5,7 +5,9 @@ import { DepositModal } from "./DepositModal";
 import { WithdrawModal } from "./WithdrawModal";
 import { InternalTransferModal } from "./InternalTransferModal";
 import { BankAccountList } from "./BankAccountList";
-import { Wallet, Banknote, ArrowRight, Lock } from "lucide-react";
+import { InvestmentCycleBanner } from "./InvestmentCycleBanner";
+import type { CycleBannerInfo } from "./InvestmentCycleBanner";
+import { Wallet, Banknote, ArrowRight } from "lucide-react";
 import {
   checkWithdrawalWindowStatus,
   checkAndSendWithdrawalNotification,
@@ -49,6 +51,7 @@ export function WalletView() {
     isOpen: boolean;
     reason?: string;
   }>({ isOpen: true });
+  const [cycleInfo, setCycleInfo] = useState<CycleBannerInfo | null>(null);
 
   // Cargar datos (scoped por accountId)
   const fetchData = useCallback(async () => {
@@ -81,11 +84,23 @@ export function WalletView() {
   // Verificar estado de ventana de retiros y notificaciones
   useEffect(() => {
     const checkStatus = async () => {
-      // 1. Verificar si la ventana está abierta
       const status = await checkWithdrawalWindowStatus();
-      setWithdrawalWindow(status);
+      setWithdrawalWindow({ isOpen: status.isOpen, reason: status.reason });
 
-      // 2. Verificar si se debe enviar notificación (lazy check)
+      // Construir CycleBannerInfo serializable desde el resultado
+      if (status.cycleInfo) {
+        const ci = status.cycleInfo;
+        setCycleInfo({
+          isLocked:            ci.isLocked,
+          cycleLabel:          ci.cycleLabel,
+          statusLabel:         ci.statusLabel,
+          daysUntilNextOpen:   ci.daysUntilNextOpen,
+          daysUntilClose:      ci.daysUntilClose,
+          lockEnd:             ci.lockEnd?.toISOString() ?? null,
+          nextOpenWindowStart: ci.nextOpenWindow?.start?.toISOString() ?? null,
+        });
+      }
+
       await checkAndSendWithdrawalNotification();
     };
     checkStatus();
@@ -103,14 +118,17 @@ export function WalletView() {
   const isInvestment = activeAccount?.type === "INVESTMENT";
 
   return (
-
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
 
-      {/* 🟢 PASO FINAL SEMANA 3: Cabecera unificada */}
       <PageHeader
         title="Mi Billetera"
         subtitle="Visualiza tu capital invertido, gestiona tus fondos y liquida tus ganancias."
       />
+
+      {/* Banner de ciclo de inversión (solo cuentas de inversión) */}
+      {isInvestment && cycleInfo && (
+        <InvestmentCycleBanner info={cycleInfo} visible />
+      )}
 
       {/* 1. Sección Superior: Balance y Acciones */}
       <div className="wallet-top-section">

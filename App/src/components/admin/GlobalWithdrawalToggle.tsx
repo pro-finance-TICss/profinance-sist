@@ -14,6 +14,9 @@ export function GlobalWithdrawalToggle({
   const [isEnabled, setIsEnabled] = useState(initialEnabled);
   const [isPending, startTransition] = useTransition();
 
+  // Ocultar el botón temporalmente ya que ahora se maneja por fechas definidas
+  return null;
+
   const handleToggle = async () => {
     const newState = !isEnabled;
     setIsEnabled(newState); // Optimistic update

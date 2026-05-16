@@ -333,15 +333,31 @@ export default function PerformancePage() {
     (p) => p.status === "PENDING_HISTORICAL"
   ).length;
 
-  // Month options (last 12 months for example)
-  const monthOptions: { value: string; label: string }[] = [];
-  const currD = new Date();
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(currD.getFullYear(), currD.getMonth() - i, 1);
-    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const label = d.toLocaleDateString("es-ES", { month: "long", year: "numeric" }).toUpperCase();
-    monthOptions.push({ value: val, label });
-  }
+  const { selectedY, selectedM } = useMemo(() => {
+    if (selectedMonth === "all") {
+      const now = new Date();
+      return { selectedY: "all", selectedM: String(now.getMonth() + 1).padStart(2, "0") };
+    }
+    const [y, m] = selectedMonth.split("-");
+    return { selectedY: y, selectedM: m };
+  }, [selectedMonth]);
+
+  const yearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const opts: string[] = [];
+    for (let y = currentYear; y >= 2010; y--) {
+      opts.push(y.toString());
+    }
+    return opts;
+  }, []);
+
+  const monthOptionsList = useMemo(() => {
+    return Array.from({ length: 12 }, (_, i) => {
+      const value = String(i + 1).padStart(2, "0");
+      const label = new Date(2000, i, 1).toLocaleDateString("es-ES", { month: "long" });
+      return { value, label: label.charAt(0).toUpperCase() + label.slice(1) };
+    });
+  }, []);
 
   return (
     <div>
@@ -454,10 +470,33 @@ export default function PerformancePage() {
           Rendimiento Alto Riesgo (AR)
         </button>
 
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px" }}>
           <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
+            value={selectedY === "all" ? selectedM : selectedM}
+            onChange={(e) => {
+              if (selectedY !== "all") setSelectedMonth(`${selectedY}-${e.target.value}`);
+            }}
+            disabled={selectedY === "all"}
+            style={{
+              padding: "10px",
+              backgroundColor: selectedY === "all" ? "rgba(255,255,255,0.05)" : "#111",
+              border: "1px solid rgba(189, 142, 72, 0.3)",
+              borderRadius: "8px",
+              color: selectedY === "all" ? "rgba(255,255,255,0.3)" : "#fff",
+              fontSize: "0.9rem",
+              cursor: selectedY === "all" ? "not-allowed" : "pointer",
+            }}
+          >
+            {monthOptionsList.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <select
+            value={selectedY}
+            onChange={(e) => {
+              if (e.target.value === "all") setSelectedMonth("all");
+              else setSelectedMonth(`${e.target.value}-${selectedM}`);
+            }}
             style={{
               padding: "10px",
               backgroundColor: "#111",
@@ -467,9 +506,9 @@ export default function PerformancePage() {
               fontSize: "0.9rem",
             }}
           >
-            <option value="all">Ver Todos</option>
-            {monthOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            <option value="all">Ver Todos (Año)</option>
+            {yearOptions.map(y => (
+              <option key={y} value={y}>{y}</option>
             ))}
           </select>
         </div>

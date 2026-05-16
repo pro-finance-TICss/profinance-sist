@@ -267,6 +267,7 @@ function EmptyState({ message }: { message: string }) {
 }
 
 // ============================================================================
+// ============================================================================
 // HEADER BAR
 // ============================================================================
 
@@ -274,7 +275,7 @@ interface HeaderBarProps {
   accountType: "SAVINGS" | "INVESTMENT";
   mode: "amount" | "percentage";
   onToggle: (m: "amount" | "percentage") => void;
-  selectedMonth?: string;
+  selectedMonth?: string; // "YYYY-MM"
   onMonthChange?: (m: string) => void;
   disabled: boolean;
 }
@@ -282,18 +283,49 @@ interface HeaderBarProps {
 function HeaderBar({ accountType, mode, onToggle, selectedMonth, onMonthChange, disabled }: HeaderBarProps) {
   const title = accountType === "INVESTMENT" ? "Evolución de rendimiento" : "Actividad acumulada";
 
-  const monthOptions = React.useMemo(() => {
-    if (!onMonthChange) return [];
-    const opts: { value: string; label: string }[] = [];
-    const now = new Date();
-    for (let i = 0; i < 12; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const label = d.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
-      opts.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
+  const { selectedY, selectedM } = React.useMemo(() => {
+    if (!selectedMonth) return { selectedY: new Date().getFullYear().toString(), selectedM: String(new Date().getMonth() + 1).padStart(2, "0") };
+    const [y, m] = selectedMonth.split("-");
+    return { selectedY: y, selectedM: m };
+  }, [selectedMonth]);
+
+  const yearOptions = React.useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const opts: string[] = [];
+    for (let y = currentYear; y >= 2010; y--) {
+      opts.push(y.toString());
     }
     return opts;
-  }, [onMonthChange]);
+  }, []);
+
+  const monthOptions = React.useMemo(() => {
+    return Array.from({ length: 12 }, (_, i) => {
+      const value = String(i + 1).padStart(2, "0");
+      const label = new Date(2000, i, 1).toLocaleDateString("es-ES", { month: "long" });
+      return { value, label: label.charAt(0).toUpperCase() + label.slice(1) };
+    });
+  }, []);
+
+  const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (onMonthChange) onMonthChange(`${e.target.value}-${selectedM}`);
+  };
+
+  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (onMonthChange) onMonthChange(`${selectedY}-${e.target.value}`);
+  };
+
+  const selectStyle: React.CSSProperties = {
+    padding: "6px 10px",
+    borderRadius: "8px",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    color: "rgba(255,255,255,0.85)",
+    fontSize: "0.72rem",
+    fontWeight: 600,
+    cursor: disabled ? "default" : "pointer",
+    colorScheme: "dark",
+    outline: "none",
+  };
 
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
@@ -308,31 +340,35 @@ function HeaderBar({ accountType, mode, onToggle, selectedMonth, onMonthChange, 
       {accountType === "INVESTMENT" && (
         <div style={{ display: "flex", gap: "6px", alignItems: "center", opacity: disabled ? 0.5 : 1 }}>
 
-          {/* Selector de mes */}
+          {/* Selectores de Mes y Año */}
           {selectedMonth && onMonthChange && (
-            <select
-              value={selectedMonth}
-              onChange={(e) => onMonthChange(e.target.value)}
-              disabled={disabled}
-              style={{
-                padding: "6px 10px",
-                borderRadius: "8px",
-                backgroundColor: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "rgba(255,255,255,0.85)",
-                fontSize: "0.72rem",
-                fontWeight: 600,
-                cursor: disabled ? "default" : "pointer",
-                colorScheme: "dark",
-                outline: "none",
-              }}
-            >
-              {monthOptions.map((opt) => (
-                <option key={opt.value} value={opt.value} style={{ background: "#111" }}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <div style={{ display: "flex", gap: "4px" }}>
+              <select
+                value={selectedM}
+                onChange={handleMonthChange}
+                disabled={disabled}
+                style={selectStyle}
+              >
+                {monthOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value} style={{ background: "#111" }}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={selectedY}
+                onChange={handleYearChange}
+                disabled={disabled}
+                style={selectStyle}
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y} style={{ background: "#111" }}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
 
           {/* Toggle único: $ | % */}

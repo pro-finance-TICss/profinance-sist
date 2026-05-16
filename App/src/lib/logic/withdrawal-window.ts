@@ -1,58 +1,39 @@
-import { getSystemSettingBoolean } from "@/lib/config";
+/**
+ * COMPATIBILIDAD: Este archivo reexporta desde investment-cycles.ts
+ * para no romper imports existentes en el proyecto.
+ *
+ * Usar preferentemente @/lib/logic/investment-cycles directamente.
+ */
+export {
+  isInvestmentWindowOpen,
+  getInvestmentCycleInfo,
+  WITHDRAWAL_GLOBAL_SETTING_KEY,
+} from "./investment-cycles";
 
-// Constantes de configuración
+// Compat: constantes antiguas (ya no se usan en lógica nueva)
 export const WITHDRAWAL_START_DAY = 1;
-export const WITHDRAWAL_END_DAY = 16;
-export const WITHDRAWAL_GLOBAL_SETTING_KEY = "withdrawals_enabled";
+export const WITHDRAWAL_END_DAY   = 5; // ventanas libres duran 5 días
 
-/**
- * Verifica si las cuentas de inversión están bloqueadas.
- * 1. La configuración global "withdrawals_enabled" es true (o no existe, defaulting to true).
- */
-export async function isInvestmentWindowOpen(): Promise<{
-  isOpen: boolean;
-  reason?: string;
-}> {
-  // 1. Verificar configuración global (Superadmin override)
-  // Por defecto permitimos retiros si no está configurado explícitamente a false
-  const globalEnabled = await getSystemSettingBoolean(
-    WITHDRAWAL_GLOBAL_SETTING_KEY,
-    true
-  );
-
-  if (!globalEnabled) {
-    return {
-      isOpen: false,
-      reason:
-        "Las cuentas de inversión están actualmente en su periodo de bloqueo.",
-    };
-  }
-
-  // Si está habilitado (ON), significa que el periodo está abierto y se puede interactuar con Inversión.
-  return { isOpen: true };
-}
-
-/**
- * Obtiene la fecha límite para retiros del mes actual.
- */
-export function getWithdrawalDeadline(): Date {
-  const now = new Date();
-  // Crear fecha para el día 16 del mes actual
-  // Al final del día (23:59:59)
-  const deadline = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    WITHDRAWAL_END_DAY,
-    23,
-    59,
-    59
-  );
-  return deadline;
-}
-
-/**
- * Obtiene el nombre del mes actual en español
- */
+/** Retorna el nombre del mes actual en español */
 export function getCurrentMonthName(): string {
   return new Date().toLocaleString("es-ES", { month: "long" });
+}
+
+/**
+ * @deprecated Usar getInvestmentCycleInfo().nextOpenWindow.end en su lugar.
+ * Mantenido sólo para no romper wallet-checks.ts durante la transición.
+ */
+export function getWithdrawalDeadline(): Date {
+  const { getInvestmentCycleInfo } = require("./investment-cycles");
+  const info = getInvestmentCycleInfo();
+  // Si estamos en periodo libre, la "deadline" es cuando cierra la ventana
+  // (inicio del próximo ciclo menos 1 día)
+  if (!info.isLocked && info.daysUntilClose > 0) {
+    const now = new Date();
+    const d = new Date(now);
+    d.setDate(d.getDate() + info.daysUntilClose);
+    return d;
+  }
+  // Si estamos bloqueados, devolver la próxima apertura
+  return info.nextOpenWindow?.start ?? new Date();
 }

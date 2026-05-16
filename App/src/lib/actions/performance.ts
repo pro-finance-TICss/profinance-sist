@@ -38,17 +38,78 @@ export interface CreatePerformanceInput {
  *
  * @param isHighRisk - Si la cuenta activa es de Alto Riesgo (AR)
  */
-// ── Helpers de fecha ────────────────────────────────────────────────────────
+// ── Helpers de ciclo ───────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * Retorna true si la fecha dada pertenece a un mes anterior al mes actual.
- * Ej: hoy es mayo-2026 y la fecha es marzo-2026 → true
+ * Determina si una fecha de rendimiento pertenece a un ciclo YA CERRADO.
+ *
+ * REGLAS (modelo de 4 ciclos anuales):
+ *   Ciclo 1 : 6-ene → 31-mar
+ *   Ciclo 2 : 6-abr → 30-jun
+ *   Ciclo 3 : 6-jul → 30-sep
+ *   Ciclo 4 : 6-oct → 30-nov
+ *   Libre   : 1-5 abr/jul/oct, todo dic, 1-5 ene
+ *
+ * Un rendimiento es HISTÓRICO solo si:
+ *   - Pertenece a un ciclo diferente al ciclo actual, Y ese ciclo ya terminó.
+ *
+ * Ejemplos:
+ *   - Hoy es 16-may (Ciclo 2). Performance del 10-abr: mismo ciclo → NO histórico.
+ *   - Hoy es 16-may (Ciclo 2). Performance del 15-mar: Ciclo 1 ya cerró → histórico.
+ *   - Hoy es 3-abr (periodo libre). Performance del 1-abr: periodo libre actual → NO histórico.
  */
-function isPastMonth(date: Date): boolean {
+
+// Definición interna de ciclos (0-indexed month, igual que investment-cycles.ts)
+const CYCLE_DEFS = [
+  { number: 1, startMonth: 0, startDay: 6, endMonth: 2,  endDay: 31 },
+  { number: 2, startMonth: 3, startDay: 6, endMonth: 5,  endDay: 30 },
+  { number: 3, startMonth: 6, startDay: 6, endMonth: 8,  endDay: 30 },
+  { number: 4, startMonth: 9, startDay: 6, endMonth: 10, endDay: 30 },
+] as const;
+
+/** Retorna el número de ciclo al que pertenece una fecha, o null si es periodo libre. */
+function getCycleNumber(date: Date): number | null {
+  const year  = date.getFullYear();
+  const month = date.getMonth();
+  const day   = date.getDate();
+
+  for (const c of CYCLE_DEFS) {
+    const start = new Date(year, c.startMonth, c.startDay);
+    const end   = new Date(year, c.endMonth,   c.endDay);
+    if (date >= start && date <= end) return c.number;
+  }
+  return null;
+}
+
+/**
+ * Retorna true si la fecha de un rendimiento pertenece a un ciclo ya cerrado.
+ * Un rendimiento del ciclo actual (aunque sea de un mes anterior) NO es histórico.
+ */
+function isPastCycle(date: Date): boolean {
   const now = new Date();
-  const nowYM  = now.getFullYear()  * 12 + now.getMonth();
-  const dateYM = date.getFullYear() * 12 + date.getMonth();
-  return dateYM < nowYM;
+
+  const dateYear  = date.getFullYear();
+  const nowYear   = now.getFullYear();
+
+  // Año anterior siempre es histórico
+  if (dateYear < nowYear) return true;
+  // Año futuro nunca es histórico
+  if (dateYear > nowYear) return false;
+
+  const dateCycle = getCycleNumber(date);
+  const nowCycle  = getCycleNumber(now);
+
+  // Si la fecha está en el mismo ciclo que hoy → NO histórico
+  if (dateCycle !== null && dateCycle === nowCycle) return false;
+
+  // Si hoy es periodo libre y la fecha también es periodo libre → NO histórico
+  if (dateCycle === null && nowCycle === null) return false;
+
+  // Si la fecha es periodo libre pero hoy estamos en un ciclo, verificar si es
+  // el periodo libre ANTERIOR al ciclo actual → histórico
+  // (ej. 2-abr con hoy 16-may en Ciclo 2: la ventana del 1-5 abr ya pasó)
+  // Simplificación: si la fecha es anterior a hoy en el mismo año y no comparten ciclo → histórico
+  return date < now;
 }
 
 export async function getDashboardPerformances(isHighRisk?: boolean) {
@@ -107,10 +168,16 @@ export async function createPerformance(data: CreatePerformanceInput) {
 
   const startDate = data.startDate || new Date();
 
-  // Si la fecha pertenece a un mes anterior al actual, marcar como histórico.
-  // Estos registros NO se aplican automáticamente al abrir el periodo;
-  // requieren un recálculo manual via el Wizard de Carga Histórica.
-  const status = isPastMonth(startDate) ? "PENDING_HISTORICAL" : "PENDING";
+  // Clasificación por CICLO (no por mes):
+  //   - Si la fecha pertenece al CICLO ACTUAL (aunque sea un mes anterior del mismo ciclo)
+  //     → PENDING: se aplica al cerrar el ciclo normalmente.
+  //   - Si la fecha pertenece a un CICLO YA CERRADO
+  //     → PENDING_HISTORICAL: requiere recalculo manual via Wizard de Carga Histórica.
+  //
+  // Ejemplo con hoy = 16-may (Ciclo 2 Abr-Jun):
+  //   startDate = 10-abr → mismo ciclo → PENDING
+  //   startDate = 15-mar → Ciclo 1 ya cerrado → PENDING_HISTORICAL
+  const status = isPastCycle(startDate) ? "PENDING_HISTORICAL" : "PENDING";
 
   await prisma.performance.create({
     data: {

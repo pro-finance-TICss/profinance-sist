@@ -2,20 +2,16 @@
  * SISTEMA: CHEQUEOS DE BILLETERA
  *
  * DESCRIPCIÓN:
- * Funciones para verificar el estado de la ventana de retiros y gestionar
- * notificaciones de proximidad de fecha límite.
+ * Funciones para verificar el estado del ciclo de inversión y gestionar
+ * notificaciones de apertura/cierre de periodos.
  */
 
 "use server";
 
 import { auth } from "@/lib/auth";
-import {
-  isInvestmentWindowOpen,
-  WITHDRAWAL_END_DAY,
-} from "@/lib/logic/withdrawal-window";
-import {
-  createNotification,
-} from "@/lib/actions/notifications";
+import { getInvestmentCycleInfo } from "@/lib/logic/investment-cycles";
+import { isInvestmentWindowOpen } from "@/lib/logic/withdrawal-window";
+import { createNotification } from "@/lib/actions/notifications";
 import { prisma } from "@/lib/prisma";
 
 export async function checkWithdrawalWindowStatus() {
@@ -23,58 +19,88 @@ export async function checkWithdrawalWindowStatus() {
 }
 
 /**
- * Verifica si es necesario enviar una notificación de fecha límite al usuario.
- * Se basa en un chequeo "lazy" cuando el usuario visita el dashboard.
- * - Se activa si hoy está dentro de los 3 días previos a la fecha límite (ej. 13, 14, 15, 16).
- * - Envía solo una notificación por mes para este propósito.
+ * Verifica si debe enviarse una notificación al usuario sobre el periodo
+ * activo/próximo de inversión. Reglas:
+ *
+ *   — Si estamos en periodo libre y quedan ≤ 3 días para que cierre → aviso de cierre
+ *   — Si estamos en ciclo activo y mañana abre una ventana libre     → aviso de apertura
+ *
+ * Se envía máximo UNA notificación por tipo por ciclo (evita spam).
  */
 export async function checkAndSendWithdrawalNotification() {
   const session = await auth();
   if (!session?.user?.id) return;
 
-  const now = new Date();
-  const day = now.getDate();
-  const deadlineDay = WITHDRAWAL_END_DAY; // 16
+  const userId = session.user.id;
+  const info   = getInvestmentCycleInfo();
+  const now    = new Date();
 
-  // Verificar si estamos dentro de la ventana de notificación (3 días antes + día límite)
-  // ej. si el límite es el 16, notificar los días 13, 14, 15, 16
-  const startNotifyDay = deadlineDay - 3;
+  // ── Caso A: Periodo libre, ventana a punto de cerrarse ───────────────────
+  if (!info.isLocked && info.daysUntilClose > 0 && info.daysUntilClose <= 3) {
+    const titleClose = "⏳ Cierre de Ventana de Inversión";
 
-  if (day < startNotifyDay || day > deadlineDay) {
-    return; // Fuera del rango de notificación
+    // Evitar duplicado en los últimos 7 días
+    const since = new Date(now);
+    since.setDate(since.getDate() - 7);
+
+    const dup = await prisma.notification.findFirst({
+      where: { userId, title: titleClose, createdAt: { gte: since } },
+    });
+
+    if (!dup) {
+      const msg =
+        info.daysUntilClose === 1
+          ? `¡Mañana comienza el periodo de inversión! A partir de ese día los retiros y aportes quedarán bloqueados hasta el siguiente periodo libre.`
+          : `El periodo de inversión comienza en ${info.daysUntilClose} días. Aprovecha para realizar retiros o aportes antes de que se cierre la ventana.`;
+
+      await createNotification(userId, titleClose, msg, "INFO");
+    }
   }
 
-  // Verificar si ya enviamos una notificación ESTE MES para este usuario
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  // ── Caso B: Ciclo activo, la ventana libre abre mañana ───────────────────
+  if (info.isLocked && info.daysUntilNextOpen === 1) {
+    const titleOpen = "🟢 Ventana de Inversión Abriendo Mañana";
 
-  // Buscamos una notificación con un patrón de título específico creada este mes
-  // Heurística simple para evitar duplicados sin una tabla de seguimiento separada
-  const notificationTitle = "📅 Recordatorio de Retiros";
+    const since = new Date(now);
+    since.setDate(since.getDate() - 7);
 
-  const existingNotification = await prisma.notification.findFirst({
-    where: {
-      userId: session.user.id,
-      title: notificationTitle,
-      createdAt: {
-        gte: startOfMonth,
-        lte: endOfMonth,
-      },
-    },
-  });
+    const dup = await prisma.notification.findFirst({
+      where: { userId, title: titleOpen, createdAt: { gte: since } },
+    });
 
-  if (existingNotification) {
-    return; // Ya fue notificado este mes, evitamos duplicados
+    if (!dup) {
+      await createNotification(
+        userId,
+        titleOpen,
+        `¡Mañana abre el periodo libre! Podrás realizar retiros o aportes a tu cuenta de inversión durante los próximos días.`,
+        "SUCCESS"
+      );
+    }
   }
 
-  // Determinar la urgencia del mensaje según el día actual
-  let message = "";
-  if (day === deadlineDay) {
-    message = `¡Hoy es el último día para solicitar retiros! Tienes hasta la medianoche.`;
-  } else {
-    const daysLeft = deadlineDay - day;
-    message = `Recuerda que tienes hasta el día ${deadlineDay} para solicitar tus retiros. Quedan ${daysLeft} días.`;
-  }
+  // ── Caso C: Inicio de ciclo (día 6) → recordatorio de bloqueo ────────────
+  if (info.isLocked) {
+    const day = now.getDate();
+    if (day === 6) {
+      const titleLock = `🔒 Inicio de ${info.cycleLabel ?? "Ciclo de Inversión"}`;
 
-  await createNotification(session.user.id, notificationTitle, message, "INFO");
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const dup = await prisma.notification.findFirst({
+        where: { userId, title: titleLock, createdAt: { gte: startOfMonth } },
+      });
+
+      if (!dup) {
+        await createNotification(
+          userId,
+          titleLock,
+          `El ciclo de inversión ha comenzado. Los retiros y aportes a tu cuenta de inversión estarán bloqueados hasta el ${
+            info.lockEnd
+              ? info.lockEnd.toLocaleDateString("es-CO", { day: "numeric", month: "long" })
+              : "fin del ciclo"
+          }.`,
+          "WARNING"
+        );
+      }
+    }
+  }
 }
