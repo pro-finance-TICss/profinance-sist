@@ -209,7 +209,7 @@ export function TicketsView() {
               <span>{selectedTicket.priority} Priority</span>
               <span>•</span>
               <span>
-                {new Date(selectedTicket.createdAt).toLocaleDateString()}
+                {new Date(selectedTicket.createdAt).toLocaleDateString("es-ES")}
               </span>
             </div>
           </div>
@@ -245,7 +245,7 @@ export function TicketsView() {
                   style={{ fontSize: "0.8rem", opacity: 0.7, marginBottom: 4 }}
                 >
                   {msg.isAdmin ? "Soporte" : "Tú"} •{" "}
-                  {new Date(msg.createdAt).toLocaleTimeString()}
+                  {new Date(msg.createdAt).toLocaleTimeString("es-ES")}
                 </div>
                 <div style={{ lineHeight: 1.5 }}>{msg.message}</div>
               </div>
@@ -394,7 +394,7 @@ export function TicketsView() {
                     </span>
                     <span>•</span>
                     <span>
-                      {new Date(ticket.createdAt).toLocaleDateString()}
+                      {new Date(ticket.createdAt).toLocaleDateString("es-ES")}
                     </span>
                     <span>•</span>
                     <span>{ticket.priority}</span>
@@ -414,7 +414,11 @@ export function TicketsView() {
                       letterSpacing: "0.5px",
                     }}
                   >
-                    {ticket.status.replace("_", " ")}
+                    {ticket.status === "OPEN" ? "ABIERTO" :
+                     ticket.status === "CLOSED" ? "CERRADO" :
+                     ticket.status === "IN_PROGRESS" ? "EN PROCESO" :
+                     ticket.status === "RESOLVED" ? "RESUELTO" :
+                     ticket.status.replace("_", " ")}
                   </div>
                 </div>
               </div>

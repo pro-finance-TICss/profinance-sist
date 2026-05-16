@@ -36,6 +36,7 @@ interface ChartPoint {
   period: string;         // ISO date string "2026-01-01"
   percentage: number;     // userPercentage = raw * 0.5  (siempre reducido)
   amount: number;         // gainAmount en moneda de la cuenta
+  capitalBase: number;    // capital al inicio de este evento (para reconstruir la curva)
   type: "GAIN" | "LOSS" | "NEUTRAL";
 }
 
@@ -125,41 +126,82 @@ export async function GET(
         percentageRaw: true,
         capitalBase: true,
         gainAmount: true,
+        source: true,
       },
     });
 
-    /*
-    if (snapshots.length > 0) {
-      // ── Camino principal: snapshots exactos por cuenta ────────────────────
-      const data: ChartPoint[] = snapshots.map((snap) => {
+    // ── 4. Snapshots (Fase 1): solo si existen datos HISTORICAL cargados via Wizard ──
+    // Los snapshots SYSTEM tienen datos mezclados de pruebas; solo confiamos en
+    // los snapshots HISTORICAL que el superadmin ha cargado limpiamente.
+    const historicalCount = snapshots.filter((s) => s.source === "HISTORICAL").length;
+
+    if (historicalCount > 0) {
+      // ── snapshotData: snapshots históricos agrupados por día (para gráfica $) ──
+      const grouped = new Map<string, { percentage: number; amount: number; capitalBase: number }>();
+
+      for (const snap of snapshots) {
         const gainAmount = decimalToNumber(snap.gainAmount);
-        // REGLA: userPercentage = percentageRaw * 0.5 — percentageRaw NO se expone
+        const capitalBase = decimalToNumber(snap.capitalBase);
         const userPercentage = decimalToNumber(snap.percentageRaw) * 0.5;
-
-        // Ajuste a zona horaria Colombia (UTC-5) para agrupar en el día correcto
         const localDate = new Date(snap.periodStart.getTime() - 5 * 60 * 60 * 1000);
+        const key = localDate.toISOString().split("T")[0];
 
-        return {
-          period: localDate.toISOString().split("T")[0],
-          percentage: userPercentage,
-          amount: gainAmount,
-          type: gainAmount > 0 ? "GAIN" : gainAmount < 0 ? "LOSS" : "NEUTRAL",
-        };
+        const prev = grouped.get(key) ?? { percentage: 0, amount: 0, capitalBase };
+        grouped.set(key, {
+          percentage: prev.percentage + userPercentage,
+          amount: prev.amount + gainAmount,
+          capitalBase: prev.amount === 0 && prev.percentage === 0 ? capitalBase : prev.capitalBase,
+        });
+      }
+
+      const snapshotData: ChartPoint[] = Array.from(grouped.entries()).map(([period, v]) => ({
+        period,
+        percentage: v.percentage,
+        amount: v.amount,
+        capitalBase: v.capitalBase,
+        type: v.amount > 0 ? "GAIN" : v.amount < 0 ? "LOSS" : "NEUTRAL",
+      }));
+
+      // ── data: performances individuales COMPLETED (para gráfica % — misma fuente que la tabla) ──
+      const targetRoleFilter = account.isHighRisk ? "SOCIO" : "USER";
+      const perfRecords = await prisma.performance.findMany({
+        where: {
+          status: { in: ["COMPLETED", "COMPLETED_HISTORICAL"] },
+          targetRole: targetRoleFilter,
+          ...(cutoff ? { startDate: { gte: cutoff } } : {}),
+        },
+        orderBy: { startDate: "asc" },
+        select: { id: true, startDate: true, percentage: true },
       });
 
+      const capitalBase = decimalToNumber(account.investedCapital);
+      const data: ChartPoint[] = perfRecords
+        .filter((p) => p.percentage !== null)
+        .map((p) => {
+          const userPercentage = decimalToNumber(p.percentage!) * 0.5;
+          const localDate = new Date(p.startDate.getTime() - 5 * 60 * 60 * 1000);
+          return {
+            period: localDate.toISOString().split("T")[0],
+            percentage: userPercentage,
+            amount: capitalBase * (userPercentage / 100),
+            capitalBase,
+            type: userPercentage > 0 ? "GAIN" as const : userPercentage < 0 ? "LOSS" as const : "NEUTRAL" as const,
+          };
+        });
+
       logger.debug(
-        `[performance-chart] ✅ Snapshots — accountId: ${accountId}, puntos: ${data.length}, timeframe: ${timeframe}`
+        `[performance-chart] ✅ Snapshots HISTORICAL — accountId: ${accountId}, snapshotPts: ${snapshotData.length}, perfPts: ${data.length}`
       );
 
       return NextResponse.json({
         accountId,
         timeframe,
         source: "snapshots",
-        data,
-        meta: { totalPoints: data.length, investedCapital: decimalToNumber(account?.investedCapital) },
+        data,           // Performances individuales → gráfica %
+        snapshotData,   // Snapshots históricos   → gráfica $
+        meta: { totalPoints: snapshotData.length, investedCapital: decimalToNumber(account.investedCapital) },
       });
     }
-    */
 
     // ── 5. Fallback: Performance global (mientras no hay snapshots) ───────────────
     // isHighRisk de la cuenta determina el targetRole exclusivo:
@@ -204,6 +246,7 @@ export async function GET(
           period: localDate.toISOString().split("T")[0],
           percentage: userPercentage,
           amount: estimatedGain,
+          capitalBase,   // mismo capital base para todos (fallback sin historial)
           type: estimatedGain > 0 ? "GAIN" : estimatedGain < 0 ? "LOSS" : "NEUTRAL",
         };
       });

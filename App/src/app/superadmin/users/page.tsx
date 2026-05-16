@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Users,
   RefreshCw,
@@ -14,7 +14,10 @@ import {
   Trash2,
   AlertTriangle,
   MinusCircle,
+  History,
+  Search,
 } from "lucide-react";
+import { HistoricalWizard } from "@/components/superadmin/HistoricalWizard";
 import {
   getUsers,
   toggleAccountRole,
@@ -297,7 +300,15 @@ export default function UsersManagementPage() {
   const [createAccountName, setCreateAccountName] = useState("");
   const [createAccountAmount, setCreateAccountAmount] = useState("");
   const [createAccountIsAR, setCreateAccountIsAR] = useState(false);
+  const [createAccountLoadHistory, setCreateAccountLoadHistory] = useState(false);
+
+  // Historical Wizard
+  const [historicalAccount, setHistoricalAccount] = useState<{ id: string; name: string; investedCapital: number; createdAt: string } | null>(null);
   const [creatingAccount, setCreatingAccount] = useState(false);
+
+  // ── Filtros de la tabla de usuarios ──────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterRole, setFilterRole]   = useState<string>("ALL");
 
   // ── Feedback auto-dismiss ──
   useEffect(() => {
@@ -305,6 +316,18 @@ export default function UsersManagementPage() {
     const t = setTimeout(() => setFeedback(null), 4000);
     return () => clearTimeout(t);
   }, [feedback]);
+
+  // ── Usuarios filtrados (búsqueda + rol) ──────────────────────────────────────────
+  const filteredUsers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return users.filter((u) => {
+      const matchesRole = filterRole === "ALL" || u.role === filterRole;
+      if (!matchesRole) return false;
+      if (!q) return true;
+      const fullName = `${u.firstName} ${u.paternalSurname} ${u.maternalSurname ?? ""}`.toLowerCase();
+      return fullName.includes(q) || u.email.toLowerCase().includes(q);
+    });
+  }, [users, searchQuery, filterRole]);
 
   // ── Load users ──
   const loadUsers = useCallback(async () => {
@@ -358,6 +381,7 @@ export default function UsersManagementPage() {
     setCreateAccountName("");
     setCreateAccountAmount("");
     setCreateAccountIsAR(false);
+    setCreateAccountLoadHistory(false);
   };
 
   // ── OPEN CREATE ──
@@ -431,6 +455,7 @@ export default function UsersManagementPage() {
     setCreateAccountName("");
     setCreateAccountAmount("");
     setCreateAccountIsAR(false);
+    setCreateAccountLoadHistory(false);
     setModalMode("createAccount");
   };
 
@@ -575,6 +600,16 @@ export default function UsersManagementPage() {
     if (result.success) {
       closeModal();
       loadUsers();
+      // Si el superadmin marcó "cargar historial", abrir el Wizard con la nueva cuenta
+      if (createAccountLoadHistory && result.accountId) {
+        const amount2 = createAccountAmount ? parseFloat(createAccountAmount) : 0;
+        setHistoricalAccount({
+          id: result.accountId,
+          name: createAccountName,
+          investedCapital: isNaN(amount2) ? 0 : amount2,
+          createdAt: new Date().toISOString(), // cuenta recién creada
+        });
+      }
     }
   };
 
@@ -706,15 +741,72 @@ export default function UsersManagementPage() {
         </div>
       </div>
 
+      {/* ── Barra de búsqueda y filtros ── */}
+      <div style={{
+        display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center",
+        marginBottom: 4,
+      }}>
+        {/* Buscador por nombre/email */}
+        <div style={{ position: "relative", flex: "1 1 260px", minWidth: 220 }}>
+          <Search size={15} color="#bd8e48" style={{
+            position: "absolute", left: 13, top: "50%",
+            transform: "translateY(-50%)", opacity: 0.7, pointerEvents: "none",
+          }} />
+          <input
+            id="user-search"
+            type="text"
+            placeholder="Buscar por nombre o email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: "100%", boxSizing: "border-box",
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(189,142,72,0.2)",
+              borderRadius: 10, color: "#fff",
+              fontSize: "0.88rem", padding: "10px 14px 10px 38px",
+              outline: "none", transition: "border-color 0.2s",
+            }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "#bd8e48")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(189,142,72,0.2)")}
+          />
+        </div>
+
+        {/* Filtro por rol */}
+        <select
+          id="user-role-filter"
+          value={filterRole}
+          onChange={(e) => setFilterRole(e.target.value)}
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(189,142,72,0.2)",
+            borderRadius: 10, color: "#fff",
+            fontSize: "0.88rem", padding: "10px 14px",
+            outline: "none", cursor: "pointer",
+            minWidth: 160,
+          }}
+        >
+          <option value="ALL" style={{ background: "#111" }}>Todos los roles</option>
+          <option value="USER" style={{ background: "#111" }}>Usuario</option>
+          <option value="SOCIO" style={{ background: "#111" }}>Socio</option>
+          <option value="ADMIN" style={{ background: "#111" }}>Admin</option>
+          <option value="SUPER_ADMIN" style={{ background: "#111" }}>Super Admin</option>
+        </select>
+
+        {/* Contador de resultados */}
+        {(searchQuery || filterRole !== "ALL") && (
+          <span style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>
+            {filteredUsers.length} resultado{filteredUsers.length !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
       {/* ── Table ── */}
-      <div
-        style={{
-          background: "#080808",
-          borderRadius: "16px",
-          border: "1px solid rgba(189,142,72,0.2)",
-          padding: "24px",
-        }}
-      >
+      <div style={{
+        background: "#080808",
+        borderRadius: "16px",
+        border: "1px solid rgba(189,142,72,0.2)",
+        padding: "24px",
+      }}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "60px", color: "#555" }}>
             <RefreshCw size={28} style={{ animation: "spin 1s linear infinite", marginBottom: 12 }} />
@@ -750,17 +842,19 @@ export default function UsersManagementPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.length === 0 ? (
+                {filteredUsers.length === 0 ? (
                   <tr>
                     <td
                       colSpan={8}
                       style={{ textAlign: "center", padding: "50px", color: "#555" }}
                     >
-                      No hay usuarios registrados.
+                      {users.length === 0
+                        ? "No hay usuarios registrados."
+                        : "Ningún usuario coincide con los filtros."}
                     </td>
                   </tr>
                 ) : (
-                  users.map((user) => {
+                  filteredUsers.map((user) => {
                     const roleColors = getRoleBadgeColor(user.role);
                     const isExpanded = expandedUsers.has(user.id);
                     const accountCount = user.accounts?.length || 0;
@@ -849,7 +943,7 @@ export default function UsersManagementPage() {
 
                           {/* Date */}
                           <td style={{ padding: "12px 10px", color: "rgba(255,255,255,0.45)", fontSize: "0.82rem" }}>
-                            {user.createdAt.toLocaleDateString()}
+                            {user.createdAt.toLocaleDateString("es-ES")}
                           </td>
 
                           {/* Actions */}
@@ -959,7 +1053,7 @@ export default function UsersManagementPage() {
                                 </td>
                                 {/* Columna de Fecha */}
                                 <td style={{ padding: "10px", color: "rgba(255,255,255,0.35)", fontSize: "0.78rem" }}>
-                                  {account.createdAt.toLocaleDateString()}
+                                  {account.createdAt.toLocaleDateString("es-ES")}
                                 </td>
                                 {/* Columna de Acciones */}
                                 <td style={{ padding: "10px" }}>
@@ -1045,6 +1139,41 @@ export default function UsersManagementPage() {
                                       <MinusCircle size={12} />
                                       -$
                                     </button>
+                                    {/* Carga Histórica — solo para cuentas de Inversión */}
+                                    {isInvestment && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setHistoricalAccount({
+                                            id: account.id,
+                                            name: account.name,
+                                            investedCapital: Number(account.investedCapital),
+                                            createdAt: account.createdAt instanceof Date
+                                              ? account.createdAt.toISOString()
+                                              : String(account.createdAt),
+                                          });
+                                        }}
+                                        title="Cargar historial histórico"
+                                        style={{
+                                          padding: "5px 8px",
+                                          backgroundColor: "rgba(99,102,241,0.1)",
+                                          border: "1px solid rgba(99,102,241,0.3)",
+                                          borderRadius: "6px",
+                                          color: "#818cf8",
+                                          cursor: "pointer",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "4px",
+                                          fontSize: "0.75rem",
+                                          fontWeight: 600,
+                                          transition: "all 0.2s",
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(99,102,241,0.2)")}
+                                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "rgba(99,102,241,0.1)")}
+                                      >
+                                        <History size={12} />
+                                      </button>
+                                    )}
                                     {/* Eliminar cuenta */}
                                     <button
                                       onClick={(e) => {
@@ -1983,6 +2112,53 @@ export default function UsersManagementPage() {
                 </div>
               </div>
             )}
+            {/* Checkbox: Cargar historial histórico */}
+            <div
+              style={{
+                marginBottom: "16px",
+                padding: "12px 14px",
+                background: createAccountLoadHistory
+                  ? "rgba(99,102,241,0.08)"
+                  : "rgba(255,255,255,0.03)",
+                border: `1px solid ${createAccountLoadHistory ? "rgba(99,102,241,0.35)" : "rgba(255,255,255,0.08)"}`,
+                borderRadius: "8px",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+              onClick={() => setCreateAccountLoadHistory((v) => !v)}
+            >
+              <div
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: 4,
+                  border: `2px solid ${createAccountLoadHistory ? "#818cf8" : "rgba(255,255,255,0.25)"}`,
+                  backgroundColor: createAccountLoadHistory ? "#818cf8" : "transparent",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  transition: "all 0.2s",
+                }}
+              >
+                {createAccountLoadHistory && (
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                    <path d="M1 4L3.5 6.5L9 1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </div>
+              <div>
+                <p style={{ margin: 0, color: createAccountLoadHistory ? "#818cf8" : "#fff", fontSize: "0.88rem", fontWeight: 600 }}>
+                  Cargar historial histórico
+                </p>
+                <p style={{ margin: 0, color: "rgba(255,255,255,0.4)", fontSize: "0.75rem", marginTop: 2 }}>
+                  Abre el Wizard de Carga Histórica al crear la cuenta
+                </p>
+              </div>
+            </div>
             {/* Nota informativa */}
             <div
               style={{
@@ -2058,6 +2234,15 @@ export default function UsersManagementPage() {
           to   { transform: rotate(360deg); }
         }
       `}</style>
+
+      {/* ── Wizard de Carga Histórica ── */}
+      {historicalAccount && (
+        <HistoricalWizard
+          account={historicalAccount}
+          onClose={() => setHistoricalAccount(null)}
+          onSuccess={() => { setHistoricalAccount(null); loadUsers(); }}
+        />
+      )}
     </div>
   );
 }

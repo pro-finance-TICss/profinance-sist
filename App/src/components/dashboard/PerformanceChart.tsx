@@ -24,6 +24,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
+import { getDashboardPerformances } from "@/lib/actions/performance";
 
 // ============================================================================
 // TIPOS
@@ -33,6 +34,7 @@ interface RawPerformancePoint {
   period: string;       // "YYYY-MM-DD"
   percentage: number;
   amount: number;
+  capitalBase: number;  // capital al inicio de este evento
   type: "GAIN" | "LOSS" | "NEUTRAL";
 }
 
@@ -40,7 +42,8 @@ interface PerformanceApiResponse {
   accountId: string;
   timeframe: string;
   source: "snapshots" | "fallback" | "none";
-  data: RawPerformancePoint[];
+  data: RawPerformancePoint[];        // Performance individuales → para gráfica %
+  snapshotData?: RawPerformancePoint[]; // Snapshots históricos → para tendencia $
   meta?: { message?: string; note?: string; totalPoints?: number; investedCapital?: number };
 }
 
@@ -77,6 +80,9 @@ interface DetailApiResponse {
 export interface PerformanceChartProps {
   accountId: string;
   accountType: "SAVINGS" | "INVESTMENT";
+  isHighRisk?: boolean;
+  /** ISO string o "YYYY-MM-DD" — para bloquear meses anteriores a la creación */
+  accountCreatedAt?: string;
   selectedMonth?: string;
   onMonthChange?: (month: string) => void;
 }
@@ -380,12 +386,16 @@ function HeaderBar({ accountType, mode, onToggle, selectedMonth, onMonthChange, 
 // COMPONENTE PRINCIPAL
 // ============================================================================
 
-export function PerformanceChart({ accountId, accountType, selectedMonth, onMonthChange }: PerformanceChartProps) {
+export function PerformanceChart({ accountId, accountType, isHighRisk, accountCreatedAt, selectedMonth, onMonthChange }: PerformanceChartProps) {
   const [mode, setMode] = useState<"amount" | "percentage">("amount");
 
-  // Datos crudos del API, sin procesar
-  const [rawData, setRawData] = useState<RawPerformancePoint[]>([]);
+  // Datos para la gráfica de TENDENCIA ($) — del API del chart
+  const [rawData, setRawData] = useState<RawPerformancePoint[]>([]); // Performances individuales (para %)
+  const [snapshotData, setSnapshotData] = useState<RawPerformancePoint[]>([]); // Snapshots históricos (para $)
   const [investedCapital, setInvestedCapital] = useState<number>(0);
+
+  // Datos para la gráfica de PORCENTAJE (%) — misma fuente que la tabla
+  const [perfData, setPerfData] = useState<Array<{ startDate: string; percentage: number }>>([]);
 
   // Para cuentas SAVINGS: puntos de tendencia directo
   const [savingsTrend, setSavingsTrend] = useState<TrendPoint[]>([]);
@@ -416,7 +426,8 @@ export function PerformanceChart({ accountId, accountType, selectedMonth, onMont
       }
       // Guardar capital base para el cálculo de tendencia
       setInvestedCapital(json.meta?.investedCapital ?? 0);
-      setRawData(json.data);
+      setRawData(json.data);  // Performances individuales → gráfica %
+      setSnapshotData(json.snapshotData ?? json.data); // Snapshots → gráfica $
       setStatus("success");
     } catch {
       setStatus("empty");
@@ -468,57 +479,97 @@ export function PerformanceChart({ accountId, accountType, selectedMonth, onMont
     }
   }, [accountId]);
 
-  useEffect(() => {
-    if (accountType === "INVESTMENT") fetchInvestmentChart();
-    else fetchSavingsChart();
-  }, [accountType, fetchInvestmentChart, fetchSavingsChart]);
+  // Fetch performances para gráfica de % (misma fuente que la tabla)
+  const fetchPerfData = useCallback(async () => {
+    if (accountType !== "INVESTMENT") return;
+    try {
+      const res = await getDashboardPerformances(isHighRisk ?? false);
+      setPerfData(res.map((r: any) => ({
+        startDate: r.startDate instanceof Date ? r.startDate.toISOString() : String(r.startDate),
+        percentage: r.percentage as number, // ya es userPercentage (raw/2)
+      })));
+    } catch {
+      // silenciar; la gráfica $ sigue funcionando
+    }
+  }, [accountType, isHighRisk]);
 
-  // ── Puntos para gráfica de TENDENCIA ($) ─────────────────────────────────────────
-  // Mismo patrón que la gráfica de %:
-  //   - Rellena todos los días del mes seleccionado
-  //   - Carry-forward del total (si no hay dato ese día, mantiene el anterior)
-  //   - Parte desde investedCapital y suma las ganancias acumuladas
+  useEffect(() => {
+    if (accountType === "INVESTMENT") {
+      fetchInvestmentChart();
+      fetchPerfData();
+    } else {
+      fetchSavingsChart();
+    }
+  }, [accountType, fetchInvestmentChart, fetchSavingsChart, fetchPerfData]);
+
+  // ── Puntos para gráfica de TENDENCIA ($) ──────────────────────────────────
   const trendPoints = useMemo((): TrendPoint[] => {
     if (accountType !== "INVESTMENT") {
       return savingsTrend.map((p, i) => ({ day: p.day ?? i + 1, label: p.label, total: p.total }));
     }
 
     if (!selectedMonth) return [];
+
+    // Si el mes seleccionado es ANTERIOR al mes de creación de la cuenta → no hay datos
+    if (accountCreatedAt) {
+      const createdYM = accountCreatedAt.substring(0, 7); // "YYYY-MM"
+      if (selectedMonth < createdYM) return [];
+    }
+
     const [y, m] = selectedMonth.split("-").map(Number);
 
-    // Mapa día → suma de ganancias ese día
-    const gainMap = new Map<number, number>();
-    rawData
+    // Para la tendencia $ usamos snapshotData (datos históricos exactos si existen)
+    const events = snapshotData
       .filter((p) => p.period.substring(0, 7) === selectedMonth)
-      .forEach((p) => {
-        const day = parseInt(p.period.split("-")[2], 10);
-        gainMap.set(day, (gainMap.get(day) ?? 0) + (p.amount ?? 0));
-      });
+      .sort((a, b) => a.period.localeCompare(b.period));
+
+    // Si no hay ningún snapshot ni performance en este mes, no mostrar línea falsa
+    if (events.length === 0) return [];
+
+    // Capital de inicio del mes: capitalBase del primer evento
+    const startingCapital = events[0].capitalBase;
+
+    // Mapa día → suma de ganancias ($) ese día
+    const gainMap = new Map<number, number>();
+    events.forEach((p) => {
+      const day = parseInt(p.period.split("-")[2], 10);
+      gainMap.set(day, (gainMap.get(day) ?? 0) + (p.amount ?? 0));
+    });
 
     const daysInMonth = new Date(y, m, 0).getDate();
-    let running = investedCapital; // parte desde el capital real de la cuenta
+    let running = startingCapital;
     const result: TrendPoint[] = [];
     for (let day = 1; day <= daysInMonth; day++) {
       running += gainMap.get(day) ?? 0;
       result.push({ day, label: String(day), total: running });
     }
     return result;
-  }, [rawData, selectedMonth, accountType, savingsTrend, investedCapital]);
+  }, [snapshotData, selectedMonth, accountType, savingsTrend, accountCreatedAt]);
 
 
   // ── Puntos para gráfica de PORCENTAJE (%) ────────────────────────────────
-  // Agrupa por día sumando porcentajes, rellena todos los días del mes con 0
+  // Usa EXACTAMENTE la misma fuente y lógica de fecha que PerformanceTable
   const dayPoints = useMemo((): DayPoint[] => {
     if (!selectedMonth) return [];
-    const [y, m] = selectedMonth.split("-").map(Number);
 
+    // Si el mes es anterior a la creación de la cuenta → nada que mostrar
+    if (accountCreatedAt) {
+      const createdYM = accountCreatedAt.substring(0, 7);
+      if (selectedMonth < createdYM) return [];
+    }
+
+    const [y, m] = selectedMonth.split("-").map(Number);
     const dayMap = new Map<number, number>();
 
-    rawData
-      .filter((p) => p.period.substring(0, 7) === selectedMonth)
+    perfData
+      .filter((p) => {
+        const d = new Date(p.startDate);
+        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        return ym === selectedMonth;
+      })
       .forEach((p) => {
-        const day = parseInt(p.period.split("-")[2], 10);
-        dayMap.set(day, (dayMap.get(day) ?? 0) + (p.percentage ?? 0));
+        const day = new Date(p.startDate).getDate();
+        dayMap.set(day, (dayMap.get(day) ?? 0) + p.percentage);
       });
 
     const daysInMonth = new Date(y, m, 0).getDate();
@@ -527,7 +578,7 @@ export function PerformanceChart({ accountId, accountType, selectedMonth, onMont
       result.push({ day, value: dayMap.get(day) ?? 0 });
     }
     return result;
-  }, [rawData, selectedMonth]);
+  }, [perfData, selectedMonth, accountCreatedAt]);
 
   const hasPctData = dayPoints.some((p) => p.value !== 0);
 

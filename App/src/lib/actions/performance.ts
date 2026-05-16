@@ -38,26 +38,35 @@ export interface CreatePerformanceInput {
  *
  * @param isHighRisk - Si la cuenta activa es de Alto Riesgo (AR)
  */
+// ── Helpers de fecha ────────────────────────────────────────────────────────
+
+/**
+ * Retorna true si la fecha dada pertenece a un mes anterior al mes actual.
+ * Ej: hoy es mayo-2026 y la fecha es marzo-2026 → true
+ */
+function isPastMonth(date: Date): boolean {
+  const now = new Date();
+  const nowYM  = now.getFullYear()  * 12 + now.getMonth();
+  const dateYM = date.getFullYear() * 12 + date.getMonth();
+  return dateYM < nowYM;
+}
+
 export async function getDashboardPerformances(isHighRisk?: boolean) {
   const session = await auth();
   if (!session?.user) return [];
 
-  // isHighRisk define exclusivamente qué rendimientos ve esta cuenta:
-  // false / undefined → targetRole USER (cuenta normal)
-  // true              → targetRole SOCIO (cuenta AR)
   const targetRole = isHighRisk ? "SOCIO" : "USER";
 
   const perfs = await prisma.performance.findMany({
     where: {
       targetRole,
-      status: "COMPLETED"
+      // Incluir tanto registros normales como históricos concretados
+      status: { in: ["COMPLETED", "COMPLETED_HISTORICAL"] },
     },
     orderBy: { startDate: "desc" },
     take: 50,
   });
 
-  // Convertir Prisma Decimal a número para serialización segura en el cliente
-  // El porcentaje se divide entre 2 (el usuario ve la mitad del rendimiento real del admin)
   return perfs.map(p => ({
     ...p,
     percentage: p.percentage ? p.percentage.toNumber() / 2 : 0,
@@ -96,6 +105,13 @@ export async function createPerformance(data: CreatePerformanceInput) {
     throw new Error("No autorizado");
   }
 
+  const startDate = data.startDate || new Date();
+
+  // Si la fecha pertenece a un mes anterior al actual, marcar como histórico.
+  // Estos registros NO se aplican automáticamente al abrir el periodo;
+  // requieren un recálculo manual via el Wizard de Carga Histórica.
+  const status = isPastMonth(startDate) ? "PENDING_HISTORICAL" : "PENDING";
+
   await prisma.performance.create({
     data: {
       currency1: data.currency1,
@@ -103,8 +119,8 @@ export async function createPerformance(data: CreatePerformanceInput) {
       type: data.type,
       percentage: null,
       targetRole: data.targetRole,
-      startDate: data.startDate || new Date(),
-      status: "PENDING",
+      startDate,
+      status,
     },
   });
 
@@ -136,17 +152,22 @@ export async function finalizePerformance(id: string, endDate: Date, percentage:
     return { success: false, message: "Registro no encontrado" };
   }
 
-  if (performance.status === "COMPLETED") {
+  if (performance.status === "COMPLETED" || performance.status === "COMPLETED_HISTORICAL") {
     return { success: false, message: "Este registro ya ha sido concretado" };
   }
 
+  // PENDING_HISTORICAL → COMPLETED_HISTORICAL (NO se aplica automáticamente al abrir periodo)
+  // PENDING            → COMPLETED            (se aplica al abrir periodo normalmente)
+  const nextStatus =
+    performance.status === "PENDING_HISTORICAL"
+      ? "COMPLETED_HISTORICAL"
+      : "COMPLETED";
+
   try {
-    // Solo actualizar el registro: guardar % y marcar como COMPLETED.
-    // No se toca ningún balance — el dinero se aplica al descongelar el periodo.
     await prisma.performance.update({
       where: { id },
       data: {
-        status: "COMPLETED",
+        status: nextStatus,
         endDate,
         percentage,
       },
@@ -154,7 +175,13 @@ export async function finalizePerformance(id: string, endDate: Date, percentage:
 
     revalidatePath("/dashboard");
     revalidatePath("/superadmin");
-    return { success: true, message: "Rendimiento registrado. Se aplicará a las cuentas al descongelar el periodo." };
+
+    const msg =
+      nextStatus === "COMPLETED_HISTORICAL"
+        ? "Rendimiento histórico registrado. Usa el Wizard de Carga Histórica para aplicarlo a las cuentas."
+        : "Rendimiento registrado. Se aplicará a las cuentas al descongelar el periodo.";
+
+    return { success: true, message: msg };
   } catch (error) {
     console.error("Error finalizePerformance:", error);
     return { success: false, message: "Ocurrió un error al concretar el rendimiento." };

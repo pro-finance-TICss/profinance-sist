@@ -771,6 +771,8 @@ export function AccountDetail({ accountId }: AccountDetailProps) {
       <PerformanceChart
         accountId={accountId}
         accountType={data.type}
+        isHighRisk={!!data.isHighRisk}
+        accountCreatedAt={data.createdAt}
         selectedMonth={selectedMonth}
         onMonthChange={data.type === "INVESTMENT" ? setSelectedMonth : undefined}
       />

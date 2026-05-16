@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Search, Bell, ShieldCheck } from "lucide-react";
+import { Bell, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 // Reusamos el componente de notificaciones o creamos uno simple si no es necesario
 // Para mantener consistencia visual, lo dejaremos estático o lo importaremos si funciona igual.
@@ -56,40 +56,6 @@ export const AdminHeader = ({
         >
           PANEL DE ADMINISTRACIÓN
         </span>
-      </div>
-
-      {/* 2. BUSCADOR (Visual) */}
-      <div style={{ flex: 0.4, position: "relative" }}>
-        <Search
-          size={16}
-          color="#bd8e48"
-          style={{
-            position: "absolute",
-            left: "15px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            opacity: 0.6,
-          }}
-        />
-        <input
-          type="text"
-          placeholder="Buscar usuarios, tickets, registros..."
-          style={{
-            width: "100%",
-            backgroundColor: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(189, 142, 72, 0.15)",
-            borderRadius: "12px",
-            padding: "12px 15px 12px 45px",
-            color: "#fff",
-            fontSize: "0.85rem",
-            outline: "none",
-            transition: "all 0.3s ease",
-          }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = "#bd8e48")}
-          onBlur={(e) =>
-            (e.currentTarget.style.borderColor = "rgba(189, 142, 72, 0.15)")
-          }
-        />
       </div>
 
       {/* 3. PERFIL */}

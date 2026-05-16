@@ -217,7 +217,7 @@ export function AdminTicketList({ tickets }: AdminTicketListProps) {
               <span style={{ color: "white" }}>{ticket.user.email}</span>
             </div>
             <div style={{ color: "#666", fontSize: "0.8rem" }}>
-              ID: {ticket.id} • {new Date(ticket.createdAt).toLocaleString()}
+              ID: {ticket.id} • {new Date(ticket.createdAt).toLocaleString("es-ES")}
             </div>
           </div>
 
@@ -357,7 +357,7 @@ export function AdminTicketList({ tickets }: AdminTicketListProps) {
                       }}
                     >
                       {msg.isAdmin ? "Tú (Admin)" : "Usuario"} •{" "}
-                      {new Date(msg.createdAt).toLocaleTimeString()}
+                      {new Date(msg.createdAt).toLocaleTimeString("es-ES")}
                     </div>
                     <div>{msg.message}</div>
                   </div>

@@ -67,7 +67,7 @@ function PerformanceBarChart({
     const dayMap = new Map<string, number>();
 
     performances
-      .filter(p => p.status === "COMPLETED" && p.percentage != null)
+      .filter(p => (p.status === "COMPLETED" || p.status === "COMPLETED_HISTORICAL") && p.percentage != null)
       .forEach(p => {
         const d = p.startDate;
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -318,16 +318,20 @@ export default function PerformancePage() {
   };
 
   const filteredPerformances = performances.filter((item) => {
-    // Filter by the selected month using startDate
+    if (selectedMonth === "all") return true;
     const yyyyMm = `${item.startDate.getFullYear()}-${String(item.startDate.getMonth() + 1).padStart(2, '0')}`;
     return yyyyMm === selectedMonth;
   });
 
-  // Calculate total percentage for current filtered items
-  const totalPercentage = filteredPerformances.reduce(
-    (sum, item) => sum + (item.percentage || 0),
-    0
-  );
+  // Total solo de registros concretados (sin importar si son históricos o no)
+  const totalPercentage = filteredPerformances
+    .filter(item => item.status === "COMPLETED" || item.status === "COMPLETED_HISTORICAL")
+    .reduce((sum, item) => sum + (item.percentage || 0), 0);
+
+  // Contador de históricos pendientes de concretar (alerta)
+  const pendingHistoricalCount = performances.filter(
+    (p) => p.status === "PENDING_HISTORICAL"
+  ).length;
 
   // Month options (last 12 months for example)
   const monthOptions: { value: string; label: string }[] = [];
@@ -385,6 +389,28 @@ export default function PerformancePage() {
           Nuevo Registro
         </button>
       </div>
+
+      {/* ⚠️ Banner: performances históricas sin concretar */}
+      {pendingHistoricalCount > 0 && (
+        <div style={{
+          display: "flex", alignItems: "flex-start", gap: 12,
+          padding: "14px 18px",
+          background: "rgba(234,179,8,0.07)",
+          border: "1px solid rgba(234,179,8,0.3)",
+          borderRadius: 12, marginBottom: 24,
+        }}>
+          <span style={{ fontSize: "1.2rem", flexShrink: 0 }}>⏳</span>
+          <div>
+            <p style={{ margin: 0, fontWeight: 700, color: "#eab308", fontSize: "0.9rem" }}>
+              {pendingHistoricalCount} registro{pendingHistoricalCount > 1 ? "s" : ""} histórico{pendingHistoricalCount > 1 ? "s" : ""} sin concretar
+            </p>
+            <p style={{ margin: "4px 0 0", color: "rgba(255,255,255,0.5)", fontSize: "0.8rem", lineHeight: 1.5 }}>
+              Estos registros tienen fecha pasada y <strong style={{ color: "#eab308" }}>no se aplican automáticamente</strong> al abrir el periodo.
+              Concrétalos y luego usa el <strong style={{ color: "#eab308" }}>Wizard de Carga Histórica</strong> en la cuenta correspondiente para aplicarlos.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div
@@ -811,16 +837,29 @@ export default function PerformancePage() {
                         {item.endDate ? item.endDate.toLocaleDateString("es-ES") : "—"}
                       </td>
                       <td style={{ padding: "12px", textAlign: "center" }}>
-                        {item.status === 'PENDING' ? (
+                        {item.status === 'PENDING' && (
                           <span style={{
-                            color: '#eab308', background: 'rgba(234, 179, 8, 0.15)',
+                            color: '#eab308', background: 'rgba(234,179,8,0.15)',
                             padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold'
                           }}>En Espera</span>
-                        ) : (
+                        )}
+                        {item.status === 'PENDING_HISTORICAL' && (
                           <span style={{
-                            color: '#10b981', background: 'rgba(16, 185, 129, 0.15)',
+                            color: '#f97316', background: 'rgba(249,115,22,0.15)',
+                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold'
+                          }}>Histórico — Sin Concretar</span>
+                        )}
+                        {item.status === 'COMPLETED' && (
+                          <span style={{
+                            color: '#10b981', background: 'rgba(16,185,129,0.15)',
                             padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold'
                           }}>Concretado</span>
+                        )}
+                        {item.status === 'COMPLETED_HISTORICAL' && (
+                          <span style={{
+                            color: '#818cf8', background: 'rgba(99,102,241,0.15)',
+                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold'
+                          }}>Histórico — Concretado</span>
                         )}
                       </td>
                       <td
@@ -828,16 +867,18 @@ export default function PerformancePage() {
                           padding: "12px",
                           textAlign: "center",
                           fontWeight: "bold",
-                          color: item.status === 'COMPLETED' ? (item.percentage! >= 0 ? "#10b981" : "#ef4444") : "rgba(255,255,255,0.3)",
+                          color: (item.status === 'COMPLETED' || item.status === 'COMPLETED_HISTORICAL')
+                            ? (item.percentage! >= 0 ? "#10b981" : "#ef4444")
+                            : "rgba(255,255,255,0.3)",
                         }}
                       >
-                        {item.status === 'COMPLETED' ? (
+                        {(item.status === 'COMPLETED' || item.status === 'COMPLETED_HISTORICAL') ? (
                           <>{item.percentage! > 0 ? "+" : ""}{item.percentage}%</>
                         ) : "-"}
                       </td>
                       <td style={{ padding: "12px" }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                          {item.status === 'PENDING' && (
+                          {(item.status === 'PENDING' || item.status === 'PENDING_HISTORICAL') && (
                             <button
                               onClick={() => setFinalizeId(item.id)}
                               style={{
@@ -858,9 +899,9 @@ export default function PerformancePage() {
                             </button>
                           )}
                           <button
-                            title={item.status === 'COMPLETED' ? "Eliminar registro concretado (los saldos NO se revierten automáticamente)" : "Eliminar registro"}
+                            title={(item.status === 'COMPLETED' || item.status === 'COMPLETED_HISTORICAL') ? "Eliminar registro concretado (los saldos NO se revierten automáticamente)" : "Eliminar registro"}
                             onClick={() => {
-                              const msg = item.status === 'COMPLETED'
+                              const msg = (item.status === 'COMPLETED' || item.status === 'COMPLETED_HISTORICAL')
                                 ? `⚠️ ATENCIÓN: Este registro ya fue CONCRETADO.\n\nEl rendimiento ya fue aplicado a los balances de las cuentas y NO se revertirá automáticamente.\n\nDeberás quitar el dinero manualmente desde Gestión de Usuarios.\n\n¿Confirmas eliminar el registro?`
                                 : `¿Confirmas eliminar este registro de rendimiento?`;
                               if (window.confirm(msg)) handleDelete(item.id);

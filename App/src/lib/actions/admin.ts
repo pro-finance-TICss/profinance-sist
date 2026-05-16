@@ -653,6 +653,9 @@ export async function updateGlobalWithdrawalSettings(isEnabled: boolean) {
         );
 
         // Obtener todos los rendimientos COMPLETED de una vez (evita N+1 queries)
+        // NOTA: status "COMPLETED_HISTORICAL" se excluye intencionalmente —
+        // esos registros son de fechas pasadas y deben aplicarse via Wizard de Carga Histórica,
+        // no automáticamente al abrir el periodo actual.
         const allCompletedPerfs = await tx.performance.findMany({
           where: { status: "COMPLETED" },
         });

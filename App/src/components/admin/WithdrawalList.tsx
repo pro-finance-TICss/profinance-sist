@@ -148,7 +148,7 @@ function WithdrawalCard({
             style={{ marginTop: "4px", fontSize: "0.8rem", color: "#555" }}
             suppressHydrationWarning
           >
-            {new Date(req.requestedAt).toLocaleString()} • P. Balance: $
+            {new Date(req.requestedAt).toLocaleString("es-ES")} • P. Balance: $
             {parseFloat(String(req.user.investedCapital)).toLocaleString()}
           </div>
         </div>
@@ -216,7 +216,12 @@ function WithdrawalCard({
                 fontWeight: "bold",
               }}
             >
-              {req.status === "COMPLETED" ? "COMPLETADO" : req.status}
+              {req.status === "COMPLETED" ? "COMPLETADO" :
+               req.status === "PENDING" ? "PENDIENTE" :
+               req.status === "APPROVED" ? "APROBADO" :
+               req.status === "REJECTED" ? "RECHAZADO" :
+               req.status === "REVIEWED" ? "REVISADO" :
+               req.status}
             </div>
           ) : null}
 

@@ -712,6 +712,10 @@ model ReferralReward {
 /// Permite construir gráficos históricos deterministas sin recalcular.
 /// percentageRaw = porcentaje REAL del admin (sin la reducción del 50%).
 /// El frontend NUNCA recibe percentageRaw; solo recibe userPercentage = raw * 0.5.
+///
+/// source = "SYSTEM"     → generado automáticamente al aplicar un Performance global
+/// source = "HISTORICAL" → cargado manualmente por SUPER_ADMIN via Wizard de Carga Histórica
+///                         (puede no tener performanceId vinculado)
 model AccountPerformanceSnapshot {
   /// Identificador único del snapshot
   id            String   @id @default(cuid())
@@ -720,9 +724,10 @@ model AccountPerformanceSnapshot {
   accountId     String
   account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  /// Registro de Performance global que originó este snapshot
-  performanceId String
-  performance   Performance @relation(fields: [performanceId], references: [id], onDelete: Cascade)
+  /// Registro de Performance global que originó este snapshot.
+  /// NULLABLE: es null cuando source = "HISTORICAL" (carga manual desde Excel).
+  performanceId String?
+  performance   Performance? @relation(fields: [performanceId], references: [id], onDelete: SetNull)
 
   /// Inicio del periodo de rendimiento
   periodStart   DateTime
@@ -738,13 +743,23 @@ model AccountPerformanceSnapshot {
   capitalBase   Decimal
 
   /// Monto ganado (positivo) o perdido (negativo)
+  /// Calculado como: capitalBase * (percentageRaw / 100)
   gainAmount    Decimal
 
-  /// Fecha y hora en que se aplicó el rendimiento
+  /// Fuente del snapshot:
+  ///   "SYSTEM"     → creado automáticamente al aplicar un Performance global
+  ///   "HISTORICAL" → cargado manualmente via Wizard de Carga Histórica (SUPER_ADMIN)
+  source        String   @default("SYSTEM")
+
+  /// Nota opcional del superadmin (ej: "Retiro parcial de $500 este mes")
+  note          String?
+
+  /// Fecha y hora en que se aplicó o cargó el rendimiento
   appliedAt     DateTime @default(now())
 
   /// Índices para consultas eficientes de gráficos y auditoría
   @@index([accountId])
   @@index([periodStart])
+  @@index([source])
   @@index([accountId, periodStart]) // compuesto para gráfico por cuenta
 }

@@ -156,7 +156,7 @@ export default async function UsersPage() {
                 <td
                   style={{ padding: "16px", fontSize: "0.9rem", color: "#888" }}
                 >
-                  {new Date(user.createdAt).toLocaleDateString()}
+                  {new Date(user.createdAt).toLocaleDateString("es-ES")}
                 </td>
               </tr>
             ))}
