@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 >
-> ## ⚠️ CONTROL DE CARACTERÍSTICAS (FEATURE FLAGS)
+> ## CONTROL DE CARACTERÍSTICAS (FEATURE FLAGS)
 >
 > Actualmente algunas funciones están deshabilitadas por defecto para controlar el acceso.
 > Para reactivarlas, modifica las constantes `true`/`false` en los siguientes archivos:
@@ -13,10 +13,10 @@
 > - Constante: `REGISTRATIONS_OPEN`
 > - Estado actual: `false` (Muestra mensaje "Registro cerrado")
 >
-> **2. Depósitos en App** _(cambiar en ambos archivos)_
+> **2. Depósitos en App** (cambiar en ambos archivos)
 >
-> - `App/src/components/dashboard/billetera/DepositModal.tsx` → constante `DEPOSITS_ENABLED`
-> - `App/src/components/dashboard/DepositForm.tsx` → constante `DEPOSITS_ENABLED`
+> - `App/src/components/dashboard/billetera/DepositModal.tsx` -> constante `DEPOSITS_ENABLED`
+> - `App/src/components/dashboard/DepositForm.tsx` -> constante `DEPOSITS_ENABLED`
 > - Estado actual: `false` (Muestra mensaje "Contactar administrador")
 
 ---
@@ -32,7 +32,7 @@ ProFinance es una plataforma web avanzada para la gestión de activos financiero
 - **Seguridad Bancaria**: Autenticación 2FA (TOTP), códigos de recuperación, alertas de inicio de sesión y gestión de dispositivos de confianza.
 - **Dashboard Completo**: Visualización de balance, historial de transacciones, rendimientos y notificaciones en tiempo real.
 - **Billetera Digital**: Depósitos vía MercadoPago, retiros con aprobación administrativa, cuentas bancarias encriptadas (AES-256-GCM).
-- **Sistema de Tickets**: Soporte integrado con máquina de estados (Abierto → En Progreso → Resuelto → Cerrado).
+- **Sistema de Tickets**: Soporte integrado con máquina de estados (Abierto -> En Progreso -> Resuelto -> Cerrado).
 - **Panel de Administración**: Gestión de usuarios, aprobación de retiros, configuración global del sistema.
 - **Panel de Super Administrador**: Analíticas de inversión, gestión de rendimientos, control total del sistema.
 - **Roles de Usuario**: USER, SOCIO, ADMIN y SUPER_ADMIN con permisos granulares (RBAC).
@@ -88,69 +88,44 @@ App/
 │   │   │   └── tickets/       # Gestión de tickets
 │   │   ├── superadmin/        # Panel de super administrador (analíticas)
 │   │   └── api/
-│   │       ├── auth/          # Endpoints de autenticación (NextAuth, TOTP, device trust, verify-session)
-│   │       ├── wallet/        # Endpoints de billetera (balance, retiros, cuentas bancarias)
+│   │       ├── auth/          # Endpoints de autenticación
+│   │       ├── wallet/        # Endpoints de billetera
 │   │       ├── mercadopago/   # Webhooks de MercadoPago (depósitos)
 │   │       ├── exchange-rates/# Tasas de cambio en tiempo real
 │   │       ├── accounts/      # CRUD de cuentas financieras (cajitas)
 │   │       ├── user/          # Endpoints de usuario (moneda, sesiones)
-│   │       ├── admin/         # Endpoints de administración (retiros, moneda base)
-│   │       └── superadmin/    # Endpoints de super administrador (analíticas)
+│   │       ├── admin/         # Endpoints de administración
+│   │       └── superadmin/    # Endpoints de super administrador
 │   ├── components/
-│   │   ├── ui/                # Componentes reutilizables (botones, inputs, modales)
-│   │   ├── layout/            # Layout del dashboard (sidebar, header, footer)
-│   │   ├── dashboard/         # Componentes del dashboard (balance, gráficos, tablas, ajustes)
-│   │   ├── auth/              # Componentes de autenticación (login form, TOTP input)
-│   │   ├── security/          # Componentes de seguridad (AuthProvider, SessionValidator, InactivityModal)
+│   │   ├── ui/                # Componentes reutilizables
+│   │   ├── layout/            # Layout del dashboard
+│   │   ├── dashboard/         # Componentes del dashboard
+│   │   ├── auth/              # Componentes de autenticación
+│   │   ├── security/          # Componentes de seguridad
 │   │   ├── admin/             # Componentes del panel admin
-│   │   └── superadmin/        # Componentes del super admin (analíticas)
+│   │   └── superadmin/        # Componentes del super admin
 │   ├── lib/
 │   │   ├── auth.ts            # Configuración central de NextAuth v5
 │   │   ├── auth.config.ts     # Configuración edge-compatible de NextAuth
 │   │   ├── prisma.ts          # Singleton de Prisma Client
 │   │   ├── security.ts        # Utilidades RBAC, máquina de estados, auditoría
 │   │   ├── totp.ts            # Utilidades TOTP (RFC 6238)
-│   │   ├── trusted-device.ts  # Gestión de dispositivos de confianza + parseUserAgent()
-│   │   ├── config.ts          # Configuración dinámica del sistema (SystemSetting)
+│   │   ├── trusted-device.ts  # Gestión de dispositivos de confianza
+│   │   ├── config.ts          # Configuración dinámica del sistema
 │   │   ├── enums.ts           # Enumeraciones y constantes del dominio
 │   │   ├── actions/           # Server Actions
-│   │   │   ├── admin.ts       # Acciones de administración (usuarios, tickets, retiros)
-│   │   │   ├── auth.ts        # Registro, configuración TOTP, QR
-│   │   │   ├── notifications.ts # Gestión de notificaciones
-│   │   │   ├── performance.ts # Gestión de rendimientos (USER/SOCIO)
-│   │   │   ├── recovery-codes.ts # Códigos de recuperación (generación, verificación, rate-limit)
-│   │   │   ├── security-setup.ts # Flujo de configuración de seguridad initial
-│   │   │   ├── superadmin-analytics.ts # Analíticas de inversión por rol
-│   │   │   ├── tickets.ts     # CRUD de tickets de soporte (usuario)
-│   │   │   ├── user-settings.ts # Perfil y cambio de contraseña
-│   │   │   └── wallet-checks.ts # Verificaciones de ventana de retiros y notificaciones
-│   │   ├── logic/
-│   │   │   └── withdrawal-window.ts # Lógica de ventana de retiros (día 1-16)
-│   │   ├── utils/
-│   │   │   ├── currency.ts    # Formateo y parseo de moneda
-│   │   │   ├── encryption.ts  # Encriptación AES-256-GCM (cuentas bancarias)
-│   │   │   └── country-currency-map.ts # Mapeo país → moneda base
-│   │   ├── validations/
-│   │   │   ├── auth.ts        # Schemas Zod para login, registro, 2FA
-│   │   │   └── wallet.ts      # Schemas Zod para billetera y cuentas bancarias
-│   │   └── data/
-│   │       └── banks.ts       # Catálogo de bancos (Colombia, México)
-│   ├── contexts/
-│   │   ├── AccountContext.tsx  # Contexto de cuentas financieras (cajitas)
-│   │   ├── CurrencyContext.tsx # Contexto global de moneda y tasas de cambio
-│   │   └── DashboardContext.tsx # Contexto del dashboard (responsive, sidebar)
-│   ├── hooks/
-│   │   ├── useMediaQuery.ts   # Hook de media queries y breakpoints
-│   │   └── useSessionValidator.ts # Validación periódica de sesión
-│   ├── constants/
-│   │   ├── breakpoints.ts     # Breakpoints centralizados (mobile, tablet, desktop)
-│   │   └── zIndex.ts          # Escala de z-index centralizada
-│   ├── types/
-│   │   └── next-auth.d.ts     # Tipos extendidos de NextAuth (sesión, JWT)
+│   │   ├── logic/             # Lógica de dominio y reglas de negocio
+│   │   ├── utils/             # Utilidades varias (moneda, encriptación)
+│   │   ├── validations/       # Schemas Zod
+│   │   └── data/              # Datos estáticos (bancos, etc.)
+│   ├── contexts/              # Contextos globales de React
+│   ├── hooks/                 # Hooks personalizados
+│   ├── constants/             # Constantes globales
+│   ├── types/                 # Tipos TypeScript compartidos
 │   └── proxy.ts               # Middleware de protección de rutas
 ├── .env.example               # Plantilla de variables de entorno
 ├── .gitignore                 # Archivos excluidos del repositorio
-├── next.config.ts             # Configuración de Next.js (headers de seguridad)
+├── next.config.ts             # Configuración de Next.js
 ├── package.json               # Dependencias y scripts
 └── tsconfig.json              # Configuración de TypeScript
 ```
@@ -162,44 +137,44 @@ App/
 - **NextAuth v5** con JWT firmados (HS256) y cookies HttpOnly/Secure/SameSite.
 - **Sesión única** (Single Session Enforcement) usando `tokenVersion` que invalida tokens anteriores.
 - **Gestión de sesiones activas** con revocación individual desde el dashboard.
-- **Validación periódica** de sesión (cada 30 segundos + al recuperar foco de ventana).
+- **Validación periódica** de sesión (cada 30 segundos y al recuperar foco de ventana).
 - **Detección de dispositivos nuevos** con notificaciones automáticas al usuario.
 - **Inactividad**: Modal de advertencia y cierre automático de sesión por inactividad (30 minutos).
 
 ### Autenticación de Dos Factores (2FA/TOTP)
 
-- Basado en **RFC 6238** (TOTP), compatible con Google Authenticator y apps similares.
-- **Códigos de recuperación** hasheados con bcrypt para acceso de emergencia (8 códigos, rate-limited).
-- **Dispositivos de confianza** que omiten TOTP por 30 días (cookies seguras + token en BD).
-- TOTP obligatorio para usuarios privilegiados (ADMIN/SUPER_ADMIN) y usuarios creados por script.
+- Basado en **RFC 6238** (TOTP), compatible con apps de autenticación estándar.
+- **Códigos de recuperación** hasheados con bcrypt para acceso de emergencia.
+- **Dispositivos de confianza** que omiten TOTP por 30 días.
+- TOTP obligatorio para usuarios privilegiados y creados por script.
 
 ### Control de Acceso (RBAC)
 
-- **4 roles jerárquicos**: USER → SOCIO → ADMIN → SUPER_ADMIN.
+- **4 roles jerárquicos**: USER, SOCIO, ADMIN, SUPER_ADMIN.
 - Verificación de permisos en cada Server Action y ruta API.
-- **Máquina de estados** para retiros y tickets con transiciones unidireccionales validadas.
+- **Máquina de estados** para retiros y tickets con transiciones validadas.
 
 ### Protección de Datos
 
-- **Encriptación AES-256-GCM** para números de cuenta bancaria (solo últimos 4 dígitos visibles).
+- **Encriptación AES-256-GCM** para números de cuenta bancaria.
 - **bcryptjs** con factor de costo 12 para hashing de contraseñas.
-- Variables de entorno para secretos (nunca hardcodeados).
+- Variables de entorno para secretos.
 - **Validación de firma HMAC** en webhooks de MercadoPago para prevenir falsificación.
-- **Validación de inputs** con Zod en cliente y servidor (sanitización contra XSS y SQL injection).
+- **Validación de inputs** con Zod en cliente y servidor.
 
 ### Headers de Seguridad HTTP
 
-- `X-Content-Type-Options: nosniff` — Previene interpretación incorrecta de tipos MIME.
-- `X-Frame-Options: DENY` — Previene ataques de clickjacking (iframe embedding).
-- `X-XSS-Protection: 1; mode=block` — Activa filtro XSS del navegador.
-- `Referrer-Policy: strict-origin-when-cross-origin` — Limita información de referencia.
-- `Permissions-Policy` — Deshabilita APIs sensibles no necesarias (cámara, micrófono, geolocalización).
-- `Cache-Control: no-store` — Previene almacenamiento de páginas protegidas (back button attack).
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `X-XSS-Protection: 1; mode=block`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy` restrictiva.
+- `Cache-Control: no-store` en rutas protegidas.
 
 ### Middleware de Protección de Rutas
 
 - Rutas protegidas: `/dashboard`, `/admin`, `/superadmin`, `/setup-security`, `/settings`, `/profile`.
-- Rutas de guest: `/login`, `/register` (redirige a dashboard si ya está autenticado).
+- Rutas de guest: `/login`, `/register`.
 - Rutas públicas: `/`, `/api`, `/conocenos`.
 - Headers de seguridad aplicados a todas las respuestas.
 
@@ -207,7 +182,7 @@ App/
 
 - Registro de acciones críticas (login, cambio de contraseña, operaciones financieras).
 - Detección de dispositivos nuevos con alertas al usuario.
-- Logs de consola con emojis descriptivos para depuración (solo entorno de desarrollo).
+- Logs de consola estructurados para depuración (solo entorno de desarrollo).
 
 ## Variables de Entorno
 
@@ -217,11 +192,11 @@ Copiar `.env.example` como `.env` y configurar los valores:
 # Base de datos
 DATABASE_URL="file:./dev.db"
 
-# NextAuth.js (generar con: openssl rand -base64 32)
+# NextAuth.js
 NEXTAUTH_SECRET="tu_secreto_seguro"
 NEXTAUTH_URL="http://localhost:3000"
 
-# API URL (para llamadas desde el cliente)
+# API URL
 NEXT_PUBLIC_API_URL="http://localhost:3000/api"
 
 # MercadoPago
@@ -229,8 +204,7 @@ MERCADOPAGO_ACCESS_TOKEN="tu_access_token"
 NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY="tu_public_key"
 MERCADOPAGO_WEBHOOK_SECRET="tu_webhook_secret"
 
-# Encriptación AES-256 para cuentas bancarias (generar con: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-# OBLIGATORIA en producción. En desarrollo se usa clave temporal automática.
+# Encriptación AES-256
 ENCRYPTION_KEY="tu_clave_de_64_caracteres_hex"
 
 # Notificaciones
@@ -245,44 +219,31 @@ npm install
 
 # 2. Configurar variables de entorno
 cp .env.example .env
-# Editar .env con valores reales
 
 # 3. Generar cliente Prisma y ejecutar migraciones
 npx prisma generate
 npx prisma migrate dev
 
-# 4. (Opcional) Crear usuario super administrador
-node prisma/create_superadmin.js
-
-# 5. Iniciar servidor de desarrollo
+# 4. Iniciar servidor de desarrollo
 npm run dev
 ```
-
-## Scripts Disponibles
-
-| Script          | Descripción                                |
-| --------------- | ------------------------------------------ |
-| `npm run dev`   | Inicia el servidor de desarrollo (webpack) |
-| `npm run build` | Construye la aplicación para producción    |
-| `npm run start` | Inicia el servidor de producción           |
-| `npm run lint`  | Ejecuta ESLint para verificar código       |
 
 ## Scripts de Prisma
 
 ```bash
-# Generar cliente de Prisma (después de cambios en schema)
+# Generar cliente de Prisma
 npx prisma generate
 
 # Crear y aplicar migraciones
 npx prisma migrate dev
 
-# Abrir Prisma Studio (interfaz visual de BD)
+# Abrir Prisma Studio
 npx prisma studio
 
-# Crear usuarios con roles específicos
+# Crear usuarios
 node prisma/create_superadmin.js
 node prisma/create_admin.js
-node prisma/create_partner.js    # Crea usuario con rol SOCIO
+node prisma/create_partner.js
 node prisma/create_user.js
 ```
 
@@ -290,35 +251,35 @@ node prisma/create_user.js
 
 ### Flujo de Autenticación
 
-1. Usuario ingresa credenciales → Validación con bcrypt.
-2. Si tiene 2FA habilitado → Solicita código TOTP en la misma vista.
-3. Si el dispositivo es de confianza → Omite TOTP.
-4. Si es un dispositivo nuevo → Registra en auditoría y notifica al usuario.
-5. Si requiere setup de seguridad → Redirige a `/setup-security`.
-6. Sesión creada con JWT extendido (id, role, tokenVersion, sessionId).
+1. Usuario ingresa credenciales, validación con bcrypt.
+2. Solicitud de código TOTP si está habilitado.
+3. Omisión de TOTP si el dispositivo es de confianza.
+4. Registro en auditoría y notificación si es un dispositivo nuevo.
+5. Redirección a configuración de seguridad si es requerido.
+6. Creación de sesión con JWT extendido.
 
 ### Flujo de Retiros
 
-1. Usuario solicita retiro (solo disponible del día 1 al 16 del mes).
-2. Balance se descuenta inmediatamente (transacción atómica Prisma).
-3. Solicitud queda en estado PENDING → REVIEWED → APPROVED → PAID.
-4. Si es rechazada (REJECTED), el balance se reembolsa automáticamente.
-5. Notificaciones enviadas en cada cambio de estado.
+1. Usuario solicita retiro en el periodo habilitado.
+2. Balance descontado inmediatamente.
+3. Solicitud transiciona por estados: PENDING -> REVIEWED -> APPROVED -> PAID.
+4. Reembolso automático si es rechazada.
+5. Notificaciones enviadas en cambios de estado.
 
 ### Flujo de Depósitos (MercadoPago)
 
-1. Usuario crea preferencia de pago desde el dashboard.
-2. MercadoPago procesa el pago y envía webhook.
-3. **Webhook valida firma HMAC** (X-Signature) contra secreto configurado.
-4. Si el pago es aprobado, balance se actualiza y se registra transacción.
-5. Idempotencia: pagos duplicados se ignoran (verificación por `paymentId`).
+1. Usuario crea preferencia de pago.
+2. MercadoPago procesa y envía webhook.
+3. Validación de firma HMAC del webhook.
+4. Actualización de balance y registro de transacción si es aprobado.
+5. Control de idempotencia.
 
 ### Multi-Cuenta (Cajitas)
 
-1. Usuario puede tener múltiples cuentas financieras con roles independientes (USER/SOCIO).
-2. Selección de cuenta activa persistida en localStorage.
-3. Dashboard y rendimientos se adaptan al rol de la cuenta activa.
-4. Si no hay cuenta seleccionada → Redirige a `/select-account`.
+1. Múltiples cuentas financieras por usuario con roles independientes.
+2. Selección de cuenta persistida en localStorage.
+3. Adaptación de dashboard y rendimientos según el rol de la cuenta.
+4. Redirección para selección de cuenta si no hay una activa.
 
 ## Licencia
 

@@ -299,7 +299,7 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
   // ── PASO 1: Configuración ─────────────────────────────────────────────────
   if (step === 1) return (
     <div style={card}>
-      <div style={{ ...modal, maxWidth: 500 }}>
+      <div style={{ ...modal, maxWidth: 500 }} className="wizard-no-spin">
         {Header}
         <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
           <p style={{ margin: 0, color: "rgba(255,255,255,0.5)", fontSize: "0.875rem", lineHeight: 1.6 }}>
@@ -376,7 +376,12 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
             </button>
           </div>
         </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+          .wizard-no-spin input[type="number"]::-webkit-inner-spin-button,
+          .wizard-no-spin input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+          .wizard-no-spin input[type="number"] { -moz-appearance: textfield; }
+        `}</style>
       </div>
     </div>
   );
@@ -384,7 +389,13 @@ export function HistoricalWizard({ account, onClose, onSuccess }: Props) {
   // ── PASO 2: Tabla editable ────────────────────────────────────────────────
   if (step === 2) return (
     <div style={card}>
-      <div style={modal}>
+      <div style={modal} className="wizard-no-spin">
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+          .wizard-no-spin input[type="number"]::-webkit-inner-spin-button,
+          .wizard-no-spin input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+          .wizard-no-spin input[type="number"] { -moz-appearance: textfield; }
+        `}</style>
         {Header}
         <div style={{ overflowY: "auto", flex: 1 }}>
           <div style={{ padding: "14px 24px", background: "rgba(189,142,72,0.04)", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", gap: 24, flexWrap: "wrap" }}>

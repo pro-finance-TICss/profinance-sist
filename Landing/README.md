@@ -1,20 +1,20 @@
 # Pro-Finance Landing Page
 
-Plataforma pública de alto impacto visual para Pro-Finance, construida con **Astro**.
+Plataforma pública de alto impacto visual para Pro-Finance, construida con Astro.
 
 ## Características Principales
 
-- ⚡ **Rendimiento**: Generación de sitio estático (SSG) para máxima velocidad.
-- 🎨 **Diseño**: Estilo "Dark Premium" con gradientes dorados y componentes animados.
-- 🧩 **Modularidad**: Componentes reutilizables siguiendo principios SOLID.
+- **Rendimiento**: Generación de sitio estático (SSG) para máxima velocidad.
+- **Diseño**: Estilo profesional con modo oscuro, gradientes y componentes optimizados.
+- **Modularidad**: Componentes reutilizables siguiendo principios de desarrollo limpio.
 
 ## Estructura del Proyecto
 
 ```text
 src/
 ├── components/
-│   ├── index/          # Componentes principales de la Home (Hero, Benefits, FAQ, etc.)
-│   ├── ui/             # Componentes reutilizables (Botones, Títulos, Cards)
+│   ├── index/          # Componentes principales de la Home
+│   ├── ui/             # Componentes reutilizables
 │   ├── conocenos/      # Secciones específicas de la página "Conócenos"
 │   └── ...             # Componentes adicionales
 │
@@ -25,49 +25,49 @@ src/
 
 ## Guía de Instalación y Uso
 
-1.  **Instalar dependencias**:
+1. **Instalar dependencias**:
 
-    ```bash
-    npm install
-    ```
+   ```bash
+   npm install
+   ```
 
-2.  **Iniciar servidor local**:
+2. **Iniciar servidor local**:
 
-    Desde la raíz del proyecto (recomendado):
+   Desde la raíz del proyecto (recomendado):
 
-    ```bash
-    npm run landing:dev
-    ```
+   ```bash
+   npm run landing:dev
+   ```
 
-    O desde la carpeta `Landing`:
+   O desde la carpeta `Landing`:
 
-    ```bash
-    npm run dev
-    ```
+   ```bash
+   npm run dev
+   ```
 
-    El sitio estará disponible en `http://localhost:4321`.
+   El sitio estará disponible en `http://localhost:4321`.
 
-3.  **Construir para producción**:
+3. **Construir para producción**:
 
-    Desde la raíz:
+   Desde la raíz:
 
-    ```bash
-    npm run landing:build
-    ```
+   ```bash
+   npm run landing:build
+   ```
 
-    O localmente:
+   O localmente:
 
-    ```bash
-    npm run build
-    ```
+   ```bash
+   npm run build
+   ```
 
 ## Stack Tecnológico
 
 - **Framework**: Astro 5.0
-- **Estilos**: CSS Nativo (Variables CSS, Scoped Styles).
-- **Lenguaje**: TypeScript (en bloques de script).
+- **Estilos**: CSS Nativo (Variables CSS, Scoped Styles)
+- **Lenguaje**: TypeScript
 
 ## Estándares de Contribución
 
 - Utilizar componentes UI de `src/components/ui` siempre que sea posible.
-- Documentar nuevos componentes con **JSDoc** en Español.
+- Documentar nuevos componentes con JSDoc en Español.

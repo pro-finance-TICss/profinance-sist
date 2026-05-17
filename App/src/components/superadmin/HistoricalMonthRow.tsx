@@ -85,6 +85,7 @@ export const HistoricalMonthRow = memo(function HistoricalMonthRow({ row, index,
   const capitalEnd = round2(row.capitalBase + gainAmount);
 
   const isManual = row.isManualCapital;
+  const isDecember = mm === "12"; // Diciembre = mes de descanso, sin rendimiento
   const hasGain  = gainAmount > 0;
   const hasLoss  = gainAmount < 0;
 
@@ -132,14 +133,17 @@ export const HistoricalMonthRow = memo(function HistoricalMonthRow({ row, index,
           {row.isCycleEnd && (
             <span style={{ marginLeft: 6, fontSize: "0.65rem", color: GREEN, fontWeight: 700 }}>✓ fin ciclo</span>
           )}
-          {row.cycleNumber === null && (
+          {row.cycleNumber === null && !isDecember && (
             <span style={{ marginLeft: 6, fontSize: "0.65rem", color: BLUE }}>↔ libre</span>
+          )}
+          {isDecember && (
+            <span style={{ marginLeft: 6, fontSize: "0.65rem", color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>🏖 descanso</span>
           )}
         </td>
 
-        {/* Capital base (editable — solo significativo en el primer mes del ciclo) */}
+        {/* Capital base */}
         <td style={{ padding: "8px 10px" }}>
-          {row.isCycleStart ? (
+          {!isDecember && row.isCycleStart ? (
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <input
                 type="number" min={0} step={0.01}
@@ -161,32 +165,37 @@ export const HistoricalMonthRow = memo(function HistoricalMonthRow({ row, index,
               )}
             </div>
           ) : (
-            // En meses intermedios del ciclo el capitalBase está bloqueado
             <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.35)", paddingLeft: 10 }}>
               ${fmt(row.capitalBase)}
             </span>
           )}
-          {isManual && row.isCycleStart && (
+          {isManual && row.isCycleStart && !isDecember && (
             <p style={{ margin: "3px 0 0", fontSize: "0.68rem", color: "rgba(255,190,50,0.6)" }}>
               Rec: ${fmt(row.suggestedCapital)}
             </p>
           )}
         </td>
 
-        {/* % del mes (editable) */}
+        {/* % del mes — bloqueado en Diciembre */}
         <td style={{ padding: "8px 10px" }}>
-          <input
-            type="number" step={0.01}
-            value={localPct}
-            style={inputStyle}
-            onChange={(e) => setLocalPct(e.target.value)}
-            onBlur={commitPct}
-            onKeyDown={handlePctKeyDown}
-          />
-          {row.performances && row.performances.length > 0 && (
-            <p style={{ margin: "3px 0 0", fontSize: "0.68rem", color: "rgba(255,255,255,0.3)" }}>
-              Rec: {round2(row.performances.reduce((s, p) => s + p.userPercentage, 0)).toFixed(2)}%
-            </p>
+          {isDecember ? (
+            <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.2)", paddingLeft: 10, fontStyle: "italic" }}>—</span>
+          ) : (
+            <>
+              <input
+                type="number" step={0.01}
+                value={localPct}
+                style={inputStyle}
+                onChange={(e) => setLocalPct(e.target.value)}
+                onBlur={commitPct}
+                onKeyDown={handlePctKeyDown}
+              />
+              {row.performances && row.performances.length > 0 && (
+                <p style={{ margin: "3px 0 0", fontSize: "0.68rem", color: "rgba(255,255,255,0.3)" }}>
+                  Rec: {round2(row.performances.reduce((s, p) => s + p.userPercentage, 0)).toFixed(2)}%
+                </p>
+              )}
+            </>
           )}
         </td>
 
