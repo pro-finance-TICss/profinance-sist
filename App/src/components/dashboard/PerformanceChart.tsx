@@ -116,15 +116,14 @@ function formatAmountTick(value: number): string {
 }
 
 // ============================================================================
-// TOOLTIP — Tendencia ($)
+// TOOLTIP — Tendencia acumulada (%)
 // ============================================================================
 
 function TrendTooltip({ active, payload, selectedMonth }: { active?: boolean; payload?: any[]; selectedMonth?: string }) {
   if (!active || !payload?.length) return null;
   const point = payload[0].payload as TrendPoint;
-  const val   = point.total;   // capital base + ganancias acumuladas
-  const isPos = val > 0;
-  const color = COLOR_GOLD;
+  const val   = point.total;   // % acumulado hasta este día
+  const color = val >= 0 ? COLOR_GOLD : COLOR_LOSS;
 
   // Label: "15 de abril de 2026"
   let dateLabel = point.label;
@@ -133,16 +132,6 @@ function TrendTooltip({ active, payload, selectedMonth }: { active?: boolean; pa
     dateLabel = new Date(y, m - 1, point.day)
       .toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
   }
-
-  // Formateo adaptativo: muestra decimales para valores pequeños
-  const absVal = Math.abs(val);
-  const formatted = absVal >= 1_000_000
-    ? `${(absVal / 1_000_000).toFixed(2)}M COP`
-    : absVal >= 1_000
-    ? `${(absVal / 1_000).toFixed(1)}K COP`
-    : absVal >= 1
-    ? `${absVal.toFixed(2)} COP`
-    : `${absVal.toFixed(4)} COP`;
 
   return (
     <div style={{
@@ -157,7 +146,10 @@ function TrendTooltip({ active, payload, selectedMonth }: { active?: boolean; pa
         {dateLabel}
       </p>
       <p style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color }}>
-        {isPos ? "+" : val < 0 ? "−" : ""}{formatted}
+        {val > 0 ? "+" : val < 0 ? "−" : ""}{Math.abs(val).toFixed(2)}%
+      </p>
+      <p style={{ margin: "4px 0 0", fontSize: "0.68rem", color: "rgba(255,255,255,0.3)" }}>
+        acumulado del período
       </p>
     </div>
   );
@@ -393,7 +385,7 @@ function HeaderBar({ accountType, mode, onToggle, selectedMonth, onMonthChange, 
                   disabled={disabled}
                   onClick={() => onToggle(m)}
                   aria-pressed={isActive}
-                  title={m === "amount" ? "Dinero · tendencia acumulada" : "Porcentaje · cambio diario"}
+                  title={m === "amount" ? "Tendencia · % acumulado del período" : "Barras · % por día"}
                   style={{
                     padding: "5px 12px",
                     fontSize: "0.72rem",
@@ -407,7 +399,7 @@ function HeaderBar({ accountType, mode, onToggle, selectedMonth, onMonthChange, 
                     color: isActive ? activeColor : "rgba(255,255,255,0.3)",
                   }}
                 >
-                  {m === "amount" ? "$" : "%"}
+                  {m === "amount" ? "≈" : "%"}
                 </button>
               );
             })}
@@ -538,7 +530,8 @@ export function PerformanceChart({ accountId, accountType, isHighRisk, accountCr
     }
   }, [accountType, fetchInvestmentChart, fetchSavingsChart, fetchPerfData]);
 
-  // ── Puntos para gráfica de TENDENCIA ($) ──────────────────────────────────
+  // ── Puntos para gráfica de TENDENCIA (% acumulado) ───────────────────────
+  // Usa la misma fuente que dayPoints (perfData) pero acumula el % día a día
   const trendPoints = useMemo((): TrendPoint[] => {
     if (accountType !== "INVESTMENT") {
       return savingsTrend.map((p, i) => ({ day: p.day ?? i + 1, label: p.label, total: p.total }));
@@ -548,39 +541,37 @@ export function PerformanceChart({ accountId, accountType, isHighRisk, accountCr
 
     // Si el mes seleccionado es ANTERIOR al mes de creación de la cuenta → no hay datos
     if (accountCreatedAt) {
-      const createdYM = accountCreatedAt.substring(0, 7); // "YYYY-MM"
+      const createdYM = accountCreatedAt.substring(0, 7);
       if (selectedMonth < createdYM) return [];
     }
 
     const [y, m] = selectedMonth.split("-").map(Number);
 
-    // Para la tendencia $ usamos snapshotData (datos históricos exactos si existen)
-    const events = snapshotData
-      .filter((p) => p.period.substring(0, 7) === selectedMonth)
-      .sort((a, b) => a.period.localeCompare(b.period));
+    // Mapa día → suma de porcentajes de ese día (igual que dayPoints)
+    const dayMap = new Map<number, number>();
+    perfData
+      .filter((p) => {
+        const d = new Date(p.startDate);
+        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        return ym === selectedMonth;
+      })
+      .forEach((p) => {
+        const day = new Date(p.startDate).getDate();
+        dayMap.set(day, (dayMap.get(day) ?? 0) + p.percentage);
+      });
 
-    // Si no hay ningún snapshot ni performance en este mes, no mostrar línea falsa
-    if (events.length === 0) return [];
-
-    // Capital de inicio del mes: capitalBase del primer evento
-    const startingCapital = events[0].capitalBase;
-
-    // Mapa día → suma de ganancias ($) ese día
-    const gainMap = new Map<number, number>();
-    events.forEach((p) => {
-      const day = parseInt(p.period.split("-")[2], 10);
-      gainMap.set(day, (gainMap.get(day) ?? 0) + (p.amount ?? 0));
-    });
+    // Sin datos de rendimiento en este mes → no dibujar línea falsa
+    if (dayMap.size === 0) return [];
 
     const daysInMonth = new Date(y, m, 0).getDate();
-    let running = startingCapital;
+    let cumulative = 0;
     const result: TrendPoint[] = [];
     for (let day = 1; day <= daysInMonth; day++) {
-      running += gainMap.get(day) ?? 0;
-      result.push({ day, label: String(day), total: running });
+      cumulative += dayMap.get(day) ?? 0;
+      result.push({ day, label: String(day), total: cumulative });
     }
     return result;
-  }, [snapshotData, selectedMonth, accountType, savingsTrend, accountCreatedAt]);
+  }, [perfData, selectedMonth, accountType, savingsTrend, accountCreatedAt]);
 
 
   // ── Puntos para gráfica de PORCENTAJE (%) ────────────────────────────────
@@ -683,7 +674,7 @@ export function PerformanceChart({ accountId, accountType, isHighRisk, accountCr
                 tickFormatter={(day) => day === 1 || day % 5 === 0 || day >= 28 ? String(day) : ""}
                 tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 500 }}
                 axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={formatAmountTick}
+              <YAxis tickFormatter={(v) => `${v > 0 ? "+" : ""}${v.toFixed(1)}%`}
                 tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 500 }}
                 axisLine={false} tickLine={false} width={52} />
               <Tooltip content={(props: any) => <TrendTooltip {...props} selectedMonth={selectedMonth} />}
@@ -733,7 +724,7 @@ export function PerformanceChart({ accountId, accountType, isHighRisk, accountCr
       {/* Nota de fuente */}
       {accountType === "INVESTMENT" && (
         <p style={{ margin: 0, fontSize: "0.7rem", color: "rgba(255,255,255,0.18)", fontWeight: 400, textAlign: "right" }}>
-          {mode === "percentage" ? "Porcentaje diario · agrupado por día" : "Tendencia acumulada del período"} · Fase 4.5
+          {mode === "percentage" ? "Porcentaje diario · agrupado por día" : "Tendencia acumulada de rendimiento · %"} · Fase 4.5
         </p>
       )}
     </section>
